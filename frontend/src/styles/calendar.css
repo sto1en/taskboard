@@ -1,0 +1,71 @@
+.calendar__title {
+    margin: 0 0 20px;
+    font-size: 22px;
+    color: var(--text);
+}
+
+.calendar__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.calendar__weekday {
+    background: var(--bg);
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.calendar__cell {
+    background: var(--surface);
+    min-height: 96px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.calendar__cell--empty {
+    background: #fafbfc;
+}
+
+.calendar__cell--today {
+    background: rgba(76, 154, 255, 0.06);
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+}
+
+.calendar__daynum {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
+.calendar__tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    overflow: hidden;
+}
+
+.calendar__task {
+    font-size: 11px;
+    padding: 2px 6px;
+    background: rgba(76, 154, 255, 0.12);
+    color: var(--primary);
+    border-left: 2px solid var(--primary);
+    border-radius: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

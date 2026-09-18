@@ -1,0 +1,87 @@
+/* ============ Общий фон страниц авторизации ============ */
+
+.auth {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+
+    /* Градиент как на референсе */
+    background: linear-gradient(135deg, #5b8def 0%, #8f6ed5 100%);
+}
+
+.auth__card {
+    width: 100%;
+    max-width: 400px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 40px 36px 32px;
+    box-shadow: 0 20px 60px rgba(9, 30, 66, 0.25);
+}
+
+/* ============ Шапка ============ */
+
+.auth__logo {
+    margin: 0 0 6px;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary);
+    text-align: center;
+    letter-spacing: -0.5px;
+}
+
+.auth__subtitle {
+    margin: 0 0 28px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+/* ============ Поля формы ============ */
+
+.auth__field {
+    margin-bottom: 16px;
+}
+
+.auth__label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+/* ============ Кнопка ============ */
+
+.auth__submit {
+    width: 100%;
+    margin-top: 8px;
+    padding: 13px;
+    font-size: 15px;
+}
+
+/* ============ Подвал формы ============ */
+
+.auth__footer {
+    margin: 22px 0 0;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+.auth__footer a {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* ============ Демо-плашка ============ */
+
+.auth__hint {
+    margin: 20px 0 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 10px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    line-height: 1.4;
+}

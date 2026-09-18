@@ -1,0 +1,192 @@
+/* ============================================================
+   TasksListPage — универсальная страница списка задач
+   (используется для /in-progress, /done, /archived)
+   ============================================================ */
+
+.task-list {
+    width: 100%;
+}
+
+.task-list__hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.task-list__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 6px;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+}
+
+/* Цветная точка перед заголовком — цвет ставится inline */
+.task-list__dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.task-list__sub {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.task-list__overdue {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+/* ============================================================
+   Пустой список
+   ============================================================ */
+
+.task-list__empty {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 15px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 2px dashed var(--border);
+}
+
+/* ============================================================
+   Список задач
+   ============================================================ */
+
+.task-list__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tl-task {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    border-left: 4px solid var(--col-open);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.tl-task:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateX(2px);
+}
+
+/* Разный цвет полосы по статусу */
+.task-list--done     .tl-task { border-left-color: var(--col-done); }
+.task-list--archived .tl-task { border-left-color: #97a0af; opacity: 0.85; }
+
+/* Кружок-чекбокс */
+.tl-task__check {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.tl-task__check:hover {
+    border-color: var(--primary);
+    background: rgba(76, 154, 255, 0.08);
+}
+
+/* Основной блок */
+.tl-task__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tl-task__title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.task-list--done     .tl-task__title { text-decoration: line-through; opacity: 0.7; }
+.task-list--archived .tl-task__title { color: var(--text-muted); }
+
+.tl-task__meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.tl-task__tag { font-family: ui-monospace, SFMono-Regular, monospace; }
+
+.tl-task__board {
+    padding-left: 12px;
+    position: relative;
+}
+.tl-task__board::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--border);
+}
+
+/* Дедлайн */
+.tl-task__deadline {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.tl-task__deadline--overdue { color: var(--danger); font-weight: 600; }
+
+.tl-task__badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 6px;
+    background: rgba(255, 86, 48, 0.12);
+    color: var(--danger);
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Кнопка «открыть доску» */
+.tl-task__open {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+}
+.tl-task__open:hover {
+    color: var(--primary);
+    background: rgba(76, 154, 255, 0.08);
+}

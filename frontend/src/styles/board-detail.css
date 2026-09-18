@@ -1,0 +1,174 @@
+/* ============================================================
+   BoardDetailPage — общий layout
+   ============================================================ */
+
+.board-detail {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 60px - 48px);
+    min-height: 0;
+}
+
+.board-detail__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+}
+
+.board-detail__title {
+    margin: 0;
+    font-size: 22px;
+    color: var(--text);
+}
+
+.board-detail__scroll {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.kanban {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(280px, 1fr));
+    gap: 16px;
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
+    min-width: 900px;
+}
+
+/* ============================================================
+   KanbanColumn
+   ============================================================ */
+
+.kanban-col {
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Шапка колонки — кликабельная */
+.kanban-col__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 8px 6px 8px 4px;
+    border-bottom: 2px solid transparent;
+    flex-shrink: 0;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 4px 4px 0 0;
+    transition: background .15s, border-bottom-color .15s;
+}
+.kanban-col__head:hover {
+    background: rgba(76,154,255,.06);
+    text-decoration: none;
+}
+
+.kanban-col--active   .kanban-col__head { border-bottom-color: var(--col-open); }
+.kanban-col--done     .kanban-col__head { border-bottom-color: var(--col-done); }
+.kanban-col--archived .kanban-col__head { border-bottom-color: #97a0af; }
+
+.kanban-col__title {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    color: var(--text);
+}
+
+.kanban-col__count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: rgba(9, 30, 66, 0.06);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* Стрелка, которая появляется при наведении на шапку */
+.kanban-col__arrow {
+    font-size: 14px;
+    color: var(--primary);
+    opacity: 0;
+    margin-left: 6px;
+    transition: opacity .15s, transform .15s;
+}
+.kanban-col__head:hover .kanban-col__arrow {
+    opacity: 1;
+    transform: translateX(2px);
+}
+
+/* Внутренняя скроллируемая зона */
+.kanban-col__body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    margin-bottom: 8px;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+.kanban-col__body::-webkit-scrollbar { width: 6px; }
+.kanban-col__body::-webkit-scrollbar-track { background: transparent; }
+.kanban-col__body::-webkit-scrollbar-thumb {
+    background: var(--border); border-radius: 3px;
+}
+.kanban-col__body::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.kanban-col__add {
+    flex-shrink: 0;
+    background: transparent;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+    transition: border-color 0.15s, color 0.15s;
+    cursor: pointer;
+}
+.kanban-col__add:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* ============================================================
+   TaskCard
+   ============================================================ */
+
+.task-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    box-shadow: var(--shadow-sm);
+    border-left: 3px solid var(--col-open);
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+    flex-shrink: 0;
+}
+.task-card:hover { box-shadow: var(--shadow-md); }
+
+.kanban-col--active   .task-card { border-left-color: var(--col-open); }
+.kanban-col--done     .task-card { border-left-color: var(--col-done); }
+.kanban-col--archived .task-card { border-left-color: #97a0af; opacity: 0.85; }
+
+.task-card__tag {
+    font-size: 11px; color: var(--text-muted); margin-bottom: 4px;
+}
+.task-card__title {
+    font-size: 13px; line-height: 1.35; color: var(--text);
+}

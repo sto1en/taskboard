@@ -1,0 +1,126 @@
+# ============================================================
+#  TaskBoard — .gitignore
+#  Стек: Spring Boot (Java 21, Maven) + React (Vite) + PostgreSQL
+# ============================================================
+
+# ------------------------------------------------------------
+#  Java / Maven / Spring Boot
+# ------------------------------------------------------------
+backend/target/
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# Maven Wrapper - логи
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Spring Boot
+*.log
+logs/
+backend/uploads/
+uploads/
+
+# ------------------------------------------------------------
+#  Node.js / React / Vite
+# ------------------------------------------------------------
+frontend/node_modules/
+node_modules/
+
+frontend/dist/
+frontend/dist-ssr/
+dist/
+build/
+
+# Vite кэш
+frontend/.vite/
+.vite/
+
+# npm/yarn/pnpm логи
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ------------------------------------------------------------
+#  IntelliJ IDEA
+# ------------------------------------------------------------
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# ------------------------------------------------------------
+#  VS Code / Eclipse / NetBeans
+# ------------------------------------------------------------
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+.classpath
+.project
+.settings/
+.factorypath
+
+nbproject/private/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# ------------------------------------------------------------
+#  OS
+# ------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ------------------------------------------------------------
+#  Переменные окружения / секреты
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+
+# Файлы конфигурации с секретами
+**/application-local.properties
+**/application-local.yml
+**/application-secret.properties
+
+# ------------------------------------------------------------
+#  Логи и временные файлы
+# ------------------------------------------------------------
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------
+#  Nginx (если понадобится)
+# ------------------------------------------------------------
+nginx/logs/
+nginx/temp/
+nginx/*.pid
+
+# ------------------------------------------------------------
+#  Разное
+# ------------------------------------------------------------
+HELP.md
+!.gitkeep
