@@ -1,6 +1,7 @@
 package coursework.taskboard.model.user;
 
 import coursework.taskboard.model.attachment.Attachment;
+import coursework.taskboard.model.board.Board;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;

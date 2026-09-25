@@ -1,5 +1,7 @@
 package coursework.taskboard.model.board;
 
+import coursework.taskboard.model.project.Project;
+import coursework.taskboard.model.tag.Tag;
 import coursework.taskboard.model.user.User;
 import jakarta.persistence.*;
 import lombok.*;

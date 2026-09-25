@@ -1,6 +1,8 @@
 package coursework.taskboard.model.project;
 
 import coursework.taskboard.model.board.Board;
+import coursework.taskboard.model.stage.Stage;
+import coursework.taskboard.model.task.Task;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
