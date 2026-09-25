@@ -25,6 +25,7 @@ public class UserWorkspace {
     @JoinColumn(name = "default_board_id")
     private Board defaultBoard;
 
+    // количество загружаемых задач на странице. Если их будет больше
     @Column(name = "tasks_per_page", nullable = false)
     @Builder.Default
     private Short tasksPerPage = 10;

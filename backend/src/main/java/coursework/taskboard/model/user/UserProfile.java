@@ -1,5 +1,6 @@
 package coursework.taskboard.model.user;
 
+import coursework.taskboard.model.attachment.Attachment;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,10 +22,10 @@ public class UserProfile {
     @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(name = "display_name", nullable = false, length = 20)
+    @Column(name = "display_name", nullable = false, length = 100)
     private String displayName;
 
-    @Column(length = 150)
+    @Column(length = 500)
     private String bio;
 
     @ManyToOne(fetch = FetchType.LAZY)

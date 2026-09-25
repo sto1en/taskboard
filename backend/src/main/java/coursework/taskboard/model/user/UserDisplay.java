@@ -20,11 +20,12 @@ public class UserDisplay {
     @MapsId
     @JoinColumn(name = "user_id")
     private UserSettings settings;
-
+    
     @Column(name = "task_sort_mode", nullable = false, length = 30)
     @Builder.Default
     private String taskSortMode = "manual";
 
+    // сортировка от ASC - от меньшего к большему. DESC - наоборот
     @Column(name = "task_sort_dir", nullable = false, length = 5)
     @Builder.Default
     private String taskSortDir = "asc";

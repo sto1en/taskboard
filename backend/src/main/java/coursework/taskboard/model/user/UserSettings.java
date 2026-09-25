@@ -42,5 +42,5 @@ public class UserSettings {
     private UserDisplay display;
 
     @OneToOne(mappedBy = "settings", cascade = CascadeType.ALL, orphanRemoval = true)
-    private UserNotifications notifications;
+    private UserNotification notification;
 }
