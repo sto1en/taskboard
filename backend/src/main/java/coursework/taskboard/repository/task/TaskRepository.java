@@ -6,10 +6,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
+    // ============================================================
+    // Списки задач
+    // ============================================================
     Page<Task> findByProjectIdAndParentIsNull(Long projectId, Pageable pageable);
 
     List<Task> findByProjectIdAndParentIsNullOrderByPositionAsc(Long projectId);
@@ -21,6 +26,55 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByParentIdOrderByPositionAsc(Long parentId);
 
     long countByParentId(Long parentId);
+
+    // ============================================================
+    // Подсчёты
+    // ============================================================
+    long countByProjectId(Long projectId);
+
+    long countByStageId(Long stageId);
+
+    @Query("""
+        SELECT count(t) FROM Task t
+        JOIN t.settings s
+        WHERE t.project.id = :projectId
+          AND s.status.categoryCode IN ('DONE', 'EXPIRED', 'CANCELLED', 'ARCHIVED')
+    """)
+    long countDoneByProjectId(@Param("projectId") Long projectId);
+
+    @Query("""
+        SELECT count(t) FROM Task t
+        JOIN t.settings s
+        WHERE t.project.id = :projectId
+          AND s.status.categoryCode = 'ACTIVE'
+    """)
+    long countActiveByProjectId(@Param("projectId") Long projectId);
+
+    @Query("""
+        SELECT count(t) FROM Task t
+        JOIN t.settings s
+        WHERE t.stage.id = :stageId
+          AND s.status.categoryCode IN ('DONE', 'EXPIRED', 'CANCELLED', 'ARCHIVED')
+    """)
+    long countDoneByStageId(@Param("stageId") Long stageId);
+
+    @Query("""
+        SELECT count(t) FROM Task t
+        JOIN t.project p
+        WHERE p.board.id = :boardId
+    """)
+    long countByBoardId(@Param("boardId") Long boardId);
+
+    // ============================================================
+    // Kanban / поиск / статистика
+    // ============================================================
+    @Query("""
+        SELECT t FROM Task t
+        JOIN t.settings s
+        WHERE s.status.id = :statusId
+        ORDER BY t.position
+    """)
+    List<Task> findByStatusId(@Param("statusId") Long statusId);
 
     @Query("""
         SELECT t FROM Task t
@@ -39,4 +93,27 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         ORDER BY t.position
     """)
     List<Task> searchInProject(@Param("projectId") Long projectId, @Param("q") String q);
+
+    @Query("""
+        SELECT count(t) FROM Task t
+        JOIN t.project p
+        JOIN p.board b
+        WHERE b.owner.id = :userId
+          AND t.createdAt >= :from
+    """)
+    long countTotalByOwner(@Param("userId") Long userId, @Param("from") LocalDateTime from);
+
+    @Query("""
+        SELECT count(t) FROM Task t
+        JOIN t.settings s
+        JOIN s.status st
+        JOIN t.project p
+        JOIN p.board b
+        WHERE b.owner.id = :userId
+          AND t.createdAt >= :from
+          AND st.categoryCode = :categoryCode
+    """)
+    long countByCategoryByOwner(@Param("userId") Long userId,
+                                @Param("from") LocalDateTime from,
+                                @Param("categoryCode") String categoryCode);
 }

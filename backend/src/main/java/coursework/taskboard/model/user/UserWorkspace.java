@@ -29,7 +29,7 @@ public class UserWorkspace {
     // количество загружаемых задач на странице. Если их будет больше
     @Column(name = "tasks_per_page", nullable = false)
     @Builder.Default
-    private Short tasksPerPage = 10;
+    private Short tasksPerPage = 50;
 
     @Column(name = "confirm_before_delete", nullable = false)
     @Builder.Default

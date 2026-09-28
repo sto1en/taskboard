@@ -1,9 +1,27 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
-    const onSubmit = (e) => {
+    const nav = useNavigate()
+    const { login } = useAuth()
+    const [username, setUsername] = useState('')
+    const [password, setPassword] = useState('')
+    const [error, setError] = useState(null)
+    const [loading, setLoading] = useState(false)
+
+    const onSubmit = async (e) => {
         e.preventDefault()
-        console.log('login submit')
+        setError(null)
+        setLoading(true)
+        try {
+            await login(username, password)
+            nav('/boards')
+        } catch (err) {
+            setError(err.response?.data?.message || 'Неверный логин или пароль')
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -14,12 +32,14 @@ export default function LoginPage() {
 
                 <form onSubmit={onSubmit}>
                     <div className="auth__field">
-                        <label className="auth__label">Email</label>
+                        <label className="auth__label">Логин</label>
                         <input
                             className="input"
-                            type="email"
-                            placeholder="you@example.com"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="andrew"
                             autoFocus
+                            required
                         />
                     </div>
 
@@ -28,12 +48,17 @@ export default function LoginPage() {
                         <input
                             className="input"
                             type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
+                            required
                         />
                     </div>
 
-                    <button type="submit" className="btn btn-primary auth__submit">
-                        Войти
+                    {error && <div className="auth__error">{error}</div>}
+
+                    <button type="submit" className="btn btn-primary auth__submit" disabled={loading}>
+                        {loading ? 'Вход...' : 'Войти'}
                     </button>
                 </form>
 

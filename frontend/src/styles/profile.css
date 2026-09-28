@@ -1,0 +1,152 @@
+.profile-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 0;
+}
+
+.profile-page__title {
+    margin: 0 0 24px;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.profile-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    overflow-x: auto;
+
+    /* Скрыть скроллбар, но оставить прокрутку */
+    scrollbar-width: none;        /* Firefox */
+    -ms-overflow-style: none;     /* IE/Edge */
+}
+.profile-tabs::-webkit-scrollbar {
+    display: none;                /* Chrome/Safari */
+}
+
+.profile-tab {
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    font-family: inherit;
+    flex-shrink: 0;
+}
+.profile-tab:hover { color: var(--text); }
+.profile-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+}
+
+.profile-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.profile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.profile-field label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.profile-field--check label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.profile-field--check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.profile-msg {
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+.profile-msg--success {
+    background: rgba(54, 179, 126, 0.1);
+    color: var(--success);
+}
+.profile-msg--error {
+    background: rgba(255, 86, 48, 0.1);
+    color: var(--danger);
+}
+
+/* Avatar */
+.profile-avatar-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--primary);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.profile-avatar__placeholder {
+    color: #fff;
+    font-size: 32px;
+    font-weight: 700;
+}
+
+/* Accent picker */
+.accent-picker {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.accent-picker__item {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: transform .15s, border-color .15s;
+    padding: 0;
+}
+.accent-picker__item:hover { transform: scale(1.1); }
+.accent-picker__item.active { border-color: var(--text); }
+
+.accent-picker__item[data-accent="blue"]   { background: #4c9aff; }
+.accent-picker__item[data-accent="purple"] { background: #a45cd6; }
+.accent-picker__item[data-accent="green"]  { background: #36b37e; }
+.accent-picker__item[data-accent="orange"] { background: #ffab00; }
+.accent-picker__item[data-accent="red"]    { background: #ff5630; }
+.accent-picker__item[data-accent="pink"]   { background: #ff78c4; }
+.accent-picker__item[data-accent="gray"]   { background: #97a0af; }

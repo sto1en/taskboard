@@ -3,6 +3,7 @@ package coursework.taskboard.model.board;
 import coursework.taskboard.model.user.User;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -19,12 +20,12 @@ public class BoardMember {
 
     @Id
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_id")
+    @JoinColumn(name = "board_id", nullable = false)
     private Board board;
 
     @Id
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(nullable = false, length = 20)
@@ -43,6 +44,7 @@ public class BoardMember {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class BoardMemberId implements Serializable {
+
         private Long board;
         private Long user;
 

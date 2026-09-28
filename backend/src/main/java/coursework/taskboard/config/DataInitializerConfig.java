@@ -12,7 +12,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class DataInitializer implements CommandLineRunner {
+public class DataInitializerConfig implements CommandLineRunner {
 
     private final AccentRepository accentRepository;
     private final StatusCategoryRepository statusCategoryRepository;

@@ -2,7 +2,6 @@ package coursework.taskboard.model.task;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,7 +22,8 @@ public class TaskSchedule {
     @JoinColumn(name = "task_id")
     private Task task;
 
-    private LocalDate deadline;
+    @Column(name = "deadline")
+    private LocalDateTime deadline;
 
     @Column(name = "expired_at")
     private LocalDateTime expiredAt;

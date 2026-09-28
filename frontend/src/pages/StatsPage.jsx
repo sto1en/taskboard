@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react'
+import { statsApi } from '../api/api'
+
 const PERIODS = [
     { key: 'day',   label: 'Сегодня' },
     { key: 'week',  label: 'Неделя'  },
@@ -5,32 +8,35 @@ const PERIODS = [
     { key: 'year',  label: 'Год'     },
 ]
 
-// Демонстрационные данные. Позже — fetch('/api/stats?period=...')
-const DEMO_STATS = {
-    day:   { done: 2,  active: 5,  archived: 1 },
-    week:  { done: 9,  active: 14, archived: 3 },
-    month: { done: 32, active: 18, archived: 7 },
-    year:  { done: 210, active: 25, archived: 42 },
-}
-
 export default function StatsPage() {
-    // Показываем статистику за месяц по умолчанию.
-    const period = 'month'
-    const data = DEMO_STATS[period]
+    const [period, setPeriod] = useState('month')
+    const [data, setData] = useState(null)
+    const [loading, setLoading] = useState(true)
 
-    const total = data.done + data.active + data.archived
-    const pct = (n) => total ? Math.round((n / total) * 100) : 0
+    useEffect(() => {
+        setLoading(true)
+        statsApi.get(period)
+            .then(({ data }) => setData(data))
+            .catch(err => console.error('Stats load error:', err))
+            .finally(() => setLoading(false))
+    }, [period])
+
+    if (loading) return <div className="loading">Загрузка...</div>
+    if (!data) return <div className="loading">Нет данных</div>
+
+    const total = data.total || 0
+    const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0
 
     return (
         <div className="stats">
             <div className="stats__head">
                 <h2 className="stats__title">Статистика</h2>
-
                 <div className="stats__periods">
                     {PERIODS.map(p => (
                         <button
                             key={p.key}
                             className={`stats__period ${p.key === period ? 'stats__period--active' : ''}`}
+                            onClick={() => setPeriod(p.key)}
                         >
                             {p.label}
                         </button>
@@ -41,7 +47,7 @@ export default function StatsPage() {
             <div className="stats__cards">
                 <div className="stat-card">
                     <div className="stat-card__label">Всего задач</div>
-                    <div className="stat-card__value">{total}</div>
+                    <div className="stat-card__value">{data.total}</div>
                 </div>
                 <div className="stat-card stat-card--done">
                     <div className="stat-card__label">Выполнено</div>
@@ -69,7 +75,7 @@ export default function StatsPage() {
                     />
                 </div>
                 <div className="stats__progress-text">
-                    {data.done} из {total} задач выполнено ({pct(data.done)}%)
+                    {data.done} из {data.total} задач выполнено ({pct(data.done)}%)
                 </div>
             </div>
         </div>

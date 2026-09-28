@@ -26,7 +26,7 @@ public class UserAppearance {
     private String theme = "light";
 
     @Column(name = "accent_code", length = 30)
-    private String accentCode;
+    private String accentCode = "blue";
 
     @Column(nullable = false, length = 20)
     @Builder.Default

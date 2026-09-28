@@ -4,36 +4,43 @@ import coursework.taskboard.model.task.TaskSchedule;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import java.time.LocalDate;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
 public interface TaskScheduleRepository extends JpaRepository<TaskSchedule, Long> {
 
+    // ============================================================
+    // Cron просрочки
+    // ============================================================
     @Query("""
         SELECT ts FROM TaskSchedule ts
         JOIN ts.task t
         JOIN t.settings s
         JOIN s.status st
-        WHERE ts.deadline < :today
+        WHERE ts.deadline < :now
           AND ts.completedAt IS NULL
           AND ts.expiredAt IS NULL
           AND st.categoryCode = 'ACTIVE'
     """)
-    List<TaskSchedule> findOverdue(@Param("today") LocalDate today);
+    List<TaskSchedule> findOverdue(@Param("now") LocalDateTime now);
 
+    // ============================================================
+    // Календарь — диапазон дат
+    // ============================================================
     @Query("""
         SELECT ts FROM TaskSchedule ts
         JOIN ts.task t
         WHERE ts.deadline BETWEEN :from AND :to
           AND t.project.id IN :projectIds
     """)
-    List<TaskSchedule> findInPeriod(@Param("from") LocalDate from,
-                                    @Param("to") LocalDate to,
+    List<TaskSchedule> findInPeriod(@Param("from") LocalDateTime from,
+                                    @Param("to") LocalDateTime to,
                                     @Param("projectIds") List<Long> projectIds);
 
-    List<TaskSchedule> findByDeadline(LocalDate deadline);
-
+    // ============================================================
+    // Статистика
+    // ============================================================
     @Query("""
         SELECT ts FROM TaskSchedule ts
         JOIN ts.task t

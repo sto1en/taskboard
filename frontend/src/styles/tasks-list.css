@@ -190,3 +190,31 @@
     color: var(--primary);
     background: rgba(76, 154, 255, 0.08);
 }
+
+/* ============================================================
+   ListView — drag&drop
+   ============================================================ */
+
+.word-list__list {
+    display: flex;
+    flex-direction: column;
+}
+
+.word-list__item {
+    cursor: grab;
+}
+.word-list__item:active {
+    cursor: grabbing;
+}
+
+.word-list__item--dragging {
+    cursor: grabbing;
+    opacity: 0.4;
+}
+
+/* Теги в ListView — как в Kanban */
+.word-list__tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}

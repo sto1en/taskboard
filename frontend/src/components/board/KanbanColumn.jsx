@@ -1,34 +1,61 @@
-import { Link } from 'react-router-dom'
-import TaskCard from '../Task/TaskCard'
+import { useDroppable } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import SortableTaskCard from '../Task/SortableTaskCard'
 
-// Куда ведёт клик по шапке
-const STATUS_ROUTES = {
-    ACTIVE:   'in-progress',
-    DONE:     'done',
-    ARCHIVED: 'archived',
-}
+export default function KanbanColumn({
+                                         column,
+                                         projectId,
+                                         onTaskClick,
+                                         onToggleDone,
+                                         onAddTask,
+                                     }) {
+    const { setNodeRef, isOver } = useDroppable({
+        id: `column-${column.statusId}`,
+        data: { statusId: column.statusId },
+    })
 
-export default function KanbanColumn({ status, label, tasks = [], boardId }) {
-    const slug = status.toLowerCase()
-    const header = label || status
-    const route = STATUS_ROUTES[status] || 'in-progress'
-    const link = boardId ? `/${route}?board=${boardId}` : `/${route}`
+    const taskIds = column.tasks.map(t => t.id)
+
+    const accentColor = column.accentCode
+        ? `var(--accent-${column.accentCode}, #97a0af)`
+        : 'var(--primary)'
 
     return (
-        <div className={`kanban-col kanban-col--${slug}`}>
-            <Link to={link} className="kanban-col__head">
-                <span className="kanban-col__title">{header}</span>
-                <span className="kanban-col__count">{tasks.length}</span>
-                <span className="kanban-col__arrow">→</span>
-            </Link>
-
-            <div className="kanban-col__body">
-                {tasks.map(t => (
-                    <TaskCard key={t.id} task={t} />
-                ))}
+        <div
+            className={`kanban-col ${isOver ? 'kanban-col--over' : ''}`}
+            data-status-id={column.statusId}
+            style={{ '--accent': accentColor }}
+        >
+            <div
+                className="kanban-col__head"
+                style={{ borderBottomColor: accentColor }}
+            >
+                <span className="kanban-col__title" style={{ color: accentColor }}>
+                    {column.icon && <span style={{ marginRight: 4 }}>{column.icon}</span>}
+                    {column.title}
+                </span>
+                <span className="kanban-col__count">{column.count}</span>
             </div>
 
-            <button className="kanban-col__add">+ Добавить задачу</button>
+            <div className="kanban-col__body" ref={setNodeRef}>
+                <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+                    {column.tasks.map(t => (
+                        <SortableTaskCard
+                            key={t.id}
+                            task={t}
+                            onClick={onTaskClick}
+                            onToggleDone={onToggleDone}
+                        />
+                    ))}
+                </SortableContext>
+            </div>
+
+            <button
+                className="kanban-col__add"
+                onClick={() => onAddTask && onAddTask(column.statusId)}
+            >
+                + Добавить задачу
+            </button>
         </div>
     )
 }

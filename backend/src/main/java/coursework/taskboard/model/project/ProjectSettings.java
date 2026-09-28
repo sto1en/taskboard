@@ -1,8 +1,6 @@
-/**
-*
-*/
 package coursework.taskboard.model.project;
 
+import coursework.taskboard.model.attachment.Attachment;
 import coursework.taskboard.model.board.BoardStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -39,4 +37,8 @@ public class ProjectSettings {
 
     @Column(name = "accent_code", length = 30)
     private String accentCode;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cover_attachment_id")
+    private Attachment cover;
 }
