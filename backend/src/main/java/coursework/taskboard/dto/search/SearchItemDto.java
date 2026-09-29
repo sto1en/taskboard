@@ -8,11 +8,11 @@ import lombok.*;
 @AllArgsConstructor
 public class SearchItemDto {
 
-    private String kind;         // board / project / task / tag
+    private String kind;
     private Long id;
     private String title;
-    private String subtitle;     // контекст (доска, проект)
-    private String matchReason;  // 'tag:#свадьба' или null
+    private String subtitle;
+    private String matchReason;
     private String accentCode;
     private String icon;
 

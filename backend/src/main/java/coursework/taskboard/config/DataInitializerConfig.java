@@ -72,13 +72,11 @@ public class DataInitializerConfig implements CommandLineRunner {
         if (mimeTypeRepository.count() > 0) return;
 
         mimeTypeRepository.saveAll(List.of(
-                // Картинки
                 MimeType.builder().code("image/jpeg").build(),
                 MimeType.builder().code("image/png").build(),
                 MimeType.builder().code("image/gif").build(),
                 MimeType.builder().code("image/webp").build(),
                 MimeType.builder().code("image/svg+xml").build(),
-                // Документы
                 MimeType.builder().code("application/pdf").build(),
                 MimeType.builder().code("application/msword").build(),
                 MimeType.builder().code("application/vnd.openxmlformats-officedocument.wordprocessingml.document").build(),
@@ -87,7 +85,6 @@ public class DataInitializerConfig implements CommandLineRunner {
                 MimeType.builder().code("text/plain").build(),
                 MimeType.builder().code("text/csv").build(),
                 MimeType.builder().code("text/markdown").build(),
-                // Архивы
                 MimeType.builder().code("application/zip").build(),
                 MimeType.builder().code("application/x-7z-compressed").build(),
                 MimeType.builder().code("application/x-rar-compressed").build()

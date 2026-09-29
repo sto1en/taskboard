@@ -18,6 +18,7 @@ import { boardsApi } from '../api/api'
 import SortableBoardCard from '../components/Board/SortableBoardCard'
 import BoardCard from '../components/Board/BoardCard'
 import CreateBoardModal from '../components/Board/CreateBoardModal'
+import EditBoardModal from '../components/Board/EditBoardModal'
 
 export default function BoardsPage() {
     const nav = useNavigate()
@@ -25,6 +26,7 @@ export default function BoardsPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [showCreate, setShowCreate] = useState(false)
+    const [editBoard, setEditBoard] = useState(null)
     const [activeBoard, setActiveBoard] = useState(null)
 
     const sensors = useSensors(
@@ -53,13 +55,9 @@ export default function BoardsPage() {
         setBoards(prev => [...prev, newBoard])
     }
 
-    const handleDeleted = async (boardId) => {
-        try {
-            await boardsApi.delete(boardId)
-            setBoards(prev => prev.filter(b => b.id !== boardId))
-        } catch (err) {
-            alert(err.response?.data?.message || 'Ошибка удаления')
-        }
+    const handleUpdated = (updated) => {
+        setBoards(prev => prev.map(b => b.id === updated.id ? updated : b))
+        setEditBoard(null)
     }
 
     const handleTogglePin = async (board) => {
@@ -73,7 +71,6 @@ export default function BoardsPage() {
         }
     }
 
-    // Закреплённые всегда сверху — drag только внутри своей группы
     const pinned = boards.filter(b => b.isPinned)
     const unpinned = boards.filter(b => !b.isPinned)
 
@@ -92,7 +89,6 @@ export default function BoardsPage() {
         const overBoard = boards.find(b => b.id === over.id)
         if (!activeBoard || !overBoard) return
 
-        // Не даём мешать закреплённые и незакреплённые
         if (activeBoard.isPinned !== overBoard.isPinned) return
 
         const group = activeBoard.isPinned ? pinned : unpinned
@@ -102,7 +98,6 @@ export default function BoardsPage() {
 
         const reordered = arrayMove(group, oldIndex, newIndex)
 
-        // Обновляем position локально
         const updated = reordered.map((b, idx) => ({ ...b, position: idx }))
         const other = activeBoard.isPinned ? unpinned : pinned
         const merged = activeBoard.isPinned
@@ -111,14 +106,13 @@ export default function BoardsPage() {
 
         setBoards(merged)
 
-        // Сохраняем на бэкенде
         try {
             await Promise.all(
                 updated.map(b => boardsApi.move(b.id, { position: b.position }))
             )
         } catch (err) {
             console.error('Move failed:', err)
-            load() // откат
+            load()
         }
     }
 
@@ -156,7 +150,7 @@ export default function BoardsPage() {
                                 key={b.id}
                                 board={b}
                                 onClick={() => nav(`/boards/${b.id}`)}
-                                onDelete={handleDeleted}
+                                onEdit={(board) => setEditBoard(board)}
                                 onTogglePin={() => handleTogglePin(b)}
                             />
                         ))}
@@ -189,6 +183,13 @@ export default function BoardsPage() {
                 open={showCreate}
                 onClose={() => setShowCreate(false)}
                 onCreated={handleCreated}
+            />
+
+            <EditBoardModal
+                open={!!editBoard}
+                onClose={() => setEditBoard(null)}
+                board={editBoard}
+                onUpdated={handleUpdated}
             />
         </div>
     )

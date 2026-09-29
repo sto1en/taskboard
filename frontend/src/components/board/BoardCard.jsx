@@ -1,12 +1,10 @@
-export default function BoardCard({ board, onClick, onDelete, onTogglePin }) {
+export default function BoardCard({ board, onClick, onEdit, onTogglePin }) {
     const accent = board.accentCode || board.accent || 'blue'
     const hasCover = !!board.coverUrl
 
-    const handleDelete = (e) => {
+    const handleEdit = (e) => {
         e.stopPropagation()
-        if (confirm(`Удалить доску "${board.title}"?`)) {
-            onDelete && onDelete(board.id)
-        }
+        onEdit && onEdit(board)
     }
 
     const handlePin = (e) => {
@@ -37,13 +35,13 @@ export default function BoardCard({ board, onClick, onDelete, onTogglePin }) {
                             📌
                         </button>
                     )}
-                    {onDelete && (
+                    {onEdit && (
                         <button
-                            className="board-card__action-btn board-card__action-btn--danger"
-                            onClick={handleDelete}
-                            title="Удалить доску"
+                            className="board-card__action-btn"
+                            onClick={handleEdit}
+                            title="Редактировать доску"
                         >
-                            🗑
+                            ✎
                         </button>
                     )}
                 </div>
