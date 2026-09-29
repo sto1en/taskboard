@@ -19,21 +19,18 @@ public class ProjectController {
     private final ProjectService projectService;
     private final CurrentUserService currentUserService;
 
-    // Проекты конкретной доски
     @GetMapping("/boards/{boardId}/projects")
     public ResponseEntity<List<ProjectDto>> listByBoard(@PathVariable Long boardId) {
         User user = currentUserService.getCurrentUser();
         return ResponseEntity.ok(projectService.getBoardProjects(boardId, user));
     }
 
-    // Один проект
     @GetMapping("/projects/{id}")
-    public ResponseEntity<ProjectDetailDto> get(@PathVariable Long id) {
+    public ResponseEntity<ProjectDto> get(@PathVariable Long id) {
         User user = currentUserService.getCurrentUser();
         return ResponseEntity.ok(projectService.getProject(id, user));
     }
 
-    // Создать проект в доске
     @PostMapping("/boards/{boardId}/projects")
     public ResponseEntity<ProjectDto> create(@PathVariable Long boardId,
                                              @Valid @RequestBody CreateProjectRequest request) {
@@ -41,7 +38,6 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.createProject(boardId, request, user));
     }
 
-    // Обновить проект
     @PatchMapping("/projects/{id}")
     public ResponseEntity<ProjectDto> update(@PathVariable Long id,
                                              @Valid @RequestBody UpdateProjectRequest request) {
@@ -49,7 +45,6 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.updateProject(id, request, user));
     }
 
-    // Удалить проект
     @DeleteMapping("/projects/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         User user = currentUserService.getCurrentUser();

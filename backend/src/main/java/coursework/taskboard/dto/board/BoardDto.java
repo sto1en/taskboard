@@ -1,9 +1,10 @@
 package coursework.taskboard.dto.board;
 
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 @Data
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 public class BoardDto {
@@ -15,6 +16,7 @@ public class BoardDto {
 
     private String accentCode;
     private String coverUrl;
+    private Long coverAttachmentId;
 
     private Boolean isPinned;
     private Boolean isPublic;

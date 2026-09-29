@@ -20,4 +20,6 @@ public class UpdateBoardRequest {
     private Boolean isPublic;
 
     private Integer position;
+
+    private Boolean clearCover;
 }

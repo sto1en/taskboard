@@ -2,6 +2,8 @@ package coursework.taskboard.dto.project;
 
 import lombok.*;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,6 +19,7 @@ public class ProjectDto {
 
     private String accentCode;
     private String coverUrl;
+    private Long coverAttachmentId;
 
     private Long statusId;
     private String statusCode;
@@ -29,4 +32,6 @@ public class ProjectDto {
     private long taskTotal;
     private long taskDone;
     private long taskActive;
+
+    private List<StageDto> stages;
 }

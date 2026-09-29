@@ -1,4 +1,4 @@
-package coursework.taskboard.dto.board;
+package coursework.taskboard.dto.project;
 
 import lombok.*;
 
@@ -6,16 +6,13 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProjectSummaryDto {
+public class StageDto {
 
     private Long id;
     private String title;
     private String description;
-    private Boolean isMain;
+    private String state;
     private Integer position;
-    private String accentCode;
-    private String statusCode;
-    private String statusTitle;
 
     private long taskTotal;
     private long taskDone;

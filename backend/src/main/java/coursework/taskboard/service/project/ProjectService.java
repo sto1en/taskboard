@@ -58,7 +58,8 @@ public class ProjectService {
 
             String coverUrl = resolveCoverUrl(settings);
 
-            result.add(projectMapper.toProjectDto(project, settings, total, done, active, coverUrl));
+            result.add(projectMapper.toProjectDto(project, settings, total, done, active,
+                    coverUrl, null));
         }
 
         result.sort(Comparator
@@ -69,7 +70,7 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public ProjectDetailDto getProject(Long projectId, User user) {
+    public ProjectDto getProject(Long projectId, User user) {
         Project project = getProjectWithAccess(projectId, user);
         ProjectSettings settings = projectSettingsRepository.findById(projectId).orElse(null);
 
@@ -78,18 +79,18 @@ public class ProjectService {
         long active = taskRepository.countActiveByProjectId(projectId);
 
         List<Stage> stages = stageRepository.findByProjectIdOrderByPositionAsc(projectId);
-        List<StageSummaryDto> stageSummaries = new ArrayList<>();
+        List<StageDto> stageDtos = new ArrayList<>();
 
         for (Stage stage : stages) {
             long stageTotal = taskRepository.countByStageId(stage.getId());
             long stageDone = taskRepository.countDoneByStageId(stage.getId());
-            stageSummaries.add(projectMapper.toStageSummaryDto(stage, stageTotal, stageDone));
+            stageDtos.add(projectMapper.toStageDto(stage, stageTotal, stageDone));
         }
 
         String coverUrl = resolveCoverUrl(settings);
 
-        return projectMapper.toProjectDetailDto(project, settings, total, done, active,
-                coverUrl, stageSummaries);
+        return projectMapper.toProjectDto(project, settings, total, done, active,
+                coverUrl, stageDtos);
     }
 
     @Transactional
@@ -112,7 +113,7 @@ public class ProjectService {
                 project, defaultStatus, request.getAccentCode());
         projectSettingsRepository.save(settings);
 
-        return projectMapper.toProjectDto(project, settings, 0, 0, 0, null);
+        return projectMapper.toProjectDto(project, settings, 0, 0, 0, null, null);
     }
 
     @Transactional
@@ -160,7 +161,8 @@ public class ProjectService {
 
         String coverUrl = resolveCoverUrl(settings);
 
-        return projectMapper.toProjectDto(project, settings, total, done, active, coverUrl);
+        return projectMapper.toProjectDto(project, settings, total, done, active,
+                coverUrl, null);
     }
 
     @Transactional

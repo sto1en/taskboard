@@ -1,5 +1,6 @@
 package coursework.taskboard.service.task;
 
+import coursework.taskboard.dto.attachment.AttachmentDto;
 import coursework.taskboard.dto.task.*;
 import coursework.taskboard.model.attachment.Attachment;
 import coursework.taskboard.model.attachment.AttachmentMeta;
@@ -53,6 +54,9 @@ public class TaskService {
 
     private final TaskMapper taskMapper;
 
+    // ============================================================
+    // Создать задачу
+    // ============================================================
     @Transactional
     public TaskDto createTask(Long projectId, CreateTaskRequest request, User user) {
         Project project = getProjectWithAccess(projectId, user);
@@ -121,6 +125,9 @@ public class TaskService {
                 tagDtos, new ArrayList<>(), 0, 0);
     }
 
+    // ============================================================
+    // Одна задача — детально
+    // ============================================================
     @Transactional(readOnly = true)
     public TaskDto getTask(Long taskId, User user) {
         Task task = getTaskWithAccess(taskId, user);
@@ -140,11 +147,11 @@ public class TaskService {
             tags.add(taskMapper.toTagShortDto(tag, ta));
         }
 
-        List<AttachmentShortDto> attachments = new ArrayList<>();
+        List<AttachmentDto> attachments = new ArrayList<>();
         for (TaskAttachment att : taskAttachmentRepository.findByTaskIdOrderByPositionAsc(taskId)) {
             Attachment a = att.getAttachment();
             AttachmentMeta meta = attachmentMetaRepository.findById(a.getId()).orElse(null);
-            attachments.add(taskMapper.toAttachmentShortDto(a, meta, att.getPosition()));
+            attachments.add(taskMapper.toAttachmentDto(a, meta, att.getPosition()));
         }
 
         long subtaskTotal = taskRepository.countByParentId(taskId);
@@ -153,6 +160,9 @@ public class TaskService {
                 tags, attachments, subtaskTotal, 0);
     }
 
+    // ============================================================
+    // Список задач проекта
+    // ============================================================
     @Transactional(readOnly = true)
     public List<TaskShortDto> getProjectTasks(Long projectId, User user) {
         getProjectWithAccess(projectId, user);
@@ -161,6 +171,9 @@ public class TaskService {
         return toShortDtos(tasks);
     }
 
+    // ============================================================
+    // Kanban по проекту
+    // ============================================================
     @Transactional(readOnly = true)
     public KanbanDto getProjectKanban(Long projectId, User user) {
         Project project = getProjectWithAccess(projectId, user);
@@ -193,6 +206,9 @@ public class TaskService {
         return KanbanDto.builder().columns(columns).build();
     }
 
+    // ============================================================
+    // Обновить задачу
+    // ============================================================
     @Transactional
     public TaskDto updateTask(Long taskId, UpdateTaskRequest request, User user) {
         Task task = getTaskWithAccess(taskId, user);
@@ -225,8 +241,6 @@ public class TaskService {
             if (!"task".equals(newStatus.getScope())) {
                 throw new IllegalArgumentException("Status must have scope='task'");
             }
-
-            // ПРОВЕРКА allowDragIn УБРАНА — можно кидать в любой статус
 
             boolean wasFinal = isFinalStatus(settings.getStatus());
             boolean willBeFinal = isFinalStatus(newStatus);
@@ -279,12 +293,18 @@ public class TaskService {
                 tagDtos, new ArrayList<>(), subtaskTotal, 0);
     }
 
+    // ============================================================
+    // Удалить задачу
+    // ============================================================
     @Transactional
     public void deleteTask(Long taskId, User user) {
         Task task = getTaskWithAccess(taskId, user);
         taskRepository.delete(task);
     }
 
+    // ============================================================
+    // Вложения
+    // ============================================================
     @Transactional
     public void attachAttachment(Long taskId, Long attachmentId, User user) {
         Task task = getTaskWithAccess(taskId, user);
@@ -324,6 +344,9 @@ public class TaskService {
         }
     }
 
+    // ============================================================
+    // Helpers
+    // ============================================================
     private List<TaskShortDto> toShortDtos(List<Task> tasks) {
         List<TaskShortDto> result = new ArrayList<>();
 

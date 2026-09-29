@@ -1,6 +1,8 @@
 package coursework.taskboard.dto.task;
 
+import coursework.taskboard.dto.attachment.AttachmentDto;
 import lombok.*;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -33,7 +35,7 @@ public class TaskDto {
     private LocalDateTime completedAt;
 
     private List<TagShortDto> tags;
-    private List<AttachmentShortDto> attachments;
+    private List<AttachmentDto> attachments;
     private long subtaskTotal;
     private long subtaskDone;
 

@@ -1,5 +1,6 @@
 package coursework.taskboard.dto.task;
 
+import coursework.taskboard.dto.attachment.AttachmentDto;
 import coursework.taskboard.model.attachment.Attachment;
 import coursework.taskboard.model.attachment.AttachmentMeta;
 import coursework.taskboard.model.board.BoardStatus;
@@ -61,7 +62,7 @@ public class TaskMapper {
                              BoardStatus status,
                              BoardStatusAppearance statusAppearance,
                              List<TagShortDto> tags,
-                             List<AttachmentShortDto> attachments,
+                             List<AttachmentDto> attachments,
                              long subtaskTotal,
                              long subtaskDone) {
 
@@ -125,18 +126,20 @@ public class TaskMapper {
                 .build();
     }
 
-    public AttachmentShortDto toAttachmentShortDto(Attachment attachment,
-                                                   AttachmentMeta meta,
-                                                   Integer position) {
-        return AttachmentShortDto.builder()
+    public AttachmentDto toAttachmentDto(Attachment attachment,
+                                         AttachmentMeta meta,
+                                         Integer position) {
+        return AttachmentDto.builder()
                 .id(attachment.getId())
                 .url(meta != null ? baseUrl + "/" + meta.getUrl() : null)
                 .mimeCode(attachment.getMime().getCode())
                 .originalName(meta != null ? meta.getOriginalName() : null)
+                .alt(meta != null ? meta.getAlt() : null)
                 .width(meta != null ? meta.getWidth() : null)
                 .height(meta != null ? meta.getHeight() : null)
                 .sizeBytes(meta != null ? meta.getSizeBytes() : null)
                 .position(position)
+                .createdAt(attachment.getCreatedAt())
                 .build();
     }
 

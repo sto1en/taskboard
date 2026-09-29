@@ -32,7 +32,7 @@ public class BoardController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BoardDetailDto> get(@PathVariable Long id) {
+    public ResponseEntity<BoardDto> get(@PathVariable Long id) {
         User user = currentUserService.getCurrentUser();
         return ResponseEntity.ok(boardService.getBoard(id, user));
     }

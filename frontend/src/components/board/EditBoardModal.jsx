@@ -10,6 +10,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
     const [accent, setAccent] = useState('blue')
     const [coverId, setCoverId] = useState(null)
     const [coverPreview, setCoverPreview] = useState(null)
+    const [clearCover, setClearCover] = useState(false)
     const [uploading, setUploading] = useState(false)
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
@@ -22,6 +23,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
             setAccent(board.accentCode || 'blue')
             setCoverId(board.coverAttachmentId || null)
             setCoverPreview(board.coverUrl || null)
+            setClearCover(false)
             setError(null)
         }
     }, [open, board])
@@ -34,11 +36,18 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
             const { data } = await attachmentsApi.upload(file)
             setCoverId(data.id)
             setCoverPreview(data.url)
+            setClearCover(false)
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка загрузки')
         } finally {
             setUploading(false)
         }
+    }
+
+    const handleRemoveCover = () => {
+        setCoverId(null)
+        setCoverPreview(null)
+        setClearCover(true)
     }
 
     const onSubmit = async (e) => {
@@ -50,12 +59,20 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
         setLoading(true)
         setError(null)
         try {
-            const { data } = await boardsApi.update(board.id, {
+            const payload = {
                 title: title.trim(),
                 description: description.trim(),
                 accentCode: accent,
-                coverAttachmentId: coverId,
-            })
+            }
+
+            if (clearCover) {
+                payload.clearCover = true
+                payload.coverAttachmentId = null
+            } else if (coverId) {
+                payload.coverAttachmentId = coverId
+            }
+
+            const { data } = await boardsApi.update(board.id, payload)
             onUpdated(data)
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка сохранения')
@@ -118,7 +135,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
                             <button
                                 type="button"
                                 className="cover-upload__remove"
-                                onClick={() => { setCoverId(null); setCoverPreview(null) }}
+                                onClick={handleRemoveCover}
                             >
                                 ×
                             </button>

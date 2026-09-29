@@ -17,5 +17,6 @@ public class AttachmentDto {
     private Integer width;
     private Integer height;
     private Integer sizeBytes;
+    private Integer position;        // порядок вложения в задаче
     private LocalDateTime createdAt;
 }

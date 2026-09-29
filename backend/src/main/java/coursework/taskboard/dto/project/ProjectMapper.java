@@ -44,7 +44,8 @@ public class ProjectMapper {
 
     public ProjectDto toProjectDto(Project project, ProjectSettings settings,
                                    long taskTotal, long taskDone, long taskActive,
-                                   String coverUrl) {
+                                   String coverUrl,
+                                   List<StageDto> stages) {
         BoardStatus status = settings != null ? settings.getStatus() : null;
 
         return ProjectDto.builder()
@@ -56,6 +57,8 @@ public class ProjectMapper {
                 .position(project.getPosition())
                 .accentCode(settings != null ? settings.getAccentCode() : null)
                 .coverUrl(coverUrl)
+                .coverAttachmentId(settings != null && settings.getCover() != null
+                        ? settings.getCover().getId() : null)
                 .statusId(status != null ? status.getId() : null)
                 .statusCode(status != null ? status.getCode() : null)
                 .statusTitle(status != null ? status.getTitle() : null)
@@ -65,35 +68,12 @@ public class ProjectMapper {
                 .taskTotal(taskTotal)
                 .taskDone(taskDone)
                 .taskActive(taskActive)
-                .build();
-    }
-
-    public ProjectDetailDto toProjectDetailDto(Project project, ProjectSettings settings,
-                                               long taskTotal, long taskDone, long taskActive,
-                                               String coverUrl,
-                                               List<StageSummaryDto> stages) {
-        BoardStatus status = settings != null ? settings.getStatus() : null;
-
-        return ProjectDetailDto.builder()
-                .id(project.getId())
-                .boardId(project.getBoard().getId())
-                .title(project.getTitle())
-                .description(project.getDescription())
-                .isMain(project.getIsMain())
-                .position(project.getPosition())
-                .accentCode(settings != null ? settings.getAccentCode() : null)
-                .coverUrl(coverUrl)
-                .statusCode(status != null ? status.getCode() : null)
-                .statusTitle(status != null ? status.getTitle() : null)
-                .taskTotal(taskTotal)
-                .taskDone(taskDone)
-                .taskActive(taskActive)
                 .stages(stages)
                 .build();
     }
 
-    public StageSummaryDto toStageSummaryDto(Stage stage, long taskTotal, long taskDone) {
-        return StageSummaryDto.builder()
+    public StageDto toStageDto(Stage stage, long taskTotal, long taskDone) {
+        return StageDto.builder()
                 .id(stage.getId())
                 .title(stage.getTitle())
                 .description(stage.getDescription())

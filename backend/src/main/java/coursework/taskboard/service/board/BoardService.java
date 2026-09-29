@@ -121,31 +121,26 @@ public class BoardService {
     }
 
     @Transactional(readOnly = true)
-    public BoardDetailDto getBoard(Long boardId, User user) {
+    public BoardDto getBoard(Long boardId, User user) {
         Board board = getBoardWithAccess(boardId, user);
 
         BoardAppearance appearance = boardAppearanceRepository
                 .findById(boardId).orElse(null);
+        BoardSettings settings = boardSettingsRepository
+                .findById(boardId).orElse(null);
         BoardMember member = boardMemberRepository
                 .findByBoardIdAndUserId(boardId, user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Not a member"));
+        Project main = projectRepository
+                .findByBoardIdAndIsMainTrue(boardId).orElse(null);
 
-        List<Project> projects = projectRepository.findByBoardIdOrderByPositionAsc(boardId);
-        List<ProjectSummaryDto> summaries = new ArrayList<>();
+        long projectCount = projectRepository.countByBoardId(boardId);
+        long taskCount = taskRepository.countByBoardId(boardId);
 
-        for (Project project : projects) {
-            ProjectSettings settings = projectSettingsRepository
-                    .findById(project.getId()).orElse(null);
-            BoardStatus status = settings != null ? settings.getStatus() : null;
+        String coverUrl = resolveCoverUrl(appearance);
 
-            long taskTotal = taskRepository.countByProjectId(project.getId());
-            long taskDone = taskRepository.countDoneByProjectId(project.getId());
-
-            summaries.add(boardMapper.toProjectSummaryDto(project, settings, status,
-                    taskTotal, taskDone));
-        }
-
-        return boardMapper.toBoardDetailDto(board, appearance, member, summaries);
+        return boardMapper.toBoardDto(board, appearance, settings, member,
+                main, projectCount, taskCount, coverUrl);
     }
 
     @Transactional
@@ -157,14 +152,20 @@ public class BoardService {
         if (request.getPosition() != null) board.setPosition(request.getPosition());
         boardRepository.save(board);
 
-        if (request.getAccentCode() != null || request.getCoverAttachmentId() != null) {
+        if (request.getAccentCode() != null
+                || request.getCoverAttachmentId() != null
+                || Boolean.TRUE.equals(request.getClearCover())) {
+
             BoardAppearance appearance = boardAppearanceRepository
                     .findById(boardId).orElseThrow();
 
             if (request.getAccentCode() != null) {
                 appearance.setAccentCode(request.getAccentCode());
             }
-            if (request.getCoverAttachmentId() != null) {
+
+            if (Boolean.TRUE.equals(request.getClearCover())) {
+                appearance.setCover(null);
+            } else if (request.getCoverAttachmentId() != null) {
                 Attachment cover = attachmentRepository
                         .findById(request.getCoverAttachmentId())
                         .orElseThrow(() -> new IllegalArgumentException("Attachment not found"));
@@ -245,9 +246,9 @@ public class BoardService {
         boardStatusAppearanceRepository.save(
                 boardMapper.toBoardStatusAppearance(status, accent));
 
-        // ВСЕ статусы разрешают drag-in
+        boolean allowDragIn = true;
         boardStatusSettingsRepository.save(
-                boardMapper.toBoardStatusSettings(status, true));
+                boardMapper.toBoardStatusSettings(status, allowDragIn));
 
         return status;
     }

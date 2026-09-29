@@ -12,6 +12,10 @@ public class AttachmentMapper {
     private String baseUrl;
 
     public AttachmentDto toAttachmentDto(Attachment attachment, AttachmentMeta meta) {
+        return toAttachmentDto(attachment, meta, null);
+    }
+
+    public AttachmentDto toAttachmentDto(Attachment attachment, AttachmentMeta meta, Integer position) {
         return AttachmentDto.builder()
                 .id(attachment.getId())
                 .url(meta != null ? baseUrl + "/" + meta.getUrl() : null)
@@ -21,6 +25,7 @@ public class AttachmentMapper {
                 .width(meta != null ? meta.getWidth() : null)
                 .height(meta != null ? meta.getHeight() : null)
                 .sizeBytes(meta != null ? meta.getSizeBytes() : null)
+                .position(position)
                 .createdAt(attachment.getCreatedAt())
                 .build();
     }

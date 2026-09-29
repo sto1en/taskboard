@@ -6,8 +6,6 @@ import coursework.taskboard.model.project.ProjectSettings;
 import coursework.taskboard.model.user.User;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-
 @Component
 public class BoardMapper {
 
@@ -88,42 +86,14 @@ public class BoardMapper {
                 .position(board.getPosition())
                 .accentCode(appearance != null ? appearance.getAccentCode() : "blue")
                 .coverUrl(coverUrl)
+                .coverAttachmentId(appearance != null && appearance.getCover() != null
+                        ? appearance.getCover().getId() : null)
                 .isPinned(settings != null && settings.getIsPinned())
                 .isPublic(settings != null && settings.getIsPublic())
                 .ownerRole(member != null ? member.getRole() : null)
                 .mainProjectId(mainProject != null ? mainProject.getId() : null)
                 .projectCount(projectCount)
                 .taskCount(taskCount)
-                .build();
-    }
-
-    public BoardDetailDto toBoardDetailDto(Board board, BoardAppearance appearance,
-                                           BoardMember member, List<ProjectSummaryDto> projects) {
-        return BoardDetailDto.builder()
-                .id(board.getId())
-                .title(board.getTitle())
-                .description(board.getDescription())
-                .accentCode(appearance != null ? appearance.getAccentCode() : "blue")
-                .coverUrl(null)
-                .ownerRole(member != null ? member.getRole() : null)
-                .projects(projects)
-                .build();
-    }
-
-    public ProjectSummaryDto toProjectSummaryDto(Project project, ProjectSettings settings,
-                                                 BoardStatus status,
-                                                 long taskTotal, long taskDone) {
-        return ProjectSummaryDto.builder()
-                .id(project.getId())
-                .title(project.getTitle())
-                .description(project.getDescription())
-                .isMain(project.getIsMain())
-                .position(project.getPosition())
-                .accentCode(settings != null ? settings.getAccentCode() : null)
-                .statusCode(status != null ? status.getCode() : null)
-                .statusTitle(status != null ? status.getTitle() : null)
-                .taskTotal(taskTotal)
-                .taskDone(taskDone)
                 .build();
     }
 }
