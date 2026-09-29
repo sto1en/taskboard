@@ -14,6 +14,7 @@ public class UpdateProjectRequest {
 
     private String accentCode;
     private Long coverAttachmentId;
+    private Boolean clearCover;
 
     private Long statusId;
     private Boolean isPinned;

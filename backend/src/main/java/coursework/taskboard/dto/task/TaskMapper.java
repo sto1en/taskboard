@@ -63,6 +63,7 @@ public class TaskMapper {
                              BoardStatusAppearance statusAppearance,
                              List<TagShortDto> tags,
                              List<AttachmentDto> attachments,
+                             List<TaskShortDto> subtasks,
                              long subtaskTotal,
                              long subtaskDone) {
 
@@ -86,6 +87,7 @@ public class TaskMapper {
                 .completedAt(schedule != null ? schedule.getCompletedAt() : null)
                 .tags(tags)
                 .attachments(attachments)
+                .subtasks(subtasks)
                 .subtaskTotal(subtaskTotal)
                 .subtaskDone(subtaskDone)
                 .createdAt(task.getCreatedAt())

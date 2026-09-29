@@ -131,7 +131,10 @@ public class ProjectService {
         if (request.getIsPinned() != null) settings.setIsPinned(request.getIsPinned());
         if (request.getIsTemplate() != null) settings.setIsTemplate(request.getIsTemplate());
 
-        if (request.getCoverAttachmentId() != null) {
+        // Обложка: clearCover = true → сбросить; coverAttachmentId != null → установить
+        if (Boolean.TRUE.equals(request.getClearCover())) {
+            settings.setCover(null);
+        } else if (request.getCoverAttachmentId() != null) {
             Attachment cover = attachmentRepository.findById(request.getCoverAttachmentId())
                     .orElseThrow(() -> new IllegalArgumentException("Attachment not found"));
             if (!cover.getOwner().getId().equals(user.getId())) {

@@ -36,6 +36,39 @@
     margin-left: auto;
 }
 
+/* Кнопка "Переставить" */
+.reorder-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .15s, border-color .15s, color .15s;
+    white-space: nowrap;
+}
+.reorder-btn:hover {
+    background: rgba(76, 154, 255, 0.08);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+.reorder-btn--active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+.reorder-btn--active:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: #fff;
+}
+
 /* Скролл-контейнер Kanban: занимает всю доступную высоту */
 .board-detail__scroll {
     flex: 1;
@@ -74,10 +107,10 @@
 .kanban {
     display: flex;
     gap: var(--density-gap, 16px);
-    align-items: stretch;      /* колонки одной высоты */
+    align-items: stretch;
     min-width: min-content;
     padding-bottom: 8px;
-    flex: 1;                   /* растягиваем на всю высоту контейнера */
+    flex: 1;
     min-height: 0;
 }
 
@@ -89,7 +122,8 @@
     flex-direction: column;
     width: 280px;
     flex-shrink: 0;
-    height: auto;              /* растягивается через align-items: stretch */
+    height: 100%;
+    max-height: 100%;
     min-height: 0;
 }
 
@@ -104,12 +138,24 @@
     border-radius: 4px 4px 0 0;
 }
 
+.kanban-col__drag {
+    cursor: grab;
+    color: var(--text-muted);
+    font-size: 12px;
+    letter-spacing: -2px;
+    padding: 0 4px;
+    user-select: none;
+    opacity: 0.7;
+    transition: opacity .15s;
+}
+.kanban-col__drag:hover { opacity: 1; }
+.kanban-col__drag:active { cursor: grabbing; }
+
 .kanban-col__title {
     font-weight: 700;
     font-size: 13px;
     letter-spacing: 0.3px;
     text-transform: uppercase;
-    /* цвет — inline-style */
 }
 
 .kanban-col__count {
@@ -125,7 +171,6 @@ html[data-theme="dark"] .kanban-col__count {
     background: rgba(255, 255, 255, 0.08);
 }
 
-/* Тело колонки — растягивается, скроллится если контента много */
 .kanban-col__body {
     display: flex;
     flex-direction: column;
@@ -144,7 +189,6 @@ html[data-theme="dark"] .kanban-col__count {
     background: var(--border); border-radius: 3px;
 }
 
-/* Кнопка «+ Добавить задачу» — прижата к низу, серая */
 .kanban-col__add {
     flex-shrink: 0;
     background: transparent;
@@ -165,8 +209,22 @@ html[data-theme="dark"] .kanban-col__count {
     background: rgba(76, 154, 255, 0.04);
 }
 
+/* Режим reorder — тело колонки не кликается */
+.kanban--reorder .kanban-col {
+    outline: 1px dashed var(--border);
+    outline-offset: -4px;
+}
+.kanban--reorder .kanban-col__body {
+    pointer-events: none;
+    opacity: 0.6;
+}
+.kanban--reorder .kanban-col__add {
+    pointer-events: none;
+    opacity: 0.4;
+}
+
 /* ============================================================
-   TaskCard — accent из statusAccentCode
+   TaskCard
    ============================================================ */
 
 .task-card {
@@ -231,6 +289,23 @@ html[data-theme="dark"] .task-card:hover {
     word-break: break-word;
 }
 
+.task-card__expand {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: background .15s, color .15s;
+    font-family: inherit;
+}
+.task-card__expand:hover {
+    background: rgba(76, 154, 255, 0.1);
+    color: var(--primary);
+}
+
 .task-card__attach {
     font-size: 12px;
     color: var(--text-muted);
@@ -291,6 +366,50 @@ html[data-theme="dark"] .task-card:hover {
 .task-tag__icon { font-size: 10px; }
 
 /* ============================================================
+   Task Card — развёрнутая часть
+   ============================================================ */
+
+.task-card__details {
+    margin-top: 10px;
+    padding-top: 10px;
+    padding-left: 26px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.task-card__details-description {
+    color: var(--text);
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.task-card__details-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.task-card__details-label {
+    font-weight: 600;
+    color: var(--text);
+    min-width: 70px;
+}
+
+.task-card__details-loading {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 11px;
+}
+
+/* ============================================================
    Drag & Drop
    ============================================================ */
 
@@ -307,4 +426,55 @@ html[data-theme="dark"] .task-card:hover {
 .task-card-wrapper--dragging .task-card {
     box-shadow: 0 8px 24px rgba(9, 30, 66, 0.25);
     transform: rotate(2deg);
+}
+
+/* ============================================================
+   Подзадачи в развёрнутой карточке Kanban
+   ============================================================ */
+
+.task-card__subtasks {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.task-card__subtask {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text);
+}
+
+.task-card__subtask-check {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: transparent;
+    position: relative;
+}
+.task-card__subtask-check--done {
+    background: var(--success);
+    border-color: var(--success);
+}
+.task-card__subtask-check--done::after {
+    content: '✓';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+}
+
+.task-card__subtask-title {
+    word-break: break-word;
+}
+.task-card__subtask-title--done {
+    text-decoration: line-through;
+    opacity: 0.6;
 }

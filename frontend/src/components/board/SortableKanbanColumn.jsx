@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import KanbanColumn from './KanbanColumn'
 
-export default function SortableKanbanColumn({ column, ...props }) {
+export default function SortableKanbanColumn({ column, reorderMode, ...props }) {
     const {
         attributes,
         listeners,
@@ -13,6 +13,7 @@ export default function SortableKanbanColumn({ column, ...props }) {
     } = useSortable({
         id: `col-${column.statusId}`,
         data: { type: 'column', statusId: column.statusId, column },
+        disabled: !reorderMode,
     })
 
     const style = {
@@ -28,7 +29,12 @@ export default function SortableKanbanColumn({ column, ...props }) {
             style={style}
             className={isDragging ? 'kanban-col-wrapper--dragging' : ''}
         >
-            <KanbanColumn column={column} {...props} />
+            <KanbanColumn
+                column={column}
+                reorderMode={reorderMode}
+                dragHandleProps={{ ...attributes, ...listeners }}
+                {...props}
+            />
         </div>
     )
 }

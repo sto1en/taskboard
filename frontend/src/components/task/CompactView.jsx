@@ -7,6 +7,7 @@ import {
     useSensors,
     closestCenter,
     defaultDropAnimationSideEffects,
+    useDroppable,
 } from '@dnd-kit/core'
 import {
     SortableContext,
@@ -43,7 +44,11 @@ function sortTasks(tasks, sortMode, sortDir) {
     return arr
 }
 
-function SortableCompactTask({ task, onTaskClick, onToggleDone }) {
+function SortableCompactTask({ task, onTaskClick, onToggleDone, disabled }) {
+    const [expanded, setExpanded] = useState(false)
+    const [fullTask, setFullTask] = useState(null)
+    const [loadingFull, setLoadingFull] = useState(false)
+
     const {
         attributes,
         listeners,
@@ -54,6 +59,7 @@ function SortableCompactTask({ task, onTaskClick, onToggleDone }) {
     } = useSortable({
         id: task.id,
         data: { type: 'task', task },
+        disabled,
     })
 
     const style = {
@@ -67,38 +73,165 @@ function SortableCompactTask({ task, onTaskClick, onToggleDone }) {
         || task.statusCode === 'DONE'
         || task.statusCategoryCode === 'CANCELLED'
 
+    const accent = task.statusAccentCode
+        ? `var(--accent-${task.statusAccentCode}, var(--primary))`
+        : 'var(--primary)'
+
+    const handleExpand = async (e) => {
+        e.stopPropagation()
+        if (expanded) {
+            setExpanded(false)
+            return
+        }
+        setExpanded(true)
+        if (!fullTask && !loadingFull) {
+            setLoadingFull(true)
+            try {
+                const { data } = await tasksApi.get(task.id)
+                setFullTask(data)
+            } catch (err) {
+                console.error('Failed to load full task:', err)
+            } finally {
+                setLoadingFull(false)
+            }
+        }
+    }
+
     return (
         <div
             ref={setNodeRef}
             style={style}
             {...attributes}
             {...listeners}
-            className={`compact-task ${isDragging ? 'compact-task--dragging' : ''}`}
-            onClick={() => onTaskClick && onTaskClick(task.id)}
+            className={`compact-task-wrap ${isDragging ? 'compact-task-wrap--dragging' : ''}`}
         >
-            <button
-                className={`compact-task__check ${isDone ? 'compact-task__check--done' : ''}`}
-                onClick={(e) => {
-                    e.stopPropagation()
-                    onToggleDone && onToggleDone(task.id, isDone)
-                }}
-            />
-            <span className="compact-task__title">{task.title}</span>
-            {task.priority > 0 && (
-                <span className="compact-task__priority">
-                    {task.priority === 2 ? '🔥' : '⚡'}
-                </span>
-            )}
-            {task.deadline && (
-                <span className="compact-task__deadline">
-                    {new Date(task.deadline).toLocaleString('ru-RU', {
-                        day: '2-digit', month: '2-digit',
-                        hour: '2-digit', minute: '2-digit'
-                    })}
-                </span>
-            )}
-            {task.hasAttachments && (
-                <span className="compact-task__attach">📎</span>
+            <div
+                className="compact-task"
+                onClick={() => onTaskClick && onTaskClick(task.id)}
+            >
+                <button
+                    className={`compact-task__check ${isDone ? 'compact-task__check--done' : ''}`}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        onToggleDone && onToggleDone(task.id, isDone)
+                    }}
+                />
+
+                <div className="compact-task__main">
+                    <div className="compact-task__title">{task.title}</div>
+                    <div className="compact-task__meta">
+                        {task.statusTitle && (
+                            <span
+                                className="compact-task__status"
+                                style={{ color: accent }}
+                            >
+                                {task.statusTitle}
+                            </span>
+                        )}
+                        {task.priority > 0 && (
+                            <span className="compact-task__priority">
+                                {task.priority === 2 ? '🔥 Срочный' : '⚡ Высокий'}
+                            </span>
+                        )}
+                        {task.deadline && (
+                            <span className="compact-task__deadline">
+                                📅 {new Date(task.deadline).toLocaleString('ru-RU', {
+                                day: '2-digit', month: '2-digit', year: 'numeric',
+                            })}
+                            </span>
+                        )}
+                        {task.tags && task.tags.length > 0 && (
+                            <span className="compact-task__tags">
+                                {task.tags.map(tag => (
+                                    <span
+                                        key={tag.id}
+                                        className="task-tag"
+                                        style={{
+                                            background: `var(--accent-${tag.accentCode || 'gray'})`,
+                                        }}
+                                        title={tag.title}
+                                    >
+                                        {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
+                                        {tag.title}
+                                    </span>
+                                ))}
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {task.hasAttachments && (
+                    <span className="compact-task__attach" title="Есть вложения">📎</span>
+                )}
+
+                <button
+                    className="compact-task__expand"
+                    onClick={handleExpand}
+                    title={expanded ? 'Свернуть' : 'Показать подробности'}
+                >
+                    {expanded ? '▲' : '▼'}
+                </button>
+            </div>
+
+            {expanded && (
+                <div className="compact-task__details" onClick={(e) => e.stopPropagation()}>
+                    {loadingFull && (
+                        <div className="compact-task__details-loading">Загрузка...</div>
+                    )}
+                    {fullTask && (
+                        <>
+                            {fullTask.description && fullTask.description.trim() && (
+                                <div>
+                                    <div className="compact-task__details-label">Описание:</div>
+                                    <div className="compact-task__details-description">
+                                        {fullTask.description}
+                                    </div>
+                                </div>
+                            )}
+                            {fullTask.deadline && (
+                                <div className="compact-task__details-row">
+                                    <span className="compact-task__details-label">Дедлайн:</span>
+                                    <span>
+                                        {new Date(fullTask.deadline).toLocaleString('ru-RU', {
+                                            day: '2-digit', month: '2-digit', year: 'numeric',
+                                            hour: '2-digit', minute: '2-digit'
+                                        })}
+                                    </span>
+                                </div>
+                            )}
+                            {fullTask.attachments && fullTask.attachments.length > 0 && (
+                                <div className="compact-task__details-row">
+                                    <span className="compact-task__details-label">Вложения:</span>
+                                    <span>📎 {fullTask.attachments.length}</span>
+                                </div>
+                            )}
+                            {fullTask.subtasks && fullTask.subtasks.length > 0 && (
+                                <div>
+                                    <div className="compact-task__details-label">
+                                        Подзадачи ({fullTask.subtaskDone}/{fullTask.subtaskTotal}):
+                                    </div>
+                                    <div className="compact-task__subtasks">
+                                        {fullTask.subtasks.map(st => {
+                                            const stDone = st.statusCategoryCode === 'DONE'
+                                                || st.statusCode === 'DONE'
+                                                || st.statusCategoryCode === 'CANCELLED'
+                                            return (
+                                                <div key={st.id} className="compact-task__subtask">
+                                                    <span
+                                                        className={`compact-task__subtask-check ${stDone ? 'compact-task__subtask-check--done' : ''}`}
+                                                    />
+                                                    <span className={`compact-task__subtask-title ${stDone ? 'compact-task__subtask-title--done' : ''}`}>
+                                                        {st.title}
+                                                    </span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
             )}
         </div>
     )
@@ -110,9 +243,9 @@ function SortableCompactGroup({
                                   onToggle,
                                   sortMode,
                                   sortDir,
+                                  reorderMode,
                                   onTaskClick,
                                   onToggleDone,
-                                  onTaskDropped,
                               }) {
     const {
         attributes,
@@ -124,6 +257,7 @@ function SortableCompactGroup({
     } = useSortable({
         id: `group-${col.statusId}`,
         data: { type: 'group', column: col },
+        disabled: !reorderMode,
     })
 
     const { setNodeRef: setDropRef, isOver } = useDroppable({
@@ -146,15 +280,15 @@ function SortableCompactGroup({
             style={style}
             className={`compact-group ${isDragging ? 'compact-group--dragging' : ''} ${isOver ? 'compact-group--over' : ''}`}
         >
-            <div
-                className="compact-group__head"
-                ref={setDropRef}
-            >
-                <span
-                    className="compact-group__drag"
-                    {...attributes}
-                    {...listeners}
-                >⋮⋮</span>
+            <div className="compact-group__head">
+                {reorderMode && (
+                    <span
+                        className="compact-group__drag"
+                        {...attributes}
+                        {...listeners}
+                        title="Перетащить группу"
+                    >⋮⋮</span>
+                )}
                 <span
                     className="compact-group__caret"
                     onClick={(e) => { e.stopPropagation(); onToggle(col.statusId) }}
@@ -170,7 +304,7 @@ function SortableCompactGroup({
             </div>
 
             {!isCollapsed && (
-                <div className="compact-group__body">
+                <div className="compact-group__body" ref={setDropRef}>
                     {tasks.length === 0 ? (
                         <div className="compact-group__empty">Пусто</div>
                     ) : (
@@ -184,6 +318,7 @@ function SortableCompactGroup({
                                     task={t}
                                     onTaskClick={onTaskClick}
                                     onToggleDone={onToggleDone}
+                                    disabled={reorderMode}
                                 />
                             ))}
                         </SortableContext>
@@ -194,12 +329,11 @@ function SortableCompactGroup({
     )
 }
 
-import { useDroppable } from '@dnd-kit/core'
-
 export default function CompactView({
                                         columns,
                                         projectId,
                                         boardId,
+                                        reorderMode,
                                         onAddTask,
                                         onTaskClick,
                                         onToggleDone,
@@ -241,10 +375,14 @@ export default function CompactView({
         const activeData = active.data.current
         const overData = over.data.current
 
-        // ===== Drag группы (статуса) =====
         if (activeData?.type === 'group') {
+            if (!reorderMode) return
+
             const activeId = String(active.id).replace('group-', '')
-            const overId = String(over.id).replace('group-', '')
+            const overIdRaw = String(over.id)
+            const overId = overIdRaw.startsWith('group-')
+                ? overIdRaw.replace('group-', '')
+                : overIdRaw
             if (activeId === overId) return
 
             const oldIndex = visibleColumns.findIndex(c => String(c.statusId) === activeId)
@@ -269,12 +407,11 @@ export default function CompactView({
             return
         }
 
-        // ===== Drag задачи =====
         if (activeData?.type !== 'task') return
+        if (reorderMode) return
 
         const activeTaskId = active.id
 
-        // Целевая группа
         let overStatusId = null
         let overTaskId = null
 
@@ -282,7 +419,6 @@ export default function CompactView({
             overStatusId = overData?.statusId
                 || Number(String(over.id).replace('group-drop-', '').replace('group-', ''))
         } else {
-            // Бросили на задачу — найдём её группу
             for (const col of visibleColumns) {
                 if (col.tasks.some(t => t.id === over.id)) {
                     overStatusId = col.statusId
@@ -294,7 +430,6 @@ export default function CompactView({
 
         if (!overStatusId) return
 
-        // Найдём исходную группу
         let activeCol = null
         for (const col of visibleColumns) {
             if (col.tasks.some(t => t.id === activeTaskId)) {
@@ -335,7 +470,7 @@ export default function CompactView({
     const groupIds = visibleColumns.map(c => `group-${c.statusId}`)
 
     return (
-        <div className="compact-view">
+        <div className={`compact-view ${reorderMode ? 'compact-view--reorder' : ''}`}>
             <div className="compact-view__topbar">
                 <button
                     className="btn btn-secondary"
@@ -360,6 +495,7 @@ export default function CompactView({
                             onToggle={toggle}
                             sortMode={sortMode}
                             sortDir={sortDir}
+                            reorderMode={reorderMode}
                             onTaskClick={onTaskClick}
                             onToggleDone={onToggleDone}
                         />
@@ -375,11 +511,14 @@ export default function CompactView({
                 >
                     {activeTask ? (
                         <div className="compact-task" style={{ opacity: 0.9 }}>
-                            <span className="compact-task__title">{activeTask.title}</span>
+                            <div className="compact-task__main">
+                                <div className="compact-task__title">{activeTask.title}</div>
+                            </div>
                         </div>
                     ) : activeGroup ? (
                         <div className="compact-group" style={{ opacity: 0.9 }}>
                             <div className="compact-group__head">
+                                <span className="compact-group__drag">⋮⋮</span>
                                 <span className="compact-group__dot"
                                       style={{ background: `var(--accent-${activeGroup.accentCode || 'gray'})` }} />
                                 <span className="compact-group__title">{activeGroup.title}</span>

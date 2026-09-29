@@ -183,6 +183,7 @@ function ProjectCard({ project, onClick, onDelete, onEdit, onTogglePin }) {
     const total = project.taskTotal || 0
     const done = project.taskDone || 0
     const pct = total > 0 ? Math.round((done / total) * 100) : 0
+    const hasCover = !!project.coverUrl
 
     const handleDelete = (e) => {
         e.stopPropagation()
@@ -211,19 +212,26 @@ function ProjectCard({ project, onClick, onDelete, onEdit, onTogglePin }) {
             onClick={onClick}
         >
             <div className={`project-card__cover project-card__cover--${accent}`}>
-                {project.coverUrl && (
+                {hasCover ? (
                     <img
                         src={project.coverUrl}
                         alt=""
                         className="project-card__cover-img"
                         onError={(e) => { e.target.style.display = 'none' }}
                     />
+                ) : (
+                    <>
+                        <div className="project-card__pattern" />
+                        <div className="project-card__cover-title">
+                            {project.title}
+                        </div>
+                        {project.statusTitle && (
+                            <div className="project-card__cover-status">
+                                {project.statusTitle}
+                            </div>
+                        )}
+                    </>
                 )}
-                <div className="project-card__pattern" />
-                <div className="project-card__cover-title">
-                    {project.title}
-                    {project.isMain && <span className="project-card__badge">main</span>}
-                </div>
 
                 <div className="project-card__actions">
                     <button

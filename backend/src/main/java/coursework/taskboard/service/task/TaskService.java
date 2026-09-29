@@ -122,7 +122,7 @@ public class TaskService {
 
         return taskMapper.toTaskDto(task, settings, schedule, status,
                 boardStatusAppearanceRepository.findById(status.getId()).orElse(null),
-                tagDtos, new ArrayList<>(), 0, 0);
+                tagDtos, new ArrayList<>(), new ArrayList<>(), 0, 0);
     }
 
     // ============================================================
@@ -154,10 +154,38 @@ public class TaskService {
             attachments.add(taskMapper.toAttachmentDto(a, meta, att.getPosition()));
         }
 
-        long subtaskTotal = taskRepository.countByParentId(taskId);
+        // Подзадачи
+        List<TaskShortDto> subtasks = new ArrayList<>();
+        for (Task sub : taskRepository.findByParentIdOrderByPositionAsc(taskId)) {
+            TaskSettings subSettings = taskSettingsRepository.findById(sub.getId()).orElse(null);
+            TaskSchedule subSchedule = taskScheduleRepository.findById(sub.getId()).orElse(null);
+            BoardStatus subStatus = subSettings != null ? subSettings.getStatus() : null;
+            BoardStatusAppearance subAppearance = subStatus != null
+                    ? boardStatusAppearanceRepository.findById(subStatus.getId()).orElse(null)
+                    : null;
+
+            boolean subHasAttachments = taskAttachmentRepository.countByTaskId(sub.getId()) > 0;
+
+            List<TagShortDto> subTags = new ArrayList<>();
+            for (TaskTag tt : taskTagRepository.findByTaskId(sub.getId())) {
+                TagAppearance ta = tagAppearanceRepository.findById(tt.getTag().getId()).orElse(null);
+                subTags.add(taskMapper.toTagShortDto(tt.getTag(), ta));
+            }
+
+            subtasks.add(taskMapper.toTaskShortDto(sub, subSettings, subSchedule, subStatus,
+                    subAppearance, subHasAttachments, subTags));
+        }
+
+        long subtaskTotal = subtasks.size();
+        long subtaskDone = subtasks.stream()
+                .filter(s -> "DONE".equals(s.getStatusCategoryCode())
+                        || "CANCELLED".equals(s.getStatusCategoryCode())
+                        || "EXPIRED".equals(s.getStatusCategoryCode())
+                        || "ARCHIVED".equals(s.getStatusCategoryCode()))
+                .count();
 
         return taskMapper.toTaskDto(task, settings, schedule, status, statusAppearance,
-                tags, attachments, subtaskTotal, 0);
+                tags, attachments, subtasks, subtaskTotal, subtaskDone);
     }
 
     // ============================================================
@@ -290,7 +318,7 @@ public class TaskService {
         long subtaskTotal = taskRepository.countByParentId(taskId);
 
         return taskMapper.toTaskDto(task, settings, schedule, status, statusAppearance,
-                tagDtos, new ArrayList<>(), subtaskTotal, 0);
+                tagDtos, new ArrayList<>(), new ArrayList<>(), subtaskTotal, 0);
     }
 
     // ============================================================

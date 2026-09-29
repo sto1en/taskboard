@@ -23,6 +23,7 @@ export default function ProjectKanbanPage() {
     const [sortMode, setSortMode] = useState('manual')
     const [sortDir, setSortDir] = useState('asc')
     const [activeStatuses, setActiveStatuses] = useState([])
+    const [reorderMode, setReorderMode] = useState(false)
 
     const [showCreateTask, setShowCreateTask] = useState(false)
     const [presetStatusId, setPresetStatusId] = useState(null)
@@ -104,6 +105,9 @@ export default function ProjectKanbanPage() {
         '--accent': `var(--accent-${project.accentCode || 'blue'})`,
     }
 
+    // Кнопка перестановки показывается только для kanban и compact
+    const showReorderButton = effectiveMode === 'kanban' || effectiveMode === 'compact'
+
     return (
         <div className="board-detail" style={accentStyle}>
             <div className="board-detail__head">
@@ -117,6 +121,16 @@ export default function ProjectKanbanPage() {
                 <h2 className="board-detail__title">{project.title}</h2>
 
                 <div className="board-detail__toolbar">
+                    {showReorderButton && (
+                        <button
+                            className={`reorder-btn ${reorderMode ? 'reorder-btn--active' : ''}`}
+                            onClick={() => setReorderMode(v => !v)}
+                            title={reorderMode ? 'Выключить режим перестановки' : 'Включить режим перестановки'}
+                        >
+                            🔀 {reorderMode ? 'Готово' : 'Переставить'}
+                        </button>
+                    )}
+
                     <FiltersBar
                         columns={kanban.columns}
                         activeStatuses={activeStatuses}
@@ -143,7 +157,10 @@ export default function ProjectKanbanPage() {
                     <KanbanView
                         columns={kanban.columns}
                         projectId={Number(projectId)}
+                        boardId={Number(boardId)}
+                        reorderMode={reorderMode}
                         onTaskMoved={reloadKanban}
+                        onColumnsMoved={reloadKanban}
                         activeStatuses={activeStatuses}
                         onAddTask={handleAddTask}
                         onTaskClick={setOpenTaskId}
@@ -169,6 +186,7 @@ export default function ProjectKanbanPage() {
                         columns={kanban.columns}
                         projectId={Number(projectId)}
                         boardId={Number(boardId)}
+                        reorderMode={reorderMode}
                         onAddTask={handleAddTask}
                         onTaskClick={setOpenTaskId}
                         onToggleDone={handleToggleDone}

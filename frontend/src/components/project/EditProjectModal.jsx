@@ -10,6 +10,7 @@ export default function EditProjectModal({ open, onClose, project, onUpdated, bo
     const [accent, setAccent] = useState('blue')
     const [coverId, setCoverId] = useState(null)
     const [coverPreview, setCoverPreview] = useState(null)
+    const [clearCover, setClearCover] = useState(false)
     const [statusId, setStatusId] = useState('')
     const [statuses, setStatuses] = useState([])
     const [uploading, setUploading] = useState(false)
@@ -24,6 +25,7 @@ export default function EditProjectModal({ open, onClose, project, onUpdated, bo
             setAccent(project.accentCode || 'blue')
             setCoverId(project.coverAttachmentId || null)
             setCoverPreview(project.coverUrl || null)
+            setClearCover(false)
             setStatusId(project.statusId || '')
             setError(null)
 
@@ -44,11 +46,18 @@ export default function EditProjectModal({ open, onClose, project, onUpdated, bo
             const { data } = await attachmentsApi.upload(file)
             setCoverId(data.id)
             setCoverPreview(data.url)
+            setClearCover(false)
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка загрузки')
         } finally {
             setUploading(false)
         }
+    }
+
+    const handleRemoveCover = () => {
+        setCoverId(null)
+        setCoverPreview(null)
+        setClearCover(true)
     }
 
     const onSubmit = async (e) => {
@@ -60,13 +69,21 @@ export default function EditProjectModal({ open, onClose, project, onUpdated, bo
         setLoading(true)
         setError(null)
         try {
-            const { data } = await projectsApi.update(project.id, {
+            const payload = {
                 title: title.trim(),
                 description: description.trim(),
                 accentCode: accent,
-                coverAttachmentId: coverId,
                 statusId: statusId ? Number(statusId) : null,
-            })
+            }
+
+            if (clearCover) {
+                payload.clearCover = true
+                payload.coverAttachmentId = null
+            } else if (coverId) {
+                payload.coverAttachmentId = coverId
+            }
+
+            const { data } = await projectsApi.update(project.id, payload)
             onUpdated(data)
             onClose()
         } catch (err) {
@@ -146,7 +163,7 @@ export default function EditProjectModal({ open, onClose, project, onUpdated, bo
                             <button
                                 type="button"
                                 className="cover-upload__remove"
-                                onClick={() => { setCoverId(null); setCoverPreview(null) }}
+                                onClick={handleRemoveCover}
                             >
                                 ×
                             </button>

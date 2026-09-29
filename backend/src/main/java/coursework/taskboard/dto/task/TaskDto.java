@@ -36,6 +36,7 @@ public class TaskDto {
 
     private List<TagShortDto> tags;
     private List<AttachmentDto> attachments;
+    private List<TaskShortDto> subtasks;
     private long subtaskTotal;
     private long subtaskDone;
 

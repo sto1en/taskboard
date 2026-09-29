@@ -71,7 +71,7 @@ public class BoardService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No default project status"));
 
-        Project mainProject = projectMapper.toMainProject(board, request.getTitle());
+        Project mainProject = projectMapper.toMainProject(board, "main");
         projectRepository.save(mainProject);
 
         ProjectSettings projectSettings = projectMapper.toProjectSettings(

@@ -5,6 +5,8 @@ import SortableTaskCard from '../Task/SortableTaskCard'
 export default function KanbanColumn({
                                          column,
                                          projectId,
+                                         reorderMode,
+                                         dragHandleProps,
                                          onTaskClick,
                                          onToggleDone,
                                          onAddTask,
@@ -30,6 +32,15 @@ export default function KanbanColumn({
                 className="kanban-col__head"
                 style={{ borderBottomColor: accentColor }}
             >
+                {reorderMode && (
+                    <span
+                        className="kanban-col__drag"
+                        {...(dragHandleProps || {})}
+                        title="Перетащить колонку"
+                    >
+                        ⋮⋮
+                    </span>
+                )}
                 <span className="kanban-col__title" style={{ color: accentColor }}>
                     {column.icon && <span style={{ marginRight: 4 }}>{column.icon}</span>}
                     {column.title}

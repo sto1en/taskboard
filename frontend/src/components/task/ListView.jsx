@@ -44,6 +44,10 @@ function sortTasks(tasks, sortMode, sortDir) {
 }
 
 function SortableTaskRow({ task, columnTitle, onClick, onToggleDone }) {
+    const [expanded, setExpanded] = useState(false)
+    const [fullTask, setFullTask] = useState(null)
+    const [loadingFull, setLoadingFull] = useState(false)
+
     const {
         attributes,
         listeners,
@@ -71,63 +75,155 @@ function SortableTaskRow({ task, columnTitle, onClick, onToggleDone }) {
         ? `var(--accent-${task.statusAccentCode}, var(--primary))`
         : 'var(--primary)'
 
+    const handleExpand = async (e) => {
+        e.stopPropagation()
+        if (expanded) {
+            setExpanded(false)
+            return
+        }
+        setExpanded(true)
+        if (!fullTask && !loadingFull) {
+            setLoadingFull(true)
+            try {
+                const { data } = await tasksApi.get(task.id)
+                setFullTask(data)
+            } catch (err) {
+                console.error('Failed to load full task:', err)
+            } finally {
+                setLoadingFull(false)
+            }
+        }
+    }
+
     return (
         <div
             ref={setNodeRef}
             style={style}
             {...attributes}
             {...listeners}
-            className={`word-list__item ${isDragging ? 'word-list__item--dragging' : ''}`}
-            onClick={() => onClick && onClick(task.id)}
+            className={`word-list__item-wrap ${isDragging ? 'word-list__item-wrap--dragging' : ''}`}
         >
-            <button
-                className={`word-list__check ${isDone ? 'word-list__check--done' : ''}`}
-                onClick={(e) => {
-                    e.stopPropagation()
-                    onToggleDone && onToggleDone(task.id, isDone)
-                }}
-            />
-            <div className="word-list__body">
-                <div className="word-list__title">{task.title}</div>
-                <div className="word-list__meta">
-                    <span className="word-list__status">
-                        <span
-                            className="word-list__dot"
-                            style={{ background: accent }}
-                        />
-                        {columnTitle}
-                    </span>
-                    {task.priority > 0 && (
-                        <span className="word-list__priority">
-                            {task.priority === 2 ? '🔥 Срочный' : '⚡ Высокий'}
+            <div
+                className="word-list__item"
+                onClick={() => onClick && onClick(task.id)}
+            >
+                <button
+                    className={`word-list__check ${isDone ? 'word-list__check--done' : ''}`}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        onToggleDone && onToggleDone(task.id, isDone)
+                    }}
+                />
+                <div className="word-list__body">
+                    <div className="word-list__title">{task.title}</div>
+                    <div className="word-list__meta">
+                        <span className="word-list__status">
+                            <span
+                                className="word-list__dot"
+                                style={{ background: accent }}
+                            />
+                            {columnTitle}
                         </span>
+                        {task.priority > 0 && (
+                            <span className="word-list__priority">
+                                {task.priority === 2 ? '🔥 Срочный' : '⚡ Высокий'}
+                            </span>
+                        )}
+                        {task.deadline && (
+                            <span className="word-list__deadline">
+                                📅 {new Date(task.deadline).toLocaleDateString('ru-RU')}
+                            </span>
+                        )}
+                        {task.tags && task.tags.length > 0 && (
+                            <span className="word-list__tags">
+                                {task.tags.map(tag => (
+                                    <span
+                                        key={tag.id}
+                                        className="task-tag"
+                                        style={{
+                                            background: `var(--accent-${tag.accentCode || 'gray'})`,
+                                        }}
+                                        title={tag.title}
+                                    >
+                                        {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
+                                        {tag.title}
+                                    </span>
+                                ))}
+                            </span>
+                        )}
+                    </div>
+                </div>
+                {task.hasAttachments && (
+                    <span className="word-list__attach" title="Есть вложения">📎</span>
+                )}
+                <button
+                    className="word-list__expand"
+                    onClick={handleExpand}
+                    title={expanded ? 'Свернуть' : 'Показать подробности'}
+                >
+                    {expanded ? '▲' : '▼'}
+                </button>
+            </div>
+
+            {expanded && (
+                <div className="word-list__details" onClick={(e) => e.stopPropagation()}>
+                    {loadingFull && (
+                        <div className="word-list__details-loading">Загрузка...</div>
                     )}
-                    {task.deadline && (
-                        <span className="word-list__deadline">
-                            📅 {new Date(task.deadline).toLocaleDateString('ru-RU')}
-                        </span>
-                    )}
-                    {task.tags && task.tags.length > 0 && (
-                        <span className="word-list__tags">
-                            {task.tags.map(tag => (
-                                <span
-                                    key={tag.id}
-                                    className="task-tag"
-                                    style={{
-                                        background: `var(--accent-${tag.accentCode || 'gray'})`,
-                                    }}
-                                    title={tag.title}
-                                >
-                                    {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
-                                    {tag.title}
-                                </span>
-                            ))}
-                        </span>
+                    {fullTask && (
+                        <>
+                            {fullTask.description && fullTask.description.trim() && (
+                                <div>
+                                    <div className="word-list__details-label">Описание:</div>
+                                    <div className="word-list__details-description">
+                                        {fullTask.description}
+                                    </div>
+                                </div>
+                            )}
+                            {fullTask.deadline && (
+                                <div className="word-list__details-row">
+                                    <span className="word-list__details-label">Дедлайн:</span>
+                                    <span>
+                                        {new Date(fullTask.deadline).toLocaleString('ru-RU', {
+                                            day: '2-digit', month: '2-digit', year: 'numeric',
+                                            hour: '2-digit', minute: '2-digit'
+                                        })}
+                                    </span>
+                                </div>
+                            )}
+                            {fullTask.attachments && fullTask.attachments.length > 0 && (
+                                <div className="word-list__details-row">
+                                    <span className="word-list__details-label">Вложения:</span>
+                                    <span>📎 {fullTask.attachments.length}</span>
+                                </div>
+                            )}
+                            {fullTask.subtasks && fullTask.subtasks.length > 0 && (
+                                <div>
+                                    <div className="word-list__details-label">
+                                        Подзадачи ({fullTask.subtaskDone}/{fullTask.subtaskTotal}):
+                                    </div>
+                                    <div className="word-list__subtasks">
+                                        {fullTask.subtasks.map(st => {
+                                            const stDone = st.statusCategoryCode === 'DONE'
+                                                || st.statusCode === 'DONE'
+                                                || st.statusCategoryCode === 'CANCELLED'
+                                            return (
+                                                <div key={st.id} className="word-list__subtask">
+                                                    <span
+                                                        className={`word-list__subtask-check ${stDone ? 'word-list__subtask-check--done' : ''}`}
+                                                    />
+                                                    <span className={`word-list__subtask-title ${stDone ? 'word-list__subtask-title--done' : ''}`}>
+                                                        {st.title}
+                                                    </span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
-            </div>
-            {task.hasAttachments && (
-                <span className="word-list__attach" title="Есть вложения">📎</span>
             )}
         </div>
     )
