@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import BoardCard from './BoardCard'
 
-export default function SortableBoardCard({ board, onClick, onDelete, onTogglePin }) {
+export default function SortableBoardCard({ board, onClick, onEdit, onTogglePin }) {
     const {
         attributes,
         listeners,
@@ -33,7 +33,7 @@ export default function SortableBoardCard({ board, onClick, onDelete, onTogglePi
             <BoardCard
                 board={board}
                 onClick={onClick}
-                onDelete={onDelete}
+                onEdit={onEdit}
                 onTogglePin={onTogglePin}
             />
         </div>
