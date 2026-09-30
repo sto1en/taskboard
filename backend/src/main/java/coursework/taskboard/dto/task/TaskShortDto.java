@@ -12,6 +12,7 @@ public class TaskShortDto {
 
     private Long id;
     private String title;
+    private Long parentId;
     private Long statusId;
     private String statusCode;
     private String statusCategoryCode;
@@ -20,6 +21,9 @@ public class TaskShortDto {
     private Short priority;
     private LocalDateTime deadline;
     private Integer position;
-    private Boolean hasAttachments;
+    private List<String> attachmentNames;
+    private long subtaskTotal;
+    private long subtaskDone;
+    private List<TaskShortDto> subtasks;
     private List<TagShortDto> tags;
 }

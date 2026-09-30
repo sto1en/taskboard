@@ -71,7 +71,7 @@ public class TaskService {
                 throw new IllegalArgumentException("Parent from another project");
             }
             if (parent.getParent() != null) {
-                throw new IllegalArgumentException("Subtasks cannot have subtasks");
+                throw new IllegalArgumentException("Подзадача не может содержать свои подзадачи");
             }
             long count = taskRepository.countByParentId(parent.getId());
             if (count >= MAX_SUBTASKS) {
@@ -154,7 +154,6 @@ public class TaskService {
             attachments.add(taskMapper.toAttachmentDto(a, meta, att.getPosition()));
         }
 
-        // Подзадачи
         List<TaskShortDto> subtasks = new ArrayList<>();
         for (Task sub : taskRepository.findByParentIdOrderByPositionAsc(taskId)) {
             TaskSettings subSettings = taskSettingsRepository.findById(sub.getId()).orElse(null);
@@ -164,7 +163,7 @@ public class TaskService {
                     ? boardStatusAppearanceRepository.findById(subStatus.getId()).orElse(null)
                     : null;
 
-            boolean subHasAttachments = taskAttachmentRepository.countByTaskId(sub.getId()) > 0;
+            List<String> subAttachmentNames = getAttachmentNames(sub.getId());
 
             List<TagShortDto> subTags = new ArrayList<>();
             for (TaskTag tt : taskTagRepository.findByTaskId(sub.getId())) {
@@ -173,15 +172,12 @@ public class TaskService {
             }
 
             subtasks.add(taskMapper.toTaskShortDto(sub, subSettings, subSchedule, subStatus,
-                    subAppearance, subHasAttachments, subTags));
+                    subAppearance, subAttachmentNames, 0, 0, null, subTags));
         }
 
         long subtaskTotal = subtasks.size();
         long subtaskDone = subtasks.stream()
-                .filter(s -> "DONE".equals(s.getStatusCategoryCode())
-                        || "CANCELLED".equals(s.getStatusCategoryCode())
-                        || "EXPIRED".equals(s.getStatusCategoryCode())
-                        || "ARCHIVED".equals(s.getStatusCategoryCode()))
+                .filter(s -> isDoneCategory(s.getStatusCategoryCode()))
                 .count();
 
         return taskMapper.toTaskDto(task, settings, schedule, status, statusAppearance,
@@ -257,6 +253,45 @@ public class TaskService {
             task.setStage(stage);
         }
 
+        if (Boolean.TRUE.equals(request.getClearParent())) {
+            if (task.getParent() != null) {
+                task.setParent(null);
+                task.setPosition(
+                        (int) taskRepository.countByProjectIdAndParentIsNull(task.getProject().getId())
+                );
+            }
+        } else if (request.getParentId() != null) {
+            if (!request.getParentId().equals(taskId)) {
+                Task newParent = taskRepository.findById(request.getParentId())
+                        .orElseThrow(() -> new IllegalArgumentException("Parent task not found"));
+
+                if (!newParent.getProject().getId().equals(task.getProject().getId())) {
+                    throw new IllegalArgumentException("Parent from another project");
+                }
+                if (newParent.getParent() != null) {
+                    throw new IllegalArgumentException("Подзадача не может содержать свои подзадачи");
+                }
+
+                Task current = newParent;
+                while (current != null) {
+                    if (current.getId().equals(taskId)) {
+                        throw new IllegalArgumentException("Cannot set descendant as parent");
+                    }
+                    current = current.getParent();
+                }
+
+                long siblings = taskRepository.countByParentId(newParent.getId());
+                if (!newParent.getId().equals(task.getParent() != null ? task.getParent().getId() : null)
+                        && siblings >= MAX_SUBTASKS) {
+                    throw new IllegalArgumentException(
+                            "У задачи не может быть больше " + MAX_SUBTASKS + " подзадач");
+                }
+
+                task.setParent(newParent);
+                task.setPosition((int) siblings);
+            }
+        }
+
         taskRepository.save(task);
 
         if (request.getStatusId() != null) {
@@ -280,6 +315,36 @@ public class TaskService {
             }
 
             settings.setStatus(newStatus);
+            taskSettingsRepository.save(settings);
+
+            // Каскадно — всем подзадачам (только для корневой задачи)
+            if (task.getParent() == null) {
+                for (Task sub : taskRepository.findByParentIdOrderByPositionAsc(task.getId())) {
+                    TaskSettings subSettings = taskSettingsRepository.findById(sub.getId()).orElse(null);
+                    if (subSettings != null) {
+                        subSettings.setStatus(newStatus);
+
+                        TaskSchedule subSchedule = taskScheduleRepository.findById(sub.getId()).orElse(null);
+                        if (subSchedule != null) {
+                            if (!wasFinal && willBeFinal && subSchedule.getCompletedAt() == null) {
+                                subSchedule.setCompletedAt(LocalDateTime.now());
+                            } else if (wasFinal && !willBeFinal) {
+                                subSchedule.setCompletedAt(null);
+                            }
+                            taskScheduleRepository.save(subSchedule);
+                        }
+
+                        taskSettingsRepository.save(subSettings);
+                    }
+                }
+            }
+
+            // Синхронизация родителя, если текущая задача — подзадача
+            if (task.getParent() != null) {
+                syncParentStatus(task);
+            }
+        } else {
+            taskSettingsRepository.save(settings);
         }
 
         if (request.getPriority() != null) settings.setPriority(request.getPriority());
@@ -319,6 +384,76 @@ public class TaskService {
 
         return taskMapper.toTaskDto(task, settings, schedule, status, statusAppearance,
                 tagDtos, new ArrayList<>(), new ArrayList<>(), subtaskTotal, 0);
+    }
+
+    // ============================================================
+    // Синхронизация статуса родителя с подзадачами
+    // ============================================================
+    private void syncParentStatus(Task task) {
+        Task parent = task.getParent();
+        if (parent == null) return;
+
+        List<Task> siblings = taskRepository.findByParentIdOrderByPositionAsc(parent.getId());
+        if (siblings.isEmpty()) return;
+
+        TaskSettings parentSettings = taskSettingsRepository.findById(parent.getId()).orElse(null);
+        if (parentSettings == null) return;
+
+        boolean allDone = true;
+        BoardStatus doneStatus = null;
+
+        for (Task sibling : siblings) {
+            TaskSettings s = taskSettingsRepository.findById(sibling.getId()).orElse(null);
+            if (s == null || s.getStatus() == null) {
+                allDone = false;
+                break;
+            }
+            if ("DONE".equals(s.getStatus().getCategoryCode())) {
+                doneStatus = s.getStatus();
+            } else {
+                allDone = false;
+                break;
+            }
+        }
+
+        if (allDone && doneStatus != null) {
+            if (!"DONE".equals(parentSettings.getStatus().getCategoryCode())) {
+                parentSettings.setStatus(doneStatus);
+                taskSettingsRepository.save(parentSettings);
+
+                TaskSchedule parentSchedule = taskScheduleRepository.findById(parent.getId()).orElse(null);
+                if (parentSchedule != null) {
+                    parentSchedule.setCompletedAt(LocalDateTime.now());
+                    taskScheduleRepository.save(parentSchedule);
+                }
+
+                // Рекурсивно наверх
+                syncParentStatus(parent);
+            }
+        } else {
+            if ("DONE".equals(parentSettings.getStatus().getCategoryCode())) {
+                BoardStatus activeStatus = boardStatusRepository
+                        .findByBoardIdAndScopeAndCode(
+                                parent.getProject().getBoard().getId(),
+                                "task",
+                                "IN_PROGRESS"
+                        )
+                        .orElse(null);
+
+                if (activeStatus != null) {
+                    parentSettings.setStatus(activeStatus);
+                    taskSettingsRepository.save(parentSettings);
+
+                    TaskSchedule parentSchedule = taskScheduleRepository.findById(parent.getId()).orElse(null);
+                    if (parentSchedule != null) {
+                        parentSchedule.setCompletedAt(null);
+                        taskScheduleRepository.save(parentSchedule);
+                    }
+
+                    syncParentStatus(parent);
+                }
+            }
+        }
     }
 
     // ============================================================
@@ -386,7 +521,33 @@ public class TaskService {
                     ? boardStatusAppearanceRepository.findById(status.getId()).orElse(null)
                     : null;
 
-            boolean hasAttachments = taskAttachmentRepository.countByTaskId(task.getId()) > 0;
+            List<String> attachmentNames = getAttachmentNames(task.getId());
+
+            List<TaskShortDto> subtasks = new ArrayList<>();
+            for (Task sub : taskRepository.findByParentIdOrderByPositionAsc(task.getId())) {
+                TaskSettings ss = taskSettingsRepository.findById(sub.getId()).orElse(null);
+                TaskSchedule sch = taskScheduleRepository.findById(sub.getId()).orElse(null);
+                BoardStatus stStatus = ss != null ? ss.getStatus() : null;
+                BoardStatusAppearance stApp = stStatus != null
+                        ? boardStatusAppearanceRepository.findById(stStatus.getId()).orElse(null)
+                        : null;
+
+                List<String> stAttachmentNames = getAttachmentNames(sub.getId());
+
+                List<TagShortDto> stTags = new ArrayList<>();
+                for (TaskTag tt : taskTagRepository.findByTaskId(sub.getId())) {
+                    TagAppearance ta = tagAppearanceRepository.findById(tt.getTag().getId()).orElse(null);
+                    stTags.add(taskMapper.toTagShortDto(tt.getTag(), ta));
+                }
+
+                subtasks.add(taskMapper.toTaskShortDto(sub, ss, sch, stStatus, stApp,
+                        stAttachmentNames, 0, 0, null, stTags));
+            }
+
+            long subtaskTotal = subtasks.size();
+            long subtaskDone = subtasks.stream()
+                    .filter(s -> isDoneCategory(s.getStatusCategoryCode()))
+                    .count();
 
             List<TagShortDto> tagDtos = new ArrayList<>();
             for (TaskTag tt : taskTagRepository.findByTaskId(task.getId())) {
@@ -395,10 +556,29 @@ public class TaskService {
             }
 
             result.add(taskMapper.toTaskShortDto(task, settings, schedule, status, appearance,
-                    hasAttachments, tagDtos));
+                    attachmentNames, subtaskTotal, subtaskDone, subtasks, tagDtos));
         }
 
         return result;
+    }
+
+    private List<String> getAttachmentNames(Long taskId) {
+        List<String> names = new ArrayList<>();
+        for (TaskAttachment att : taskAttachmentRepository.findByTaskIdOrderByPositionAsc(taskId)) {
+            Attachment a = att.getAttachment();
+            AttachmentMeta meta = attachmentMetaRepository.findById(a.getId()).orElse(null);
+            if (meta != null && meta.getOriginalName() != null) {
+                names.add(meta.getOriginalName());
+            }
+        }
+        return names;
+    }
+
+    private boolean isDoneCategory(String categoryCode) {
+        return "DONE".equals(categoryCode)
+                || "CANCELLED".equals(categoryCode)
+                || "EXPIRED".equals(categoryCode)
+                || "ARCHIVED".equals(categoryCode);
     }
 
     private BoardStatus resolveStatus(Long statusId, Board board) {

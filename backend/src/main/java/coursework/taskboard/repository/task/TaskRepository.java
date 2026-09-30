@@ -27,6 +27,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     long countByParentId(Long parentId);
 
+    long countByProjectIdAndParentIsNull(Long projectId);
+
     // ============================================================
     // Подсчёты
     // ============================================================

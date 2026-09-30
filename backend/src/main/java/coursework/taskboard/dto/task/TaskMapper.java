@@ -100,11 +100,15 @@ public class TaskMapper {
                                        TaskSchedule schedule,
                                        BoardStatus status,
                                        BoardStatusAppearance appearance,
-                                       boolean hasAttachments,
+                                       List<String> attachmentNames,
+                                       long subtaskTotal,
+                                       long subtaskDone,
+                                       List<TaskShortDto> subtasks,
                                        List<TagShortDto> tags) {
         return TaskShortDto.builder()
                 .id(task.getId())
                 .title(task.getTitle())
+                .parentId(task.getParent() != null ? task.getParent().getId() : null)
                 .statusId(status != null ? status.getId() : null)
                 .statusCode(status != null ? status.getCode() : null)
                 .statusCategoryCode(status != null ? status.getCategoryCode() : null)
@@ -113,7 +117,10 @@ public class TaskMapper {
                 .priority(settings != null ? settings.getPriority() : 0)
                 .deadline(schedule != null ? schedule.getDeadline() : null)
                 .position(task.getPosition())
-                .hasAttachments(hasAttachments)
+                .attachmentNames(attachmentNames)
+                .subtaskTotal(subtaskTotal)
+                .subtaskDone(subtaskDone)
+                .subtasks(subtasks)
                 .tags(tags)
                 .build();
     }

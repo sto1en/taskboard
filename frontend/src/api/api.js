@@ -80,6 +80,12 @@ export const tasksApi = {
         api.delete(`/tasks/${taskId}/attachments/${attachmentId}`),
     move: (id, { statusId, position }) =>
         api.patch(`/tasks/${id}`, { statusId, position }),
+
+    setParent: (id, parentId) =>
+        api.patch(`/tasks/${id}`, { parentId }),
+
+    clearParent: (id) =>
+        api.patch(`/tasks/${id}`, { clearParent: true }),
 }
 
 // ============================================================

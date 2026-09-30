@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import api from '../../api/api'
+import api, { statsApi } from '../../api/api'
+import TreeAvatar from './TreeAvatar'
 
 export default function Sidebar() {
     const { user, logout } = useAuth()
     const [boards, setBoards] = useState([])
     const [boardsOpen, setBoardsOpen] = useState(true)
+    const [doneTasks, setDoneTasks] = useState(0)
     const [collapsed, setCollapsed] = useState(() => {
         return localStorage.getItem('sidebar_collapsed') === 'true'
     })
@@ -14,6 +16,21 @@ export default function Sidebar() {
     useEffect(() => {
         api.get('/boards').then(({ data }) => setBoards(data))
     }, [])
+
+    // Дерево роста: считаем выполненные задачи ЗА СЕГОДНЯ
+    useEffect(() => {
+        if (!user) return
+
+        const load = () => {
+            statsApi.get('day')
+                .then(({ data }) => setDoneTasks(data.done || 0))
+                .catch(() => {})
+        }
+
+        load()
+        window.addEventListener('tree:refresh', load)
+        return () => window.removeEventListener('tree:refresh', load)
+    }, [user])
 
     useEffect(() => {
         localStorage.setItem('sidebar_collapsed', String(collapsed))
@@ -104,6 +121,16 @@ export default function Sidebar() {
             </nav>
 
             <div className="sidebar__bottom">
+                {/* Дерево роста — над Help */}
+                {!collapsed && (
+                    <div className="sidebar__tree">
+                        <TreeAvatar done={doneTasks} maxHeight={400} />
+                        <div className="sidebar__tree-label">
+                            {doneTasks} {pluralDone(doneTasks)} сегодня
+                        </div>
+                    </div>
+                )}
+
                 <Link to="/help" className="sidebar__link" title="Help">
                     <span>❓</span>
                     {!collapsed && <span>Help</span>}
@@ -116,4 +143,12 @@ export default function Sidebar() {
             </div>
         </aside>
     )
+}
+
+function pluralDone(n) {
+    const mod10 = n % 10
+    const mod100 = n % 100
+    if (mod10 === 1 && mod100 !== 11) return 'задача выполнена'
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'задачи выполнено'
+    return 'задач выполнено'
 }

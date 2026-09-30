@@ -17,7 +17,38 @@ function resolveUrl(url) {
     return `/uploads/${url}`
 }
 
-export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boardId, columns }) {
+function splitDeadline(value) {
+    if (!value) return { date: '', time: '', hasTime: false }
+    if (value.includes('T')) {
+        const [date, time] = value.split('T')
+        const timeShort = time.slice(0, 5)
+        const hasTime = timeShort !== '00:00'
+        return { date, time: timeShort, hasTime }
+    }
+    return { date: value, time: '', hasTime: false }
+}
+
+function buildDeadline(date, time, hasTime) {
+    if (!date) return null
+    if (hasTime && time) return `${date}T${time}:00`
+    return `${date}T00:00:00`
+}
+
+function formatDeadline(dt) {
+    if (!dt) return ''
+    const d = new Date(dt)
+    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0
+    return hasTime
+        ? d.toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        })
+        : d.toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        })
+}
+
+export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onUpdated, boardId, columns }) {
     const [task, setTask] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -42,6 +73,13 @@ export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boar
     const [previewAttachment, setPreviewAttachment] = useState(null)
     const fileInputRef = useRef(null)
 
+    const [existingSubtasks, setExistingSubtasks] = useState([])
+    const [pendingSubtasks, setPendingSubtasks] = useState([])
+    const [subtaskInput, setSubtaskInput] = useState('')
+    const [showSubtaskAutocomplete, setShowSubtaskAutocomplete] = useState(false)
+    const [allProjectTasks, setAllProjectTasks] = useState([])
+    const [subtaskError, setSubtaskError] = useState(null)
+
     const load = () => {
         if (!taskId) return
         setLoading(true)
@@ -65,6 +103,15 @@ export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boar
                     statusId: t.statusId || '',
                 })
                 setTags(tagsRes.data)
+                setExistingSubtasks(t.subtasks || [])
+                setPendingSubtasks([])
+
+                if (t.projectId) {
+                    tasksApi.listByProject(t.projectId)
+                        .then(({ data }) => setAllProjectTasks(data))
+                        .catch(() => setAllProjectTasks([]))
+                }
+
                 setDirty(false)
             })
             .catch(err => setError(err.response?.data?.message || 'Ошибка загрузки'))
@@ -99,8 +146,21 @@ export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boar
                 tagIds,
             })
 
+            for (const ps of pendingSubtasks) {
+                try {
+                    await tasksApi.create(task.projectId, {
+                        title: ps.title,
+                        parentId: taskId,
+                    })
+                } catch (err) {
+                    console.error('Failed to create subtask:', ps.title, err)
+                }
+            }
+
             const refreshed = await tasksApi.get(taskId)
             setTask(refreshed.data)
+            setExistingSubtasks(refreshed.data.subtasks || [])
+            setPendingSubtasks([])
 
             const { date, time, hasTime } = splitDeadline(refreshed.data.deadline)
             setForm({
@@ -114,6 +174,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boar
             })
             setDirty(false)
             onUpdated && onUpdated()
+            onClose && onClose()
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка сохранения')
         } finally {
@@ -214,7 +275,96 @@ export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boar
         }
     }
 
+    const existingTaskIds = new Set([
+        taskId,
+        ...existingSubtasks.map(s => s.id),
+    ])
+
+    const autocompleteResults = subtaskInput.trim().length > 0
+        ? allProjectTasks
+            .filter(t => !existingTaskIds.has(t.id))
+            .filter(t => t.title.toLowerCase().includes(subtaskInput.trim().toLowerCase()))
+            .slice(0, 8)
+        : []
+
+    const attachExistingSubtask = async (existing) => {
+        setSubtaskError(null)
+        try {
+            await tasksApi.setParent(existing.id, taskId)
+            const { data } = await tasksApi.get(taskId)
+            setTask(data)
+            setExistingSubtasks(data.subtasks || [])
+            setSubtaskInput('')
+            setShowSubtaskAutocomplete(false)
+            setDirty(true)
+            onUpdated && onUpdated()
+        } catch (err) {
+            setSubtaskError(err.response?.data?.message || 'Не удалось прикрепить')
+        }
+    }
+
+    const addPendingSubtask = () => {
+        if (!subtaskInput.trim()) return
+        setPendingSubtasks(prev => [...prev, { title: subtaskInput.trim() }])
+        setSubtaskInput('')
+        setShowSubtaskAutocomplete(false)
+        setDirty(true)
+    }
+
+    const deleteExistingSubtask = async (subtaskId) => {
+        if (!confirm('Удалить подзадачу?')) return
+        try {
+            await tasksApi.delete(subtaskId)
+            const { data } = await tasksApi.get(taskId)
+            setTask(data)
+            setExistingSubtasks(data.subtasks || [])
+            setDirty(true)
+            onUpdated && onUpdated()
+        } catch (err) {
+            setError(err.response?.data?.message || 'Ошибка удаления')
+        }
+    }
+
+    const removePendingSubtask = (idx) => {
+        setPendingSubtasks(prev => prev.filter((_, i) => i !== idx))
+        setDirty(true)
+    }
+
+    const detachSubtask = async (subtaskId) => {
+        if (!confirm('Сделать подзадачу самостоятельной?')) return
+        try {
+            await tasksApi.clearParent(subtaskId)
+            const { data } = await tasksApi.get(taskId)
+            setTask(data)
+            setExistingSubtasks(data.subtasks || [])
+            setDirty(true)
+            onUpdated && onUpdated()
+        } catch (err) {
+            setError(err.response?.data?.message || 'Ошибка')
+        }
+    }
+
+    const openSubtask = (subtaskId) => {
+        if (!onOpenTask) return
+        if (dirty) {
+            if (!confirm('Есть несохранённые изменения. Открыть подзадачу без сохранения?')) return
+        }
+        onOpenTask(subtaskId)
+    }
+
+    const handleSubtaskKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            addPendingSubtask()
+        }
+        if (e.key === 'Escape') {
+            setShowSubtaskAutocomplete(false)
+        }
+    }
+
     if (!open) return null
+
+    const isSubtask = !!task?.parentId
 
     return (
         <>
@@ -231,7 +381,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boar
                             type="button"
                             className="btn btn-primary"
                             onClick={save}
-                            disabled={saving || !dirty}
+                            disabled={saving}
                         >
                             {saving ? 'Сохранение...' : 'Сохранить'}
                         </button>
@@ -267,18 +417,20 @@ export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boar
 
                         <div className="task-detail__group">
                             <div className="modal__row">
-                                <div className="modal__field">
-                                    <label className="modal__label">Статус</label>
-                                    <select
-                                        className="input"
-                                        value={form.statusId}
-                                        onChange={(e) => setField('statusId', Number(e.target.value))}
-                                    >
-                                        {(columns || []).map(c => (
-                                            <option key={c.statusId} value={c.statusId}>{c.title}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {!isSubtask && (
+                                    <div className="modal__field">
+                                        <label className="modal__label">Статус</label>
+                                        <select
+                                            className="input"
+                                            value={form.statusId}
+                                            onChange={(e) => setField('statusId', Number(e.target.value))}
+                                        >
+                                            {(columns || []).map(c => (
+                                                <option key={c.statusId} value={c.statusId}>{c.title}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 <div className="modal__field">
                                     <label className="modal__label">Приоритет</label>
@@ -414,6 +566,177 @@ export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boar
                             </div>
                         </div>
 
+                        {!isSubtask && (
+                            <div className="task-detail__group">
+                                <div className="task-detail__label-row">
+                                    <div className="task-detail__label">
+                                        Подзадачи {(existingSubtasks.length + pendingSubtasks.length) > 0
+                                        ? `(${existingSubtasks.length + pendingSubtasks.length})`
+                                        : ''}
+                                    </div>
+                                </div>
+
+                                <div className="task-detail__subtask-input-wrap">
+                                    <input
+                                        className="input"
+                                        placeholder="Найти или создать подзадачу..."
+                                        value={subtaskInput}
+                                        onChange={(e) => {
+                                            setSubtaskInput(e.target.value)
+                                            setShowSubtaskAutocomplete(true)
+                                        }}
+                                        onFocus={() => setShowSubtaskAutocomplete(true)}
+                                        onKeyDown={handleSubtaskKeyDown}
+                                    />
+
+                                    {showSubtaskAutocomplete && subtaskInput.trim().length > 0 && (
+                                        <div className="task-detail__subtask-autocomplete">
+                                            {autocompleteResults.map(t => (
+                                                <button
+                                                    key={t.id}
+                                                    type="button"
+                                                    className="task-detail__subtask-ac-item"
+                                                    onClick={() => attachExistingSubtask(t)}
+                                                >
+                                                    <span className="task-detail__subtask-ac-title">{t.title}</span>
+                                                    {t.statusTitle && (
+                                                        <span className="task-detail__subtask-ac-status">
+                                                            {t.statusTitle}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            ))}
+                                            {autocompleteResults.length === 0 && (
+                                                <div className="task-detail__subtask-ac-empty">
+                                                    Нет совпадений — нажми Enter, чтобы создать новую
+                                                </div>
+                                            )}
+                                            {autocompleteResults.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    className="task-detail__subtask-ac-create"
+                                                    onClick={addPendingSubtask}
+                                                >
+                                                    + Создать новую «{subtaskInput.trim()}»
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {subtaskError && (
+                                    <div className="modal__error" style={{ marginTop: 8 }}>
+                                        {subtaskError}
+                                    </div>
+                                )}
+
+                                <div className="task-detail__subtasks">
+                                    {existingSubtasks.length === 0 && pendingSubtasks.length === 0 && (
+                                        <div className="task-detail__empty">Нет подзадач</div>
+                                    )}
+
+                                    {existingSubtasks.map(st => {
+                                        const stDone = st.statusCategoryCode === 'DONE'
+                                            || st.statusCode === 'DONE'
+                                            || st.statusCategoryCode === 'CANCELLED'
+
+                                        return (
+                                            <div
+                                                key={st.id}
+                                                className="subtask-card"
+                                                style={{ '--accent': task.statusAccentCode
+                                                        ? `var(--accent-${task.statusAccentCode})`
+                                                        : 'var(--primary)' }}
+                                                onClick={() => openSubtask(st.id)}
+                                            >
+                                                <div className="subtask-card__head">
+                                                    <span
+                                                        className={`subtask-card__check ${stDone ? 'subtask-card__check--done' : ''}`}
+                                                    />
+                                                    <span className={`subtask-card__title ${stDone ? 'subtask-card__title--done' : ''}`}>
+                                                        {st.title}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className="subtask-card__btn"
+                                                        onClick={(e) => { e.stopPropagation(); detachSubtask(st.id) }}
+                                                        title="Сделать самостоятельной"
+                                                    >
+                                                        ↗
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="subtask-card__btn subtask-card__btn--danger"
+                                                        onClick={(e) => { e.stopPropagation(); deleteExistingSubtask(st.id) }}
+                                                        title="Удалить подзадачу"
+                                                    >
+                                                        🗑
+                                                    </button>
+                                                </div>
+
+                                                <div className="subtask-card__meta">
+                                                    {st.priority > 0 && (
+                                                        <span className="subtask-card__priority">
+                                                            {st.priority === 2 ? '❗' : '⚡'}
+                                                        </span>
+                                                    )}
+                                                    {st.deadline && (
+                                                        <span className="subtask-card__deadline">
+                                                            📅 {formatDeadline(st.deadline)}
+                                                        </span>
+                                                    )}
+                                                    {st.subtaskTotal > 0 && (
+                                                        <span className="subtask-card__subtask-count">
+                                                            {st.subtaskDone}/{st.subtaskTotal}
+                                                        </span>
+                                                    )}
+                                                    {st.attachmentNames && st.attachmentNames.length > 0 && (
+                                                        <span className="subtask-card__attach">
+                                                            📎 {st.attachmentNames[0]}
+                                                            {st.attachmentNames.length > 1 && ` +${st.attachmentNames.length - 1}`}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {st.tags && st.tags.length > 0 && (
+                                                    <div className="subtask-card__tags">
+                                                        {st.tags.map(tag => (
+                                                            <span
+                                                                key={tag.id}
+                                                                className="task-tag"
+                                                                style={{ background: `var(--accent-${tag.accentCode || 'gray'})` }}
+                                                            >
+                                                                {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
+                                                                {tag.title}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+
+                                    {pendingSubtasks.map((ps, idx) => (
+                                        <div key={`pending-${idx}`} className="subtask-card subtask-card--pending">
+                                            <div className="subtask-card__head">
+                                                <span className="subtask-card__check" />
+                                                <span className="subtask-card__title">{ps.title}</span>
+                                                <span className="subtask-card__pending-badge">новая</span>
+                                                <button
+                                                    type="button"
+                                                    className="subtask-card__btn subtask-card__btn--danger"
+                                                    onClick={(e) => { e.stopPropagation(); removePendingSubtask(idx) }}
+                                                    title="Убрать из списка"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="task-detail__group">
                             <div className="task-detail__label">
                                 Вложения {task.attachments?.length ? `(${task.attachments.length})` : ''}
@@ -455,20 +778,15 @@ export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boar
                                     )
                                 })}
 
-                                <button
-                                    type="button"
-                                    className="task-detail__attachment-add"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={uploading}
-                                >
+                                <label className="task-detail__attachment-add">
                                     {uploading ? '...' : '+ Добавить'}
-                                </button>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    style={{ display: 'none' }}
-                                    onChange={uploadAttachment}
-                                />
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        style={{ display: 'none' }}
+                                        onChange={uploadAttachment}
+                                    />
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -535,23 +853,4 @@ export default function TaskDetailModal({ open, onClose, taskId, onUpdated, boar
             />
         </>
     )
-}
-
-function splitDeadline(value) {
-    if (!value) return { date: '', time: '', hasTime: false }
-
-    if (value.includes('T')) {
-        const [date, time] = value.split('T')
-        const timeShort = time.slice(0, 5)
-        const hasTime = timeShort !== '00:00'
-        return { date, time: timeShort, hasTime }
-    }
-
-    return { date: value, time: '', hasTime: false }
-}
-
-function buildDeadline(date, time, hasTime) {
-    if (!date) return null
-    if (hasTime && time) return `${date}T${time}:00`
-    return `${date}T00:00:00`
 }

@@ -9,6 +9,7 @@ import ListView from '../components/Task/ListView'
 import CompactView from '../components/Task/CompactView'
 import CreateTaskModal from '../components/Task/CreateTaskModal'
 import TaskDetailModal from '../components/Task/TaskDetailModal'
+import AttachmentsModal from '../components/Task/AttachmentsModal'
 
 export default function ProjectKanbanPage() {
     const { boardId, projectId } = useParams()
@@ -29,6 +30,9 @@ export default function ProjectKanbanPage() {
     const [presetStatusId, setPresetStatusId] = useState(null)
     const [openTaskId, setOpenTaskId] = useState(null)
 
+    const [attachmentsToView, setAttachmentsToView] = useState(null)
+    const [attachmentsTaskId, setAttachmentsTaskId] = useState(null)
+
     useEffect(() => {
         const taskFromUrl = searchParams.get('task')
         if (taskFromUrl) {
@@ -38,10 +42,8 @@ export default function ProjectKanbanPage() {
 
     useEffect(() => {
         if (!projectId) return
-
         setLoading(true)
         setError(null)
-
         Promise.all([
             projectsApi.get(projectId),
             tasksApi.kanban(projectId),
@@ -61,6 +63,10 @@ export default function ProjectKanbanPage() {
         tasksApi.kanban(projectId).then(({ data }) => setKanban(data))
     }
 
+    const refreshTree = () => {
+        window.dispatchEvent(new Event('tree:refresh'))
+    }
+
     const handleAddTask = (statusId) => {
         setPresetStatusId(statusId || null)
         setShowCreateTask(true)
@@ -70,6 +76,7 @@ export default function ProjectKanbanPage() {
         setShowCreateTask(false)
         setPresetStatusId(null)
         reloadKanban()
+        refreshTree()
     }
 
     const handleToggleDone = async (taskId, isDone) => {
@@ -81,6 +88,7 @@ export default function ProjectKanbanPage() {
         try {
             await tasksApi.update(taskId, { statusId: targetStatusId })
             reloadKanban()
+            refreshTree()
         } catch (err) {
             console.error('Toggle done failed:', err)
         }
@@ -93,6 +101,11 @@ export default function ProjectKanbanPage() {
         }
     }
 
+    const handleOpenAttachments = (taskId, attachments) => {
+        setAttachmentsTaskId(taskId)
+        setAttachmentsToView(attachments)
+    }
+
     if (loading) return <div className="loading">Загрузка...</div>
     if (error) return <div className="error">{error}</div>
     if (!project || !kanban) return <div>Проект не найден</div>
@@ -101,11 +114,16 @@ export default function ProjectKanbanPage() {
     const autoMode = totalTasks > 100 ? 'list' : 'kanban'
     const effectiveMode = viewMode === 'auto' ? autoMode : viewMode
 
+    const doneCol = kanban.columns.find(c => c.categoryCode === 'DONE')
+    const doneStatusId = doneCol?.statusId || null
+
+    const activeCol = kanban.columns.find(c => c.categoryCode === 'ACTIVE')
+    const activeStatusId = activeCol?.statusId || null
+
     const accentStyle = {
         '--accent': `var(--accent-${project.accentCode || 'blue'})`,
     }
 
-    // Кнопка перестановки показывается только для kanban и compact
     const showReorderButton = effectiveMode === 'kanban' || effectiveMode === 'compact'
 
     return (
@@ -121,15 +139,15 @@ export default function ProjectKanbanPage() {
                 <h2 className="board-detail__title">{project.title}</h2>
 
                 <div className="board-detail__toolbar">
-                    {showReorderButton && (
-                        <button
-                            className={`reorder-btn ${reorderMode ? 'reorder-btn--active' : ''}`}
-                            onClick={() => setReorderMode(v => !v)}
-                            title={reorderMode ? 'Выключить режим перестановки' : 'Включить режим перестановки'}
-                        >
-                            🔀 {reorderMode ? 'Готово' : 'Переставить'}
-                        </button>
-                    )}
+                    <ViewSwitcher mode={viewMode} onChange={setViewMode} />
+
+                    <SortSwitcher
+                        sortMode={sortMode}
+                        sortDir={sortDir}
+                        onChange={({ sortMode: sm, sortDir: sd }) => {
+                            setSortMode(sm); setSortDir(sd)
+                        }}
+                    />
 
                     <FiltersBar
                         columns={kanban.columns}
@@ -140,15 +158,15 @@ export default function ProjectKanbanPage() {
                         onClear={() => setActiveStatuses([])}
                     />
 
-                    <SortSwitcher
-                        sortMode={sortMode}
-                        sortDir={sortDir}
-                        onChange={({ sortMode: sm, sortDir: sd }) => {
-                            setSortMode(sm); setSortDir(sd)
-                        }}
-                    />
-
-                    <ViewSwitcher mode={viewMode} onChange={setViewMode} />
+                    {showReorderButton && (
+                        <button
+                            className={`reorder-btn ${reorderMode ? 'reorder-btn--active' : ''}`}
+                            onClick={() => setReorderMode(v => !v)}
+                            title={reorderMode ? 'Выключить режим перестановки' : 'Включить режим перестановки'}
+                        >
+                            🔀 {reorderMode ? 'Готово' : 'Переставить'}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -159,12 +177,15 @@ export default function ProjectKanbanPage() {
                         projectId={Number(projectId)}
                         boardId={Number(boardId)}
                         reorderMode={reorderMode}
+                        doneStatusId={doneStatusId}
+                        activeStatusId={activeStatusId}
                         onTaskMoved={reloadKanban}
                         onColumnsMoved={reloadKanban}
                         activeStatuses={activeStatuses}
                         onAddTask={handleAddTask}
-                        onTaskClick={setOpenTaskId}
+                        onOpenTask={setOpenTaskId}
                         onToggleDone={handleToggleDone}
+                        onOpenAttachments={handleOpenAttachments}
                         sortMode={sortMode}
                         sortDir={sortDir}
                     />
@@ -173,10 +194,13 @@ export default function ProjectKanbanPage() {
                     <ListView
                         columns={kanban.columns}
                         projectId={Number(projectId)}
+                        doneStatusId={doneStatusId}
+                        activeStatusId={activeStatusId}
                         onAddTask={handleAddTask}
-                        onTaskClick={setOpenTaskId}
+                        onOpenTask={setOpenTaskId}
                         onToggleDone={handleToggleDone}
                         onTaskMoved={reloadKanban}
+                        onOpenAttachments={handleOpenAttachments}
                         sortMode={sortMode}
                         sortDir={sortDir}
                     />
@@ -187,11 +211,14 @@ export default function ProjectKanbanPage() {
                         projectId={Number(projectId)}
                         boardId={Number(boardId)}
                         reorderMode={reorderMode}
+                        doneStatusId={doneStatusId}
+                        activeStatusId={activeStatusId}
                         onAddTask={handleAddTask}
-                        onTaskClick={setOpenTaskId}
+                        onOpenTask={setOpenTaskId}
                         onToggleDone={handleToggleDone}
                         onTaskMoved={reloadKanban}
                         onColumnsMoved={reloadKanban}
+                        onOpenAttachments={handleOpenAttachments}
                         sortMode={sortMode}
                         sortDir={sortDir}
                     />
@@ -212,9 +239,24 @@ export default function ProjectKanbanPage() {
                 open={!!openTaskId}
                 onClose={closeTaskModal}
                 taskId={openTaskId}
-                onUpdated={reloadKanban}
+                onOpenTask={setOpenTaskId}
+                onUpdated={() => {
+                    reloadKanban()
+                    refreshTree()
+                }}
                 boardId={Number(boardId)}
                 columns={kanban.columns}
+            />
+
+            <AttachmentsModal
+                open={!!attachmentsToView}
+                attachments={attachmentsToView || []}
+                taskId={attachmentsTaskId}
+                onClose={() => {
+                    setAttachmentsToView(null)
+                    setAttachmentsTaskId(null)
+                }}
+                onUpdated={reloadKanban}
             />
         </div>
     )

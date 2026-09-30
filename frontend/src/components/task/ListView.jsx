@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     DndContext,
     DragOverlay,
@@ -16,6 +16,21 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { tasksApi } from '../../api/api'
+import DraggableSubtask from './DraggableSubtask'
+
+function formatDeadline(dt) {
+    if (!dt) return ''
+    const d = new Date(dt)
+    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0
+    return hasTime
+        ? d.toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        })
+        : d.toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        })
+}
 
 function sortTasks(tasks, sortMode, sortDir) {
     const dir = sortDir === 'desc' ? -1 : 1
@@ -43,7 +58,11 @@ function sortTasks(tasks, sortMode, sortDir) {
     return arr
 }
 
-function SortableTaskRow({ task, columnTitle, onClick, onToggleDone }) {
+function SortableTaskRow({
+                             task, doneStatusId, activeStatusId,
+                             isDropOver, dropMode,
+                             onOpenTask, onToggleDone, onTaskMoved, onOpenAttachments,
+                         }) {
     const [expanded, setExpanded] = useState(false)
     const [fullTask, setFullTask] = useState(null)
     const [loadingFull, setLoadingFull] = useState(false)
@@ -75,7 +94,7 @@ function SortableTaskRow({ task, columnTitle, onClick, onToggleDone }) {
         ? `var(--accent-${task.statusAccentCode}, var(--primary))`
         : 'var(--primary)'
 
-    const handleExpand = async (e) => {
+    const handleToggleExpand = async (e) => {
         e.stopPropagation()
         if (expanded) {
             setExpanded(false)
@@ -95,74 +114,144 @@ function SortableTaskRow({ task, columnTitle, onClick, onToggleDone }) {
         }
     }
 
+    const handleEdit = (e) => {
+        e.stopPropagation()
+        onOpenTask && onOpenTask(task.id)
+    }
+
+    const handleSubtaskToggleDone = async (subtask) => {
+        const subDone = subtask.statusCategoryCode === 'DONE'
+            || subtask.statusCode === 'DONE'
+            || subtask.statusCategoryCode === 'CANCELLED'
+
+        const targetStatusId = subDone ? activeStatusId : doneStatusId
+        if (!targetStatusId) return
+
+        try {
+            await tasksApi.update(subtask.id, { statusId: targetStatusId })
+            onTaskMoved && onTaskMoved()
+        } catch (err) {
+            console.error('Subtask check failed:', err)
+        }
+    }
+
+    const handleOpenAttachments = async (e) => {
+        e.stopPropagation()
+        let t = fullTask
+        const needReload = !t
+            || (t.attachments?.length || 0) < (task.attachmentNames?.length || 0)
+        if (needReload) {
+            try {
+                const { data } = await tasksApi.get(task.id)
+                t = data
+                setFullTask(data)
+            } catch {
+                return
+            }
+        }
+        if (!t?.attachments?.length) return
+        onOpenAttachments && onOpenAttachments(task.id, t.attachments)
+    }
+
+    const wrapperClass = [
+        'word-list__item-wrap',
+        isDragging ? 'word-list__item-wrap--dragging' : '',
+        isDropOver ? 'word-list__item-wrap--drop-over' : '',
+        isDropOver && dropMode ? `word-list__item-wrap--drop-${dropMode}` : '',
+    ].filter(Boolean).join(' ')
+
     return (
         <div
             ref={setNodeRef}
             style={style}
             {...attributes}
             {...listeners}
-            className={`word-list__item-wrap ${isDragging ? 'word-list__item-wrap--dragging' : ''}`}
+            className={wrapperClass}
         >
             <div
-                className="word-list__item"
-                onClick={() => onClick && onClick(task.id)}
+                className={`word-list__item ${isDone ? 'word-list__item--done' : ''}`}
+                style={{ '--accent': accent }}
+                onClick={handleToggleExpand}
             >
                 <button
                     className={`word-list__check ${isDone ? 'word-list__check--done' : ''}`}
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                         e.stopPropagation()
                         onToggleDone && onToggleDone(task.id, isDone)
                     }}
                 />
+
                 <div className="word-list__body">
-                    <div className="word-list__title">{task.title}</div>
-                    <div className="word-list__meta">
-                        <span className="word-list__status">
-                            <span
-                                className="word-list__dot"
-                                style={{ background: accent }}
-                            />
-                            {columnTitle}
-                        </span>
+                    <div className="word-list__row-top">
+                        <div className="word-list__title">{task.title}</div>
                         {task.priority > 0 && (
-                            <span className="word-list__priority">
-                                {task.priority === 2 ? '🔥 Срочный' : '⚡ Высокий'}
-                            </span>
-                        )}
-                        {task.deadline && (
-                            <span className="word-list__deadline">
-                                📅 {new Date(task.deadline).toLocaleDateString('ru-RU')}
-                            </span>
-                        )}
-                        {task.tags && task.tags.length > 0 && (
-                            <span className="word-list__tags">
-                                {task.tags.map(tag => (
-                                    <span
-                                        key={tag.id}
-                                        className="task-tag"
-                                        style={{
-                                            background: `var(--accent-${tag.accentCode || 'gray'})`,
-                                        }}
-                                        title={tag.title}
-                                    >
-                                        {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
-                                        {tag.title}
-                                    </span>
-                                ))}
+                            <span className="word-list__priority task-card__priority--big">
+                                {task.priority === 2 ? '❗' : '⚡'}
                             </span>
                         )}
                     </div>
+
+                    {task.deadline && (
+                        <div className="word-list__deadline-row">
+                            <span className="word-list__deadline-inline">
+                                📅 {formatDeadline(task.deadline)}
+                            </span>
+                        </div>
+                    )}
+
+                    {task.tags && task.tags.length > 0 && (
+                        <div className="word-list__tags-row">
+                            {task.tags.map(tag => (
+                                <span
+                                    key={tag.id}
+                                    className="task-tag"
+                                    style={{ background: `var(--accent-${tag.accentCode || 'gray'})` }}
+                                    title={tag.title}
+                                >
+                                    {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
+                                    {tag.title}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
+                    {task.subtaskTotal > 0 && (
+                        <div className="word-list__subtask-count">
+                            {task.subtaskDone}/{task.subtaskTotal}
+                        </div>
+                    )}
+
+                    {task.subtasks && task.subtasks.length > 0 && (
+                        <div className="word-list__subtasks" style={{ '--accent': accent }}>
+                            {task.subtasks.map(st => (
+                                <DraggableSubtask
+                                    key={st.id}
+                                    subtask={st}
+                                    onClick={onOpenTask}
+                                    onToggleDone={handleSubtaskToggleDone}
+                                    onTaskMoved={onTaskMoved}
+                                    onOpenAttachments={onOpenAttachments}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
-                {task.hasAttachments && (
-                    <span className="word-list__attach" title="Есть вложения">📎</span>
-                )}
-                <button
-                    className="word-list__expand"
-                    onClick={handleExpand}
-                    title={expanded ? 'Свернуть' : 'Показать подробности'}
-                >
-                    {expanded ? '▲' : '▼'}
-                </button>
+
+                <div className="word-list__actions">
+                    {task.attachmentNames?.length > 0 && (
+                        <span
+                            className="word-list__attach"
+                            title={`Вложений: ${task.attachmentNames.length}`}
+                        >📎</span>
+                    )}
+                    <button
+                        className="word-list__edit"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={handleEdit}
+                        title="Редактировать"
+                    >✎</button>
+                </div>
             </div>
 
             {expanded && (
@@ -180,45 +269,19 @@ function SortableTaskRow({ task, columnTitle, onClick, onToggleDone }) {
                                     </div>
                                 </div>
                             )}
-                            {fullTask.deadline && (
-                                <div className="word-list__details-row">
-                                    <span className="word-list__details-label">Дедлайн:</span>
-                                    <span>
-                                        {new Date(fullTask.deadline).toLocaleString('ru-RU', {
-                                            day: '2-digit', month: '2-digit', year: 'numeric',
-                                            hour: '2-digit', minute: '2-digit'
-                                        })}
-                                    </span>
-                                </div>
-                            )}
                             {fullTask.attachments && fullTask.attachments.length > 0 && (
                                 <div className="word-list__details-row">
                                     <span className="word-list__details-label">Вложения:</span>
-                                    <span>📎 {fullTask.attachments.length}</span>
-                                </div>
-                            )}
-                            {fullTask.subtasks && fullTask.subtasks.length > 0 && (
-                                <div>
-                                    <div className="word-list__details-label">
-                                        Подзадачи ({fullTask.subtaskDone}/{fullTask.subtaskTotal}):
-                                    </div>
-                                    <div className="word-list__subtasks">
-                                        {fullTask.subtasks.map(st => {
-                                            const stDone = st.statusCategoryCode === 'DONE'
-                                                || st.statusCode === 'DONE'
-                                                || st.statusCategoryCode === 'CANCELLED'
-                                            return (
-                                                <div key={st.id} className="word-list__subtask">
-                                                    <span
-                                                        className={`word-list__subtask-check ${stDone ? 'word-list__subtask-check--done' : ''}`}
-                                                    />
-                                                    <span className={`word-list__subtask-title ${stDone ? 'word-list__subtask-title--done' : ''}`}>
-                                                        {st.title}
-                                                    </span>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
+                                    <span
+                                        className="word-list__details-attachments"
+                                        onClick={handleOpenAttachments}
+                                        title="Открыть вложения"
+                                    >
+                                        {fullTask.attachments[0].originalName}
+                                        {fullTask.attachments.length > 1 && (
+                                            <> +{fullTask.attachments.length - 1}</>
+                                        )}
+                                    </span>
                                 </div>
                             )}
                         </>
@@ -232,10 +295,13 @@ function SortableTaskRow({ task, columnTitle, onClick, onToggleDone }) {
 export default function ListView({
                                      columns,
                                      projectId,
+                                     doneStatusId,
+                                     activeStatusId,
+                                     onOpenTask,
                                      onAddTask,
-                                     onTaskClick,
                                      onToggleDone,
                                      onTaskMoved,
+                                     onOpenAttachments,
                                      sortMode,
                                      sortDir,
                                  }) {
@@ -248,6 +314,21 @@ export default function ListView({
 
     const [localOrder, setLocalOrder] = useState(null)
     const [activeTask, setActiveTask] = useState(null)
+    const [activeSubtask, setActiveSubtask] = useState(null)
+    const [hoverTaskId, setHoverTaskId] = useState(null)
+    const [hoverMode, setHoverMode] = useState(null)
+    const [shiftPressed, setShiftPressed] = useState(false)
+
+    useEffect(() => {
+        const onKeyDown = (e) => { if (e.key === 'Shift') setShiftPressed(true) }
+        const onKeyUp = (e) => { if (e.key === 'Shift') setShiftPressed(false) }
+        window.addEventListener('keydown', onKeyDown)
+        window.addEventListener('keyup', onKeyUp)
+        return () => {
+            window.removeEventListener('keydown', onKeyDown)
+            window.removeEventListener('keyup', onKeyUp)
+        }
+    }, [])
 
     const sorted = localOrder || sortTasks(allTasks, sortMode, sortDir)
 
@@ -259,14 +340,210 @@ export default function ListView({
 
     const handleDragStart = (event) => {
         const { active } = event
-        const task = active.data.current?.task
-        if (task) setActiveTask(task)
+        const data = active.data.current
+        if (data?.type === 'task') setActiveTask(data.task)
+        if (data?.type === 'subtask') setActiveSubtask(data.subtask)
+    }
+
+    const computeReorderMode = (active, over) => {
+        if (!active.rect.current?.translated || !over.rect) return 'below'
+        const activeRect = active.rect.current.translated
+        const cursorY = activeRect.top + activeRect.height / 2
+        const overTop = over.rect.top
+        const overHeight = over.rect.height
+        const centerY = overTop + overHeight / 2
+        return cursorY < centerY ? 'above' : 'below'
+    }
+
+    const handleDragOver = (event) => {
+        const { active, over } = event
+        if (!over) {
+            setHoverTaskId(null)
+            setHoverMode(null)
+            return
+        }
+
+        const overData = over.data.current
+
+        if (overData?.type === 'task' && overData.task?.id) {
+            setHoverTaskId(overData.task.id)
+            if (shiftPressed) {
+                setHoverMode('subtask')
+            } else {
+                setHoverMode(computeReorderMode(active, over))
+            }
+            return
+        }
+
+        if (overData?.type === 'subtask' && overData.subtask?.id) {
+            const subId = overData.subtask.id
+            for (const t of sorted) {
+                if ((t.subtasks || []).some(st => st.id === subId)) {
+                    setHoverTaskId(t.id)
+                    setHoverMode('subtask')
+                    return
+                }
+            }
+            setHoverTaskId(null)
+            setHoverMode(null)
+            return
+        }
+
+        setHoverTaskId(null)
+        setHoverMode(null)
     }
 
     const handleDragEnd = async (event) => {
         const { active, over } = event
         setActiveTask(null)
-        if (!over || active.id === over.id) {
+        setActiveSubtask(null)
+        setHoverTaskId(null)
+        setHoverMode(null)
+        if (!over) {
+            setLocalOrder(null)
+            return
+        }
+
+        const activeData = active.data.current
+        const overData = over.data.current
+
+        if (activeData?.type === 'subtask') {
+            const subtaskId = activeData.subtask.id
+
+            if (overData?.type === 'task' && overData.task?.id) {
+                if (overData.task.id === subtaskId) return
+                if (shiftPressed) {
+                    try {
+                        await tasksApi.clearParent(subtaskId)
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось сделать задачей')
+                        onTaskMoved && onTaskMoved()
+                    }
+                } else {
+                    try {
+                        await tasksApi.setParent(subtaskId, overData.task.id)
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось переместить')
+                        onTaskMoved && onTaskMoved()
+                    }
+                }
+                return
+            }
+
+            if (overData?.type === 'subtask' && overData.subtask?.id) {
+                const targetSubId = overData.subtask.id
+                if (targetSubId === subtaskId) return
+                let parentTaskId = null
+                for (const t of sorted) {
+                    if ((t.subtasks || []).some(st => st.id === targetSubId)) {
+                        parentTaskId = t.id
+                        break
+                    }
+                }
+                if (parentTaskId) {
+                    try {
+                        await tasksApi.setParent(subtaskId, parentTaskId)
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось переместить')
+                        onTaskMoved && onTaskMoved()
+                    }
+                }
+                return
+            }
+
+            if (shiftPressed) {
+                try {
+                    await tasksApi.clearParent(subtaskId)
+                    onTaskMoved && onTaskMoved()
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Не удалось сделать задачей')
+                    onTaskMoved && onTaskMoved()
+                }
+                return
+            }
+
+            return
+        }
+
+        if (activeData?.type !== 'task') return
+
+        if (overData?.type === 'task' && overData.task?.id) {
+            const overTaskId = overData.task.id
+            if (overTaskId === active.id) {
+                setLocalOrder(null)
+                return
+            }
+
+            if (shiftPressed) {
+                try {
+                    await tasksApi.setParent(active.id, overTaskId)
+                    onTaskMoved && onTaskMoved()
+                    setLocalOrder(null)
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Не удалось сделать подзадачей')
+                    setLocalOrder(null)
+                }
+                return
+            }
+
+            const oldIndex = sorted.findIndex(t => t.id === active.id)
+            const overIndex = sorted.findIndex(t => t.id === overTaskId)
+            if (oldIndex === -1 || overIndex === -1) {
+                setLocalOrder(null)
+                return
+            }
+
+            const mode = computeReorderMode(active, over)
+            const targetIndex = mode === 'above'
+                ? (oldIndex < overIndex ? overIndex - 1 : overIndex)
+                : (oldIndex < overIndex ? overIndex : overIndex + 1)
+
+            const reordered = arrayMove(sorted, oldIndex, targetIndex)
+            setLocalOrder(reordered)
+
+            try {
+                await Promise.all(
+                    reordered.map((t, idx) =>
+                        tasksApi.move(t.id, {
+                            statusId: t.statusId,
+                            position: idx,
+                        })
+                    )
+                )
+                onTaskMoved && onTaskMoved()
+                setLocalOrder(null)
+            } catch (err) {
+                console.error('Reorder failed:', err)
+                setLocalOrder(null)
+            }
+            return
+        }
+
+        if (overData?.type === 'subtask' && overData.subtask?.id) {
+            const targetSubId = overData.subtask.id
+            let parentTaskId = null
+            for (const t of sorted) {
+                if ((t.subtasks || []).some(st => st.id === targetSubId)) {
+                    parentTaskId = t.id
+                    break
+                }
+            }
+            if (parentTaskId && parentTaskId !== active.id) {
+                try {
+                    await tasksApi.setParent(active.id, parentTaskId)
+                    onTaskMoved && onTaskMoved()
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Не удалось сделать подзадачей')
+                    onTaskMoved && onTaskMoved()
+                }
+            }
+            return
+        }
+
+        if (active.id === over.id) {
             setLocalOrder(null)
             return
         }
@@ -304,9 +581,11 @@ export default function ListView({
         <div className="word-list">
             <div className="word-list__page">
                 <div className="word-list__topbar">
-                    <div className="word-list__count">{sorted.length} задач</div>
+                    <div className="word-list__count">
+                        {sorted.length} {plural(sorted.length, ['задача', 'задачи', 'задач'])}
+                    </div>
                     <button
-                        className="btn btn-secondary"
+                        className="btn btn-primary"
                         onClick={() => onAddTask && onAddTask()}
                     >
                         + Задача
@@ -320,6 +599,7 @@ export default function ListView({
                         sensors={sensors}
                         collisionDetection={closestCenter}
                         onDragStart={handleDragStart}
+                        onDragOver={handleDragOver}
                         onDragEnd={handleDragEnd}
                     >
                         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
@@ -328,9 +608,14 @@ export default function ListView({
                                     <SortableTaskRow
                                         key={t.id}
                                         task={t}
-                                        columnTitle={t.columnTitle}
-                                        onClick={onTaskClick}
+                                        doneStatusId={doneStatusId}
+                                        activeStatusId={activeStatusId}
+                                        isDropOver={hoverTaskId === t.id}
+                                        dropMode={hoverTaskId === t.id ? hoverMode : null}
+                                        onOpenTask={onOpenTask}
                                         onToggleDone={onToggleDone}
+                                        onTaskMoved={onTaskMoved}
+                                        onOpenAttachments={onOpenAttachments}
                                     />
                                 ))}
                             </div>
@@ -351,6 +636,11 @@ export default function ListView({
                                         </div>
                                     </div>
                                 </div>
+                            ) : activeSubtask ? (
+                                <div className="subtask-mini" style={{ width: 240 }}>
+                                    <span className="subtask-mini__check" />
+                                    <span className="subtask-mini__title">{activeSubtask.title}</span>
+                                </div>
                             ) : null}
                         </DragOverlay>
                     </DndContext>
@@ -358,4 +648,11 @@ export default function ListView({
             </div>
         </div>
     )
+}
+
+function plural(n, forms) {
+    const mod10 = n % 10, mod100 = n % 100
+    if (mod10 === 1 && mod100 !== 11) return forms[0]
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return forms[1]
+    return forms[2]
 }

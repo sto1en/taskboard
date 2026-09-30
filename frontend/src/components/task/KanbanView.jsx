@@ -48,25 +48,40 @@ export default function KanbanView({
                                        projectId,
                                        boardId,
                                        reorderMode,
+                                       doneStatusId,
+                                       activeStatusId,
                                        onTaskMoved,
                                        onColumnsMoved,
                                        activeStatuses,
                                        onAddTask,
-                                       onTaskClick,
+                                       onOpenTask,
                                        onToggleDone,
+                                       onOpenAttachments,
                                        sortMode,
                                        sortDir,
                                    }) {
     const [activeTask, setActiveTask] = useState(null)
+    const [activeSubtask, setActiveSubtask] = useState(null)
     const [activeColumn, setActiveColumn] = useState(null)
-
-    // Локальный порядок колонок (оптимистично)
+    const [hoverTaskId, setHoverTaskId] = useState(null)
+    const [hoverMode, setHoverMode] = useState(null)
+    const [shiftPressed, setShiftPressed] = useState(false)
     const [localColumns, setLocalColumns] = useState(columns)
 
-    // Синхронизация с родителем при изменении columns
     useEffect(() => {
         setLocalColumns(columns)
     }, [columns])
+
+    useEffect(() => {
+        const onKeyDown = (e) => { if (e.key === 'Shift') setShiftPressed(true) }
+        const onKeyUp = (e) => { if (e.key === 'Shift') setShiftPressed(false) }
+        window.addEventListener('keydown', onKeyDown)
+        window.addEventListener('keyup', onKeyUp)
+        return () => {
+            window.removeEventListener('keydown', onKeyDown)
+            window.removeEventListener('keyup', onKeyUp)
+        }
+    }, [])
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -98,143 +113,261 @@ export default function KanbanView({
         const { active } = event
         const data = active.data.current
         if (data?.type === 'task') setActiveTask(data.task)
+        if (data?.type === 'subtask') setActiveSubtask(data.subtask)
         if (data?.type === 'column') setActiveColumn(data.column)
+    }
+
+    const computeReorderMode = (active, over) => {
+        if (!active.rect.current?.translated || !over.rect) return 'below'
+        const activeRect = active.rect.current.translated
+        const cursorY = activeRect.top + activeRect.height / 2
+        const overTop = over.rect.top
+        const overHeight = over.rect.height
+        const centerY = overTop + overHeight / 2
+        return cursorY < centerY ? 'above' : 'below'
     }
 
     const handleDragOver = (event) => {
         const { active, over } = event
-        if (!over) return
-
-        const activeData = active.data.current
-        const overData = over.data.current
-
-        // Визуальное перемещение колонки на лету
-        if (activeData?.type === 'column' && reorderMode) {
-            const activeId = String(active.id).replace('col-', '')
-            const overIdRaw = String(over.id)
-            const overId = overIdRaw.startsWith('col-')
-                ? overIdRaw.replace('col-', '')
-                : overIdRaw
-            if (activeId === overId) return
-
-            setLocalColumns(prev => {
-                const oldIndex = prev.findIndex(c => String(c.statusId) === activeId)
-                const newIndex = prev.findIndex(c => String(c.statusId) === overId)
-                if (oldIndex === -1 || newIndex === -1) return prev
-                return arrayMove(prev, oldIndex, newIndex)
-            })
+        if (!over) {
+            setHoverTaskId(null)
+            setHoverMode(null)
             return
         }
 
-        // Визуальное перемещение задачи между колонками на лету
-        if (activeData?.type === 'task' && !reorderMode) {
-            const activeTaskId = active.id
-            let activeCol = null
-            let activeIdx = -1
-            for (const col of localColumns) {
-                const idx = col.tasks.findIndex(t => t.id === activeTaskId)
-                if (idx !== -1) {
-                    activeCol = col
-                    activeIdx = idx
-                    break
-                }
+        const overData = over.data.current
+
+        if (overData?.type === 'task' && overData.task?.id) {
+            setHoverTaskId(overData.task.id)
+            if (shiftPressed) {
+                setHoverMode('subtask')
+            } else {
+                setHoverMode(computeReorderMode(active, over))
             }
-            if (!activeCol) return
-
-            // Куда
-            let overCol = null
-            let overIdx = -1
-            const overIdRaw = String(over.id)
-            if (overIdRaw.startsWith('column-')) {
-                const statusId = Number(overIdRaw.replace('column-', ''))
-                overCol = localColumns.find(c => c.statusId === statusId)
-                overIdx = overCol ? overCol.tasks.length : -1
-            } else if (overData?.type === 'task') {
-                for (const col of localColumns) {
-                    const idx = col.tasks.findIndex(t => t.id === over.id)
-                    if (idx !== -1) {
-                        overCol = col
-                        overIdx = idx
-                        break
-                    }
-                }
-            }
-            if (!overCol) return
-
-            if (activeCol.statusId === overCol.statusId && activeIdx === overIdx) return
-
-            setLocalColumns(prev => {
-                const next = prev.map(c => ({ ...c, tasks: [...c.tasks] }))
-                const ac = next.find(c => c.statusId === activeCol.statusId)
-                const oc = next.find(c => c.statusId === overCol.statusId)
-                const [moved] = ac.tasks.splice(activeIdx, 1)
-                if (oc) {
-                    oc.tasks.splice(overIdx, 0, moved)
-                }
-                return next
-            })
+            return
         }
+
+        if (overData?.type === 'subtask' && overData.subtask?.id) {
+            const subId = overData.subtask.id
+            for (const col of sorted) {
+                const parent = col.tasks.find(t => (t.subtasks || []).some(st => st.id === subId))
+                if (parent) {
+                    setHoverTaskId(parent.id)
+                    setHoverMode('subtask')
+                    return
+                }
+            }
+            setHoverTaskId(null)
+            setHoverMode(null)
+            return
+        }
+
+        setHoverTaskId(null)
+        setHoverMode(null)
     }
 
     const handleDragEnd = async (event) => {
         const { active, over } = event
         setActiveTask(null)
+        setActiveSubtask(null)
         setActiveColumn(null)
+        setHoverTaskId(null)
+        setHoverMode(null)
         if (!over) return
 
         const activeData = active.data.current
+        const overData = over.data.current
 
-        // ===== DRAG КОЛОНКИ =====
+        // === COLUMN reorder ===
         if (activeData?.type === 'column') {
             if (!reorderMode) return
+            const activeId = String(active.id).replace('col-', '')
+            const overIdRaw = String(over.id)
+            const overId = overIdRaw.startsWith('col-') ? overIdRaw.replace('col-', '') : overIdRaw
+            if (activeId === overId) return
 
-            // Локальный порядок уже применён в handleDragOver — просто сохраняем
-            const orderedIds = localColumns.map(c => c.statusId)
+            const oldIndex = sorted.findIndex(c => String(c.statusId) === activeId)
+            const newIndex = sorted.findIndex(c => String(c.statusId) === overId)
+            if (oldIndex === -1 || newIndex === -1) return
+
+            const reordered = arrayMove(sorted, oldIndex, newIndex)
+            setLocalColumns(reordered)
 
             try {
                 await Promise.all(
-                    orderedIds.map((statusId, idx) =>
-                        statusesApi.update(boardId, statusId, { position: idx })
+                    reordered.map((c, idx) =>
+                        statusesApi.update(boardId, c.statusId, { position: idx })
                     )
                 )
                 onColumnsMoved && onColumnsMoved()
             } catch (err) {
                 console.error('Column move failed:', err)
-                // откат
                 setLocalColumns(columns)
                 onColumnsMoved && onColumnsMoved()
             }
             return
         }
 
-        // ===== DRAG ЗАДАЧИ =====
+        // === SUBTASK drag ===
+        if (activeData?.type === 'subtask') {
+            const subtaskId = activeData.subtask.id
+
+            if (overData?.type === 'task' && overData.task?.id) {
+                if (overData.task.id === subtaskId) return
+                if (shiftPressed) {
+                    try {
+                        await tasksApi.clearParent(subtaskId)
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось сделать задачей')
+                        onTaskMoved && onTaskMoved()
+                    }
+                } else {
+                    try {
+                        await tasksApi.setParent(subtaskId, overData.task.id)
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось переместить')
+                        onTaskMoved && onTaskMoved()
+                    }
+                }
+                return
+            }
+
+            if (overData?.type === 'subtask' && overData.subtask?.id) {
+                const targetSubId = overData.subtask.id
+                if (targetSubId === subtaskId) return
+                let parentTaskId = null
+                for (const col of sorted) {
+                    const parent = col.tasks.find(t => (t.subtasks || []).some(st => st.id === targetSubId))
+                    if (parent) { parentTaskId = parent.id; break }
+                }
+                if (parentTaskId) {
+                    try {
+                        await tasksApi.setParent(subtaskId, parentTaskId)
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось переместить')
+                        onTaskMoved && onTaskMoved()
+                    }
+                }
+                return
+            }
+
+            const overColumnId = getColumnIdFromOver(over)
+            if (overColumnId !== null) {
+                if (shiftPressed) {
+                    try {
+                        await tasksApi.clearParent(subtaskId)
+                        await tasksApi.update(subtaskId, { statusId: overColumnId })
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось сделать задачей')
+                        onTaskMoved && onTaskMoved()
+                    }
+                } else {
+                    try {
+                        await tasksApi.update(subtaskId, { statusId: overColumnId })
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось переместить')
+                        onTaskMoved && onTaskMoved()
+                    }
+                }
+                return
+            }
+
+            return
+        }
+
+        // === TASK drag ===
         if (activeData?.type !== 'task') return
         if (reorderMode) return
 
-        // Найти финальную позицию по локальному состоянию
-        let targetCol = null
-        let targetIdx = -1
-        for (const col of localColumns) {
-            const idx = col.tasks.findIndex(t => t.id === active.id)
-            if (idx !== -1) {
-                targetCol = col
-                targetIdx = idx
-                break
+        const activeTaskId = active.id
+
+        if (overData?.type === 'task' && overData.task?.id) {
+            const overTaskId = overData.task.id
+            if (overTaskId === activeTaskId) return
+
+            if (shiftPressed) {
+                try {
+                    await tasksApi.setParent(activeTaskId, overTaskId)
+                    onTaskMoved && onTaskMoved()
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Не удалось сделать подзадачей')
+                    onTaskMoved && onTaskMoved()
+                }
+                return
+            }
+
+            const overColumn = findColumnByTaskId(overTaskId)
+            if (!overColumn) return
+
+            const overIndex = overColumn.tasks.findIndex(t => t.id === overTaskId)
+            if (overIndex === -1) return
+
+            const mode = computeReorderMode(active, over)
+            const newPosition = mode === 'above' ? overIndex : overIndex + 1
+
+            try {
+                await tasksApi.move(activeTaskId, {
+                    statusId: overColumn.statusId,
+                    position: newPosition,
+                })
+                onTaskMoved && onTaskMoved()
+            } catch (err) {
+                console.error('Reorder failed:', err)
+                onTaskMoved && onTaskMoved()
+            }
+            return
+        }
+
+        if (overData?.type === 'subtask' && overData.subtask?.id) {
+            const targetSubId = overData.subtask.id
+            let parentTaskId = null
+            for (const col of sorted) {
+                const parent = col.tasks.find(t => (t.subtasks || []).some(st => st.id === targetSubId))
+                if (parent) { parentTaskId = parent.id; break }
+            }
+            if (parentTaskId && parentTaskId !== activeTaskId) {
+                try {
+                    await tasksApi.setParent(activeTaskId, parentTaskId)
+                    onTaskMoved && onTaskMoved()
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Не удалось сделать подзадачей')
+                    onTaskMoved && onTaskMoved()
+                }
+            }
+            return
+        }
+
+        const overColumnId = getColumnIdFromOver(over)
+        if (overColumnId !== null) {
+            const overColumn = sorted.find(c => c.statusId === overColumnId)
+            if (!overColumn) return
+
+            try {
+                await tasksApi.move(activeTaskId, {
+                    statusId: overColumn.statusId,
+                    position: overColumn.tasks.length,
+                })
+                onTaskMoved && onTaskMoved()
+            } catch (err) {
+                console.error('Move failed:', err)
+                onTaskMoved && onTaskMoved()
             }
         }
-        if (!targetCol) return
+    }
 
-        try {
-            await tasksApi.move(active.id, {
-                statusId: targetCol.statusId,
-                position: targetIdx,
-            })
-            onTaskMoved && onTaskMoved()
-        } catch (err) {
-            console.error('Move failed:', err)
-            setLocalColumns(columns)
-            onTaskMoved && onTaskMoved()
+    const getColumnIdFromOver = (over) => {
+        const overData = over.data?.current
+        if (overData?.statusId) return overData.statusId
+        const idStr = String(over.id)
+        if (idStr.startsWith('column-')) {
+            return Number(idStr.replace('column-', ''))
         }
+        return null
     }
 
     const columnIds = sorted.map(c => `col-${c.statusId}`)
@@ -255,9 +388,15 @@ export default function KanbanView({
                             column={col}
                             projectId={projectId}
                             reorderMode={reorderMode}
+                            doneStatusId={doneStatusId}
+                            activeStatusId={activeStatusId}
+                            hoverTaskId={hoverTaskId}
+                            hoverMode={hoverMode}
                             onAddTask={onAddTask}
-                            onTaskClick={onTaskClick}
+                            onOpenTask={onOpenTask}
                             onToggleDone={onToggleDone}
+                            onTaskMoved={onTaskMoved}
+                            onOpenAttachments={onOpenAttachments}
                         />
                     ))}
                 </div>
@@ -273,6 +412,11 @@ export default function KanbanView({
                 {activeTask ? (
                     <div style={{ width: 256 }}>
                         <TaskCard task={activeTask} />
+                    </div>
+                ) : activeSubtask ? (
+                    <div className="subtask-mini" style={{ width: 240 }}>
+                        <span className="subtask-mini__check" />
+                        <span className="subtask-mini__title">{activeSubtask.title}</span>
                     </div>
                 ) : activeColumn ? (
                     <div style={{ width: 280, opacity: 0.9 }}>

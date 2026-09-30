@@ -21,6 +21,8 @@ public class UpdateTaskRequest {
     private LocalDateTime deadline;
 
     private Integer position;
+    private Long parentId;
+    private Boolean clearParent;
 
     private List<Long> tagIds;
 }

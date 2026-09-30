@@ -1,7 +1,25 @@
 import { useState } from 'react'
 import { tasksApi } from '../../api/api'
+import DraggableSubtask from './DraggableSubtask'
 
-export default function TaskCard({ task, onClick, onToggleDone }) {
+function formatDeadline(dt) {
+    if (!dt) return ''
+    const d = new Date(dt)
+    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0
+    return hasTime
+        ? d.toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        })
+        : d.toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        })
+}
+
+export default function TaskCard({
+                                     task, doneStatusId, activeStatusId,
+                                     onOpenTask, onToggleDone, onTaskMoved, onOpenAttachments,
+                                 }) {
     const [expanded, setExpanded] = useState(false)
     const [fullTask, setFullTask] = useState(null)
     const [loadingFull, setLoadingFull] = useState(false)
@@ -15,7 +33,12 @@ export default function TaskCard({ task, onClick, onToggleDone }) {
         if (onToggleDone) onToggleDone(task.id, isDone)
     }
 
-    const handleExpand = async (e) => {
+    const handleEdit = (e) => {
+        e.stopPropagation()
+        onOpenTask && onOpenTask(task.id)
+    }
+
+    const handleToggleExpand = async (e) => {
         e.stopPropagation()
         if (expanded) {
             setExpanded(false)
@@ -35,6 +58,40 @@ export default function TaskCard({ task, onClick, onToggleDone }) {
         }
     }
 
+    const handleSubtaskToggleDone = async (subtask) => {
+        const subDone = subtask.statusCategoryCode === 'DONE'
+            || subtask.statusCode === 'DONE'
+            || subtask.statusCategoryCode === 'CANCELLED'
+
+        const targetStatusId = subDone ? activeStatusId : doneStatusId
+        if (!targetStatusId) return
+
+        try {
+            await tasksApi.update(subtask.id, { statusId: targetStatusId })
+            onTaskMoved && onTaskMoved()
+        } catch (err) {
+            console.error('Subtask check failed:', err)
+        }
+    }
+
+    const handleOpenAttachments = async (e) => {
+        e.stopPropagation()
+        let t = fullTask
+        const needReload = !t
+            || (t.attachments?.length || 0) < (task.attachmentNames?.length || 0)
+        if (needReload) {
+            try {
+                const { data } = await tasksApi.get(task.id)
+                t = data
+                setFullTask(data)
+            } catch {
+                return
+            }
+        }
+        if (!t?.attachments?.length) return
+        onOpenAttachments && onOpenAttachments(task.id, t.attachments)
+    }
+
     const accent = task.statusAccentCode
         ? `var(--accent-${task.statusAccentCode}, var(--primary))`
         : 'var(--primary)'
@@ -43,57 +100,51 @@ export default function TaskCard({ task, onClick, onToggleDone }) {
         <div
             className="task-card"
             style={{ '--accent': accent }}
-            onClick={() => onClick && onClick(task.id)}
+            onClick={handleToggleExpand}
         >
             <div className="task-card__head">
                 <button
                     className={`task-card__check ${isDone ? 'task-card__check--done' : ''}`}
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={handleCheck}
-                    title={isDone ? 'Вернуть в работу' : 'Отметить выполненной'}
                 />
                 <div className="task-card__title">{task.title}</div>
-                <button
-                    className="task-card__expand"
-                    onClick={handleExpand}
-                    title={expanded ? 'Свернуть' : 'Показать подробности'}
-                >
-                    {expanded ? '▲' : '▼'}
-                </button>
-                {task.hasAttachments && (
-                    <span className="task-card__attach" title="Есть вложения">📎</span>
+                {task.priority > 0 && (
+                    <span className="task-card__priority task-card__priority--big">
+                        {task.priority === 2 ? '❗' : '⚡'}
+                    </span>
                 )}
+                <div className="task-card__actions">
+                    {task.attachmentNames?.length > 0 && (
+                        <span
+                            className="task-card__attach"
+                            title={`Вложений: ${task.attachmentNames.length}`}
+                        >📎</span>
+                    )}
+                    <button
+                        className="task-card__edit"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={handleEdit}
+                        title="Редактировать"
+                    >✎</button>
+                </div>
             </div>
 
-            <div className="task-card__meta">
-                {task.statusTitle && (
-                    <span className="task-card__status">{task.statusTitle}</span>
-                )}
-                {task.priority > 0 && (
-                    <span
-                        className="task-card__priority"
-                        title={task.priority === 2 ? 'Срочный' : 'Высокий'}
-                    >
-                        {task.priority === 2 ? '🔥' : '⚡'}
+            {task.deadline && (
+                <div className="task-card__deadline-row">
+                    <span className="task-card__deadline-inline">
+                        📅 {formatDeadline(task.deadline)}
                     </span>
-                )}
-                {task.deadline && (
-                    <span className="task-card__deadline">
-                        📅 {new Date(task.deadline).toLocaleString('ru-RU', {
-                        day: '2-digit', month: '2-digit', year: 'numeric'
-                    })}
-                    </span>
-                )}
-            </div>
+                </div>
+            )}
 
             {task.tags && task.tags.length > 0 && (
-                <div className="task-card__tags">
+                <div className="task-card__tags-row">
                     {task.tags.map(tag => (
                         <span
                             key={tag.id}
                             className="task-tag"
-                            style={{
-                                background: `var(--accent-${tag.accentCode || 'gray'})`,
-                            }}
+                            style={{ background: `var(--accent-${tag.accentCode || 'gray'})` }}
                             title={tag.title}
                         >
                             {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
@@ -103,64 +154,51 @@ export default function TaskCard({ task, onClick, onToggleDone }) {
                 </div>
             )}
 
+            {task.subtaskTotal > 0 && (
+                <div className="task-card__subtask-count">
+                    {task.subtaskDone}/{task.subtaskTotal}
+                </div>
+            )}
+
+            {task.subtasks && task.subtasks.length > 0 && (
+                <div className="task-card__subtasks" style={{ '--accent': accent }}>
+                    {task.subtasks.map(st => (
+                        <DraggableSubtask
+                            key={st.id}
+                            subtask={st}
+                            onClick={onOpenTask}
+                            onToggleDone={handleSubtaskToggleDone}
+                            onTaskMoved={onTaskMoved}
+                            onOpenAttachments={onOpenAttachments}
+                        />
+                    ))}
+                </div>
+            )}
+
             {expanded && (
                 <div className="task-card__details" onClick={(e) => e.stopPropagation()}>
-                    {loadingFull && (
-                        <div className="task-card__details-loading">Загрузка...</div>
-                    )}
-
+                    {loadingFull && <div className="task-card__details-loading">Загрузка...</div>}
                     {fullTask && (
                         <>
-                            {fullTask.description && fullTask.description.trim() && (
+                            {fullTask.description?.trim() && (
                                 <div>
                                     <div className="task-card__details-label">Описание:</div>
-                                    <div className="task-card__details-description">
-                                        {fullTask.description}
-                                    </div>
+                                    <div className="task-card__details-description">{fullTask.description}</div>
                                 </div>
                             )}
-
-                            {fullTask.deadline && (
-                                <div className="task-card__details-row">
-                                    <span className="task-card__details-label">Дедлайн:</span>
-                                    <span>
-                                        {new Date(fullTask.deadline).toLocaleString('ru-RU', {
-                                            day: '2-digit', month: '2-digit', year: 'numeric',
-                                            hour: '2-digit', minute: '2-digit'
-                                        })}
-                                    </span>
-                                </div>
-                            )}
-
-                            {fullTask.attachments && fullTask.attachments.length > 0 && (
+                            {fullTask.attachments?.length > 0 && (
                                 <div className="task-card__details-row">
                                     <span className="task-card__details-label">Вложения:</span>
-                                    <span>📎 {fullTask.attachments.length}</span>
-                                </div>
-                            )}
-
-                            {fullTask.subtasks && fullTask.subtasks.length > 0 && (
-                                <div>
-                                    <div className="task-card__details-label">
-                                        Подзадачи ({fullTask.subtaskDone}/{fullTask.subtaskTotal}):
-                                    </div>
-                                    <div className="task-card__subtasks">
-                                        {fullTask.subtasks.map(st => {
-                                            const stDone = st.statusCategoryCode === 'DONE'
-                                                || st.statusCode === 'DONE'
-                                                || st.statusCategoryCode === 'CANCELLED'
-                                            return (
-                                                <div key={st.id} className="task-card__subtask">
-                                                    <span
-                                                        className={`task-card__subtask-check ${stDone ? 'task-card__subtask-check--done' : ''}`}
-                                                    />
-                                                    <span className={`task-card__subtask-title ${stDone ? 'task-card__subtask-title--done' : ''}`}>
-                                                        {st.title}
-                                                    </span>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
+                                    <span
+                                        className="task-card__details-attachments"
+                                        onClick={handleOpenAttachments}
+                                        title="Открыть вложения"
+                                    >
+                                        {fullTask.attachments[0].originalName}
+                                        {fullTask.attachments.length > 1 && (
+                                            <> +{fullTask.attachments.length - 1}</>
+                                        )}
+                                    </span>
                                 </div>
                             )}
                         </>

@@ -6,14 +6,20 @@ export default function KanbanColumn({
                                          column,
                                          projectId,
                                          reorderMode,
+                                         doneStatusId,
+                                         activeStatusId,
                                          dragHandleProps,
-                                         onTaskClick,
+                                         hoverTaskId,
+                                         hoverMode,
+                                         onOpenTask,
                                          onToggleDone,
                                          onAddTask,
+                                         onTaskMoved,
+                                         onOpenAttachments,
                                      }) {
     const { setNodeRef, isOver } = useDroppable({
         id: `column-${column.statusId}`,
-        data: { statusId: column.statusId },
+        data: { type: 'column', statusId: column.statusId },
     })
 
     const taskIds = column.tasks.map(t => t.id)
@@ -54,8 +60,14 @@ export default function KanbanColumn({
                         <SortableTaskCard
                             key={t.id}
                             task={t}
-                            onClick={onTaskClick}
+                            doneStatusId={doneStatusId}
+                            activeStatusId={activeStatusId}
+                            isDropOver={hoverTaskId === t.id}
+                            dropMode={hoverTaskId === t.id ? hoverMode : null}
+                            onOpenTask={onOpenTask}
                             onToggleDone={onToggleDone}
+                            onTaskMoved={onTaskMoved}
+                            onOpenAttachments={onOpenAttachments}
                         />
                     ))}
                 </SortableContext>

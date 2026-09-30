@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     DndContext,
     DragOverlay,
@@ -17,6 +17,21 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { tasksApi, statusesApi } from '../../api/api'
+import DraggableSubtask from './DraggableSubtask'
+
+function formatDeadline(dt) {
+    if (!dt) return ''
+    const d = new Date(dt)
+    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0
+    return hasTime
+        ? d.toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        })
+        : d.toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        })
+}
 
 function sortTasks(tasks, sortMode, sortDir) {
     const dir = sortDir === 'desc' ? -1 : 1
@@ -44,7 +59,12 @@ function sortTasks(tasks, sortMode, sortDir) {
     return arr
 }
 
-function SortableCompactTask({ task, onTaskClick, onToggleDone, disabled }) {
+function SortableCompactTask({
+                                 task, doneStatusId, activeStatusId,
+                                 isDropOver, dropMode,
+                                 onOpenTask, onToggleDone, onTaskMoved, onOpenAttachments,
+                                 disabled,
+                             }) {
     const [expanded, setExpanded] = useState(false)
     const [fullTask, setFullTask] = useState(null)
     const [loadingFull, setLoadingFull] = useState(false)
@@ -77,7 +97,7 @@ function SortableCompactTask({ task, onTaskClick, onToggleDone, disabled }) {
         ? `var(--accent-${task.statusAccentCode}, var(--primary))`
         : 'var(--primary)'
 
-    const handleExpand = async (e) => {
+    const handleToggleExpand = async (e) => {
         e.stopPropagation()
         if (expanded) {
             setExpanded(false)
@@ -97,20 +117,68 @@ function SortableCompactTask({ task, onTaskClick, onToggleDone, disabled }) {
         }
     }
 
+    const handleEdit = (e) => {
+        e.stopPropagation()
+        onOpenTask && onOpenTask(task.id)
+    }
+
+    const handleSubtaskToggleDone = async (subtask) => {
+        const subDone = subtask.statusCategoryCode === 'DONE'
+            || subtask.statusCode === 'DONE'
+            || subtask.statusCategoryCode === 'CANCELLED'
+
+        const targetStatusId = subDone ? activeStatusId : doneStatusId
+        if (!targetStatusId) return
+
+        try {
+            await tasksApi.update(subtask.id, { statusId: targetStatusId })
+            onTaskMoved && onTaskMoved()
+        } catch (err) {
+            console.error('Subtask check failed:', err)
+        }
+    }
+
+    const handleOpenAttachments = async (e) => {
+        e.stopPropagation()
+        let t = fullTask
+        const needReload = !t
+            || (t.attachments?.length || 0) < (task.attachmentNames?.length || 0)
+        if (needReload) {
+            try {
+                const { data } = await tasksApi.get(task.id)
+                t = data
+                setFullTask(data)
+            } catch {
+                return
+            }
+        }
+        if (!t?.attachments?.length) return
+        onOpenAttachments && onOpenAttachments(task.id, t.attachments)
+    }
+
+    const wrapperClass = [
+        'compact-task-wrap',
+        isDragging ? 'compact-task-wrap--dragging' : '',
+        isDropOver ? 'compact-task-wrap--drop-over' : '',
+        isDropOver && dropMode ? `compact-task-wrap--drop-${dropMode}` : '',
+    ].filter(Boolean).join(' ')
+
     return (
         <div
             ref={setNodeRef}
             style={style}
             {...attributes}
             {...listeners}
-            className={`compact-task-wrap ${isDragging ? 'compact-task-wrap--dragging' : ''}`}
+            className={wrapperClass}
         >
             <div
                 className="compact-task"
-                onClick={() => onTaskClick && onTaskClick(task.id)}
+                style={{ '--accent': accent }}
+                onClick={handleToggleExpand}
             >
                 <button
                     className={`compact-task__check ${isDone ? 'compact-task__check--done' : ''}`}
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                         e.stopPropagation()
                         onToggleDone && onToggleDone(task.id, isDone)
@@ -118,59 +186,77 @@ function SortableCompactTask({ task, onTaskClick, onToggleDone, disabled }) {
                 />
 
                 <div className="compact-task__main">
-                    <div className="compact-task__title">{task.title}</div>
-                    <div className="compact-task__meta">
-                        {task.statusTitle && (
-                            <span
-                                className="compact-task__status"
-                                style={{ color: accent }}
-                            >
-                                {task.statusTitle}
-                            </span>
-                        )}
+                    <div className="compact-task__row-top">
+                        <div className="compact-task__title">{task.title}</div>
                         {task.priority > 0 && (
-                            <span className="compact-task__priority">
-                                {task.priority === 2 ? '🔥 Срочный' : '⚡ Высокий'}
-                            </span>
-                        )}
-                        {task.deadline && (
-                            <span className="compact-task__deadline">
-                                📅 {new Date(task.deadline).toLocaleString('ru-RU', {
-                                day: '2-digit', month: '2-digit', year: 'numeric',
-                            })}
-                            </span>
-                        )}
-                        {task.tags && task.tags.length > 0 && (
-                            <span className="compact-task__tags">
-                                {task.tags.map(tag => (
-                                    <span
-                                        key={tag.id}
-                                        className="task-tag"
-                                        style={{
-                                            background: `var(--accent-${tag.accentCode || 'gray'})`,
-                                        }}
-                                        title={tag.title}
-                                    >
-                                        {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
-                                        {tag.title}
-                                    </span>
-                                ))}
+                            <span className="compact-task__priority task-card__priority--big">
+                                {task.priority === 2 ? '❗' : '⚡'}
                             </span>
                         )}
                     </div>
+
+                    {task.deadline && (
+                        <div className="compact-task__deadline-row">
+                            <span className="compact-task__deadline-inline">
+                                📅 {formatDeadline(task.deadline)}
+                            </span>
+                        </div>
+                    )}
+
+                    {task.tags && task.tags.length > 0 && (
+                        <div className="compact-task__tags-row">
+                            {task.tags.map(tag => (
+                                <span
+                                    key={tag.id}
+                                    className="task-tag"
+                                    style={{ background: `var(--accent-${tag.accentCode || 'gray'})` }}
+                                    title={tag.title}
+                                >
+                                    {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
+                                    {tag.title}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
+                    {task.subtaskTotal > 0 && (
+                        <div className="compact-task__subtask-count">
+                            {task.subtaskDone}/{task.subtaskTotal}
+                        </div>
+                    )}
+
+                    {task.subtasks && task.subtasks.length > 0 && (
+                        <div className="compact-task__subtasks" style={{ '--accent': accent }}>
+                            {task.subtasks.map(st => (
+                                <DraggableSubtask
+                                    key={st.id}
+                                    subtask={st}
+                                    onClick={onOpenTask}
+                                    onToggleDone={handleSubtaskToggleDone}
+                                    onTaskMoved={onTaskMoved}
+                                    onOpenAttachments={onOpenAttachments}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                {task.hasAttachments && (
-                    <span className="compact-task__attach" title="Есть вложения">📎</span>
-                )}
-
-                <button
-                    className="compact-task__expand"
-                    onClick={handleExpand}
-                    title={expanded ? 'Свернуть' : 'Показать подробности'}
-                >
-                    {expanded ? '▲' : '▼'}
-                </button>
+                <div className="compact-task__actions">
+                    {task.attachmentNames?.length > 0 && (
+                        <span
+                            className="compact-task__attach"
+                            title={`Вложений: ${task.attachmentNames.length}`}
+                        >📎</span>
+                    )}
+                    <button
+                        className="compact-task__edit"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={handleEdit}
+                        title="Редактировать"
+                    >
+                        ✎
+                    </button>
+                </div>
             </div>
 
             {expanded && (
@@ -188,45 +274,19 @@ function SortableCompactTask({ task, onTaskClick, onToggleDone, disabled }) {
                                     </div>
                                 </div>
                             )}
-                            {fullTask.deadline && (
-                                <div className="compact-task__details-row">
-                                    <span className="compact-task__details-label">Дедлайн:</span>
-                                    <span>
-                                        {new Date(fullTask.deadline).toLocaleString('ru-RU', {
-                                            day: '2-digit', month: '2-digit', year: 'numeric',
-                                            hour: '2-digit', minute: '2-digit'
-                                        })}
-                                    </span>
-                                </div>
-                            )}
                             {fullTask.attachments && fullTask.attachments.length > 0 && (
                                 <div className="compact-task__details-row">
                                     <span className="compact-task__details-label">Вложения:</span>
-                                    <span>📎 {fullTask.attachments.length}</span>
-                                </div>
-                            )}
-                            {fullTask.subtasks && fullTask.subtasks.length > 0 && (
-                                <div>
-                                    <div className="compact-task__details-label">
-                                        Подзадачи ({fullTask.subtaskDone}/{fullTask.subtaskTotal}):
-                                    </div>
-                                    <div className="compact-task__subtasks">
-                                        {fullTask.subtasks.map(st => {
-                                            const stDone = st.statusCategoryCode === 'DONE'
-                                                || st.statusCode === 'DONE'
-                                                || st.statusCategoryCode === 'CANCELLED'
-                                            return (
-                                                <div key={st.id} className="compact-task__subtask">
-                                                    <span
-                                                        className={`compact-task__subtask-check ${stDone ? 'compact-task__subtask-check--done' : ''}`}
-                                                    />
-                                                    <span className={`compact-task__subtask-title ${stDone ? 'compact-task__subtask-title--done' : ''}`}>
-                                                        {st.title}
-                                                    </span>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
+                                    <span
+                                        className="compact-task__details-attachments"
+                                        onClick={handleOpenAttachments}
+                                        title="Открыть вложения"
+                                    >
+                                        {fullTask.attachments[0].originalName}
+                                        {fullTask.attachments.length > 1 && (
+                                            <> +{fullTask.attachments.length - 1}</>
+                                        )}
+                                    </span>
                                 </div>
                             )}
                         </>
@@ -244,8 +304,14 @@ function SortableCompactGroup({
                                   sortMode,
                                   sortDir,
                                   reorderMode,
-                                  onTaskClick,
+                                  doneStatusId,
+                                  activeStatusId,
+                                  hoverTaskId,
+                                  hoverMode,
+                                  onOpenTask,
                                   onToggleDone,
+                                  onTaskMoved,
+                                  onOpenAttachments,
                               }) {
     const {
         attributes,
@@ -316,8 +382,14 @@ function SortableCompactGroup({
                                 <SortableCompactTask
                                     key={t.id}
                                     task={t}
-                                    onTaskClick={onTaskClick}
+                                    doneStatusId={doneStatusId}
+                                    activeStatusId={activeStatusId}
+                                    isDropOver={hoverTaskId === t.id}
+                                    dropMode={hoverTaskId === t.id ? hoverMode : null}
+                                    onOpenTask={onOpenTask}
                                     onToggleDone={onToggleDone}
+                                    onTaskMoved={onTaskMoved}
+                                    onOpenAttachments={onOpenAttachments}
                                     disabled={reorderMode}
                                 />
                             ))}
@@ -334,18 +406,36 @@ export default function CompactView({
                                         projectId,
                                         boardId,
                                         reorderMode,
+                                        doneStatusId,
+                                        activeStatusId,
+                                        onOpenTask,
                                         onAddTask,
-                                        onTaskClick,
                                         onToggleDone,
                                         onTaskMoved,
                                         onColumnsMoved,
+                                        onOpenAttachments,
                                         sortMode,
                                         sortDir,
                                     }) {
     const [collapsed, setCollapsed] = useState({})
     const [activeTask, setActiveTask] = useState(null)
+    const [activeSubtask, setActiveSubtask] = useState(null)
     const [activeGroup, setActiveGroup] = useState(null)
     const [localOrder, setLocalOrder] = useState(null)
+    const [hoverTaskId, setHoverTaskId] = useState(null)
+    const [hoverMode, setHoverMode] = useState(null)
+    const [shiftPressed, setShiftPressed] = useState(false)
+
+    useEffect(() => {
+        const onKeyDown = (e) => { if (e.key === 'Shift') setShiftPressed(true) }
+        const onKeyUp = (e) => { if (e.key === 'Shift') setShiftPressed(false) }
+        window.addEventListener('keydown', onKeyDown)
+        window.addEventListener('keyup', onKeyUp)
+        return () => {
+            window.removeEventListener('keydown', onKeyDown)
+            window.removeEventListener('keyup', onKeyUp)
+        }
+    }, [])
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -363,21 +453,164 @@ export default function CompactView({
         const { active } = event
         const data = active.data.current
         if (data?.type === 'task') setActiveTask(data.task)
+        if (data?.type === 'subtask') setActiveSubtask(data.subtask)
         if (data?.type === 'group') setActiveGroup(data.column)
+    }
+
+    const computeReorderMode = (active, over) => {
+        if (!active.rect.current?.translated || !over.rect) return 'below'
+        const activeRect = active.rect.current.translated
+        const cursorY = activeRect.top + activeRect.height / 2
+        const overTop = over.rect.top
+        const overHeight = over.rect.height
+        const centerY = overTop + overHeight / 2
+        return cursorY < centerY ? 'above' : 'below'
+    }
+
+    const handleDragOver = (event) => {
+        const { active, over } = event
+        if (!over) {
+            setHoverTaskId(null)
+            setHoverMode(null)
+            return
+        }
+
+        const overData = over.data.current
+
+        if (overData?.type === 'task' && overData.task?.id) {
+            setHoverTaskId(overData.task.id)
+            if (shiftPressed) {
+                setHoverMode('subtask')
+            } else {
+                setHoverMode(computeReorderMode(active, over))
+            }
+            return
+        }
+
+        if (overData?.type === 'subtask' && overData.subtask?.id) {
+            const subId = overData.subtask.id
+            for (const col of visibleColumns) {
+                for (const t of col.tasks) {
+                    if ((t.subtasks || []).some(st => st.id === subId)) {
+                        setHoverTaskId(t.id)
+                        setHoverMode('subtask')
+                        return
+                    }
+                }
+            }
+            setHoverTaskId(null)
+            setHoverMode(null)
+            return
+        }
+
+        setHoverTaskId(null)
+        setHoverMode(null)
     }
 
     const handleDragEnd = async (event) => {
         const { active, over } = event
         setActiveTask(null)
+        setActiveSubtask(null)
         setActiveGroup(null)
+        setHoverTaskId(null)
+        setHoverMode(null)
         if (!over) return
 
         const activeData = active.data.current
         const overData = over.data.current
 
+        if (activeData?.type === 'subtask') {
+            const subtaskId = activeData.subtask.id
+
+            if (overData?.type === 'task' && overData.task?.id) {
+                if (overData.task.id === subtaskId) return
+                if (shiftPressed) {
+                    try {
+                        await tasksApi.clearParent(subtaskId)
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось сделать задачей')
+                        onTaskMoved && onTaskMoved()
+                    }
+                } else {
+                    try {
+                        await tasksApi.setParent(subtaskId, overData.task.id)
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось переместить')
+                        onTaskMoved && onTaskMoved()
+                    }
+                }
+                return
+            }
+
+            if (overData?.type === 'subtask' && overData.subtask?.id) {
+                const targetSubId = overData.subtask.id
+                if (targetSubId === subtaskId) return
+                let parentTaskId = null
+                for (const col of visibleColumns) {
+                    for (const t of col.tasks) {
+                        if ((t.subtasks || []).some(st => st.id === targetSubId)) {
+                            parentTaskId = t.id
+                            break
+                        }
+                    }
+                    if (parentTaskId) break
+                }
+                if (parentTaskId) {
+                    try {
+                        await tasksApi.setParent(subtaskId, parentTaskId)
+                        onTaskMoved && onTaskMoved()
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Не удалось переместить')
+                        onTaskMoved && onTaskMoved()
+                    }
+                }
+                return
+            }
+
+            if (overData?.type === 'group' || String(over.id).startsWith('group-')) {
+                const statusId = overData?.statusId
+                    || Number(String(over.id).replace('group-drop-', '').replace('group-', ''))
+                if (statusId) {
+                    if (shiftPressed) {
+                        try {
+                            await tasksApi.clearParent(subtaskId)
+                            await tasksApi.update(subtaskId, { statusId })
+                            onTaskMoved && onTaskMoved()
+                        } catch (err) {
+                            alert(err.response?.data?.message || 'Не удалось сделать задачей')
+                            onTaskMoved && onTaskMoved()
+                        }
+                    } else {
+                        try {
+                            await tasksApi.update(subtaskId, { statusId })
+                            onTaskMoved && onTaskMoved()
+                        } catch (err) {
+                            alert(err.response?.data?.message || 'Не удалось переместить')
+                            onTaskMoved && onTaskMoved()
+                        }
+                    }
+                    return
+                }
+            }
+
+            if (shiftPressed) {
+                try {
+                    await tasksApi.clearParent(subtaskId)
+                    onTaskMoved && onTaskMoved()
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Не удалось сделать задачей')
+                    onTaskMoved && onTaskMoved()
+                }
+                return
+            }
+
+            return
+        }
+
         if (activeData?.type === 'group') {
             if (!reorderMode) return
-
             const activeId = String(active.id).replace('group-', '')
             const overIdRaw = String(over.id)
             const overId = overIdRaw.startsWith('group-')
@@ -410,55 +643,82 @@ export default function CompactView({
         if (activeData?.type !== 'task') return
         if (reorderMode) return
 
-        const activeTaskId = active.id
+        if (overData?.type === 'task' && overData.task?.id) {
+            const overTaskId = overData.task.id
+            if (overTaskId === active.id) return
 
+            if (shiftPressed) {
+                try {
+                    await tasksApi.setParent(active.id, overTaskId)
+                    onTaskMoved && onTaskMoved()
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Не удалось сделать подзадачей')
+                    onTaskMoved && onTaskMoved()
+                }
+                return
+            }
+
+            const overColumn = visibleColumns.find(c => c.tasks.some(t => t.id === overTaskId))
+            if (!overColumn) return
+
+            const overIndex = overColumn.tasks.findIndex(t => t.id === overTaskId)
+            const mode = computeReorderMode(active, over)
+            const newPosition = mode === 'above' ? overIndex : overIndex + 1
+
+            try {
+                await tasksApi.move(active.id, {
+                    statusId: overColumn.statusId,
+                    position: newPosition,
+                })
+                onTaskMoved && onTaskMoved()
+            } catch (err) {
+                console.error('Reorder failed:', err)
+                onTaskMoved && onTaskMoved()
+            }
+            return
+        }
+
+        if (overData?.type === 'subtask' && overData.subtask?.id) {
+            const targetSubId = overData.subtask.id
+            let parentTaskId = null
+            for (const col of visibleColumns) {
+                for (const t of col.tasks) {
+                    if ((t.subtasks || []).some(st => st.id === targetSubId)) {
+                        parentTaskId = t.id
+                        break
+                    }
+                }
+                if (parentTaskId) break
+            }
+            if (parentTaskId && parentTaskId !== active.id) {
+                try {
+                    await tasksApi.setParent(active.id, parentTaskId)
+                    onTaskMoved && onTaskMoved()
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Не удалось сделать подзадачей')
+                    onTaskMoved && onTaskMoved()
+                }
+            }
+            return
+        }
+
+        const activeTaskId = active.id
         let overStatusId = null
-        let overTaskId = null
 
         if (overData?.type === 'group' || String(over.id).startsWith('group-')) {
             overStatusId = overData?.statusId
                 || Number(String(over.id).replace('group-drop-', '').replace('group-', ''))
-        } else {
-            for (const col of visibleColumns) {
-                if (col.tasks.some(t => t.id === over.id)) {
-                    overStatusId = col.statusId
-                    overTaskId = over.id
-                    break
-                }
-            }
         }
 
         if (!overStatusId) return
 
-        let activeCol = null
-        for (const col of visibleColumns) {
-            if (col.tasks.some(t => t.id === activeTaskId)) {
-                activeCol = col
-                break
-            }
-        }
-        if (!activeCol) return
-
         const targetCol = visibleColumns.find(c => c.statusId === overStatusId)
         if (!targetCol) return
-
-        let newPosition = 0
-        if (overTaskId) {
-            newPosition = targetCol.tasks.findIndex(t => t.id === overTaskId)
-            if (newPosition < 0) newPosition = targetCol.tasks.length
-        } else {
-            newPosition = targetCol.tasks.length
-        }
-
-        if (activeCol.statusId === targetCol.statusId) {
-            const oldIndex = activeCol.tasks.findIndex(t => t.id === activeTaskId)
-            if (oldIndex === newPosition) return
-        }
 
         try {
             await tasksApi.move(activeTaskId, {
                 statusId: targetCol.statusId,
-                position: newPosition,
+                position: targetCol.tasks.length,
             })
             onTaskMoved && onTaskMoved()
         } catch (err) {
@@ -473,7 +733,7 @@ export default function CompactView({
         <div className={`compact-view ${reorderMode ? 'compact-view--reorder' : ''}`}>
             <div className="compact-view__topbar">
                 <button
-                    className="btn btn-secondary"
+                    className="btn btn-primary"
                     onClick={() => onAddTask && onAddTask()}
                 >
                     + Задача
@@ -484,6 +744,7 @@ export default function CompactView({
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
             >
                 <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
@@ -496,8 +757,14 @@ export default function CompactView({
                             sortMode={sortMode}
                             sortDir={sortDir}
                             reorderMode={reorderMode}
-                            onTaskClick={onTaskClick}
+                            doneStatusId={doneStatusId}
+                            activeStatusId={activeStatusId}
+                            hoverTaskId={hoverTaskId}
+                            hoverMode={hoverMode}
+                            onOpenTask={onOpenTask}
                             onToggleDone={onToggleDone}
+                            onTaskMoved={onTaskMoved}
+                            onOpenAttachments={onOpenAttachments}
                         />
                     ))}
                 </SortableContext>
@@ -514,6 +781,11 @@ export default function CompactView({
                             <div className="compact-task__main">
                                 <div className="compact-task__title">{activeTask.title}</div>
                             </div>
+                        </div>
+                    ) : activeSubtask ? (
+                        <div className="subtask-mini" style={{ width: 240 }}>
+                            <span className="subtask-mini__check" />
+                            <span className="subtask-mini__title">{activeSubtask.title}</span>
                         </div>
                     ) : activeGroup ? (
                         <div className="compact-group" style={{ opacity: 0.9 }}>
