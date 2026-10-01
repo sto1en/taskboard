@@ -243,3 +243,164 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
   font-size: 13px;
   margin-bottom: 16px;
 }
+
+/* ============================================================
+   InlineEdit — обёртки
+   ============================================================ */
+
+.board-detail__title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex-shrink: 0;
+  max-width: 60%;
+}
+
+.board-detail__title-text {
+  cursor: text;
+  border-radius: 4px;
+  padding: 2px 6px;
+  transition: background .15s;
+}
+.board-detail__title-text:hover {
+  background: rgba(9, 30, 66, 0.05);
+}
+
+.board-detail__title-input {
+  font-size: 22px;
+  font-weight: 700;
+  padding: 4px 8px;
+  height: auto;
+  min-width: 240px;
+  max-width: 480px;
+}
+
+.board-detail__subtitle {
+  display: block;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: text;
+  border-radius: 4px;
+  padding: 2px 6px;
+  transition: background .15s;
+  min-height: 18px;
+  max-width: 480px;
+  word-break: break-word;
+}
+.board-detail__subtitle:hover {
+  background: rgba(9, 30, 66, 0.05);
+}
+
+.board-detail__subtitle-input {
+  font-size: 13px;
+  padding: 6px 10px;
+  min-height: 50px;
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+/* TaskCard */
+.task-card__title-input {
+  font-size: 13px;
+  padding: 4px 6px;
+  height: auto;
+  min-height: 26px;
+  flex: 1;
+  min-width: 0;
+  border-width: 1px;
+}
+
+.task-card__details-description-input {
+  font-size: 12px;
+  padding: 6px 8px;
+  min-height: 60px;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+/* ListView */
+.word-list__title-text {
+  cursor: text;
+  border-radius: 4px;
+  padding: 2px 4px;
+  transition: background .15s;
+}
+.word-list__title-text:hover {
+  background: rgba(9, 30, 66, 0.05);
+}
+
+.word-list__title-input {
+  font-size: 15px;
+  font-weight: 500;
+  padding: 4px 6px;
+  height: auto;
+  min-height: 28px;
+  width: 100%;
+}
+
+.word-list__details-description-input {
+  font-size: 12px;
+  padding: 6px 8px;
+  min-height: 60px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* CompactView */
+.compact-task__title-text {
+  cursor: text;
+  border-radius: 4px;
+  padding: 2px 4px;
+  transition: background .15s;
+}
+.compact-task__title-text:hover {
+  background: rgba(9, 30, 66, 0.05);
+}
+
+.compact-task__title-input {
+  font-size: 13px;
+  padding: 4px 6px;
+  height: auto;
+  min-height: 26px;
+  width: 100%;
+}
+
+.compact-task__details-description-input {
+  font-size: 12px;
+  padding: 6px 8px;
+  min-height: 60px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Subtask */
+.subtask-mini__title-text {
+  cursor: text;
+  border-radius: 3px;
+  padding: 1px 3px;
+  transition: background .15s;
+}
+.subtask-mini__title-text:hover {
+  background: rgba(76, 154, 255, 0.1);
+}
+
+.subtask-mini__title-input {
+  font-size: 12px;
+  padding: 2px 4px;
+  height: auto;
+  min-height: 20px;
+  width: 100%;
+  border-width: 1px;
+}
+
+.subtask-mini__details-description-input {
+  font-size: 11px;
+  padding: 4px 6px;
+  min-height: 50px;
+  width: 100%;
+  box-sizing: border-box;
+}

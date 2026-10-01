@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { boardsApi, attachmentsApi } from '../../api/api'
 import Modal from '../Modal/Modal'
+import { resolveUrl } from '../../utils/format'
 
 const ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray']
 
@@ -22,7 +23,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
             setDescription(board.description || '')
             setAccent(board.accentCode || 'blue')
             setCoverId(board.coverAttachmentId || null)
-            setCoverPreview(board.coverUrl || null)
+            setCoverPreview(resolveUrl(board.coverUrl))
             setClearCover(false)
             setError(null)
         }
@@ -35,7 +36,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
         try {
             const { data } = await attachmentsApi.upload(file)
             setCoverId(data.id)
-            setCoverPreview(data.url)
+            setCoverPreview(resolveUrl(data.url))
             setClearCover(false)
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка загрузки')

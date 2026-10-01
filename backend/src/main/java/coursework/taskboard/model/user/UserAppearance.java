@@ -35,4 +35,12 @@ public class UserAppearance {
     @Column(name = "sidebar_collapsed", nullable = false)
     @Builder.Default
     private Boolean sidebarCollapsed = false;
+
+    @Column(name = "tree_enabled", nullable = false)
+    @Builder.Default
+    private Boolean treeEnabled = true;
+
+    @Column(name = "tree_kind", nullable = false, length = 20)
+    @Builder.Default
+    private String treeKind = "sakura";
 }

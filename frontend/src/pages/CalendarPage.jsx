@@ -38,8 +38,23 @@ export default function CalendarPage() {
     for (let i = 0; i < startWeekday; i++) cells.push(null)
     for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
-    const prevMonth = () => setMonth(m => m === 0 ? (setYear(y => y - 1), 11) : m - 1)
-    const nextMonth = () => setMonth(m => m === 11 ? (setYear(y => y + 1), 0) : m + 1)
+    const prevMonth = () => {
+        if (month === 0) {
+            setYear(y => y - 1)
+            setMonth(11)
+        } else {
+            setMonth(m => m - 1)
+        }
+    }
+
+    const nextMonth = () => {
+        if (month === 11) {
+            setYear(y => y + 1)
+            setMonth(0)
+        } else {
+            setMonth(m => m + 1)
+        }
+    }
 
     return (
         <div className="calendar">

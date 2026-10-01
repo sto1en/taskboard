@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { boardsApi, attachmentsApi } from '../../api/api'
+import { resolveUrl } from '../../utils/format'
 
 const ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray']
 
@@ -8,7 +9,7 @@ export default function EditBoardSection({ board, onUpdated }) {
     const [description, setDescription] = useState(board.description || '')
     const [accent, setAccent] = useState(board.accentCode || 'blue')
     const [coverId, setCoverId] = useState(board.coverAttachmentId || null)
-    const [coverPreview, setCoverPreview] = useState(board.coverUrl || null)
+    const [coverPreview, setCoverPreview] = useState(resolveUrl(board.coverUrl))
     const [uploading, setUploading] = useState(false)
     const [error, setError] = useState(null)
     const [msg, setMsg] = useState(null)
@@ -20,7 +21,7 @@ export default function EditBoardSection({ board, onUpdated }) {
         setDescription(board.description || '')
         setAccent(board.accentCode || 'blue')
         setCoverId(board.coverAttachmentId || null)
-        setCoverPreview(board.coverUrl || null)
+        setCoverPreview(resolveUrl(board.coverUrl))
     }, [board])
 
     const uploadCover = async (e) => {
@@ -30,7 +31,7 @@ export default function EditBoardSection({ board, onUpdated }) {
         try {
             const { data } = await attachmentsApi.upload(file)
             setCoverId(data.id)
-            setCoverPreview(data.url)
+            setCoverPreview(resolveUrl(data.url))
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка загрузки')
         } finally {

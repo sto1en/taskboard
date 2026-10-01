@@ -10,6 +10,7 @@ import CompactView from '../components/Task/CompactView'
 import CreateTaskModal from '../components/Task/CreateTaskModal'
 import TaskDetailModal from '../components/Task/TaskDetailModal'
 import AttachmentsModal from '../components/Task/AttachmentsModal'
+import InlineEdit from '../components/common/InlineEdit'
 
 export default function ProjectKanbanPage() {
     const { boardId, projectId } = useParams()
@@ -106,6 +107,16 @@ export default function ProjectKanbanPage() {
         setAttachmentsToView(attachments)
     }
 
+    const saveProjectTitle = async (newTitle) => {
+        const { data } = await projectsApi.update(project.id, { title: newTitle })
+        setProject(data)
+    }
+
+    const saveProjectDescription = async (newDesc) => {
+        const { data } = await projectsApi.update(project.id, { description: newDesc })
+        setProject(data)
+    }
+
     if (loading) return <div className="loading">Загрузка...</div>
     if (error) return <div className="error">{error}</div>
     if (!project || !kanban) return <div>Проект не найден</div>
@@ -136,7 +147,25 @@ export default function ProjectKanbanPage() {
                 >
                     ← Назад
                 </button>
-                <h2 className="board-detail__title">{project.title}</h2>
+
+                <div className="board-detail__title-wrap">
+                    <InlineEdit
+                        value={project.title}
+                        className="board-detail__title board-detail__title-text"
+                        inputClassName="input board-detail__title-input"
+                        onSave={saveProjectTitle}
+                        title="Двойной клик — редактировать название проекта"
+                    />
+                    <InlineEdit
+                        value={project.description || ''}
+                        multiline
+                        className="board-detail__subtitle"
+                        inputClassName="input board-detail__subtitle-input"
+                        placeholder="Двойной клик — добавить описание проекта"
+                        onSave={saveProjectDescription}
+                        title="Двойной клик — редактировать описание проекта"
+                    />
+                </div>
 
                 <div className="board-detail__toolbar">
                     <ViewSwitcher mode={viewMode} onChange={setViewMode} />

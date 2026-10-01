@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { plural } from '../utils/format'
 
-// Все задачи с привязкой к доске (boardId)
 const ALL_TASKS = [
     // Board 1 — Task Board
     { id: 101, title: "Improve 'Hide empty lane'",          status: 'ACTIVE',   boardId: 1, board: 'Task Board',    tag: '#135262', deadline: '2026-09-20' },
@@ -74,7 +74,6 @@ export default function TasksListPage({ status }) {
 
     const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.ACTIVE
 
-    // Фильтр: сначала по статусу, потом по доске (если задана)
     let tasks = ALL_TASKS.filter(t => t.status === status)
     if (boardId) tasks = tasks.filter(t => t.boardId === boardId)
 
@@ -84,7 +83,6 @@ export default function TasksListPage({ status }) {
         ? tasks.filter(t => new Date(t.deadline) < now).length
         : 0
 
-    // Название текущего контекста
     const boardName = boardId && tasks.length > 0
         ? tasks[0].board
         : (boardId ? `Доска #${boardId}` : null)
@@ -160,12 +158,4 @@ export default function TasksListPage({ status }) {
             )}
         </div>
     )
-}
-
-function plural(n, forms) {
-    const mod10 = n % 10
-    const mod100 = n % 100
-    if (mod10 === 1 && mod100 !== 11) return forms[0]
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return forms[1]
-    return forms[2]
 }

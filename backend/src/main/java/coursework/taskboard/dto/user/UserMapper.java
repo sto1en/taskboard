@@ -55,6 +55,8 @@ public class UserMapper {
                 .accentCode(appearance.getAccentCode())
                 .density(appearance.getDensity())
                 .sidebarCollapsed(appearance.getSidebarCollapsed())
+                .treeEnabled(appearance.getTreeEnabled())
+                .treeKind(appearance.getTreeKind())
                 .build();
     }
 

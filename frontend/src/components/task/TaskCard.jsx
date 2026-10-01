@@ -1,20 +1,9 @@
 import { useState } from 'react'
 import { tasksApi } from '../../api/api'
-import DraggableSubtask from './DraggableSubtask'
-
-function formatDeadline(dt) {
-    if (!dt) return ''
-    const d = new Date(dt)
-    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0
-    return hasTime
-        ? d.toLocaleString('ru-RU', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        })
-        : d.toLocaleString('ru-RU', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        })
-}
+import Subtask from './Subtask'
+import InlineEdit from '../common/InlineEdit'
+import { formatDeadline } from '../../utils/format'
+import { isDone as checkIsDone } from '../../utils/sortTasks'
 
 export default function TaskCard({
                                      task, doneStatusId, activeStatusId,
@@ -24,9 +13,7 @@ export default function TaskCard({
     const [fullTask, setFullTask] = useState(null)
     const [loadingFull, setLoadingFull] = useState(false)
 
-    const isDone = task.statusCategoryCode === 'DONE'
-        || task.statusCode === 'DONE'
-        || task.statusCategoryCode === 'CANCELLED'
+    const isDone = checkIsDone(task)
 
     const handleCheck = (e) => {
         e.stopPropagation()
@@ -59,10 +46,7 @@ export default function TaskCard({
     }
 
     const handleSubtaskToggleDone = async (subtask) => {
-        const subDone = subtask.statusCategoryCode === 'DONE'
-            || subtask.statusCode === 'DONE'
-            || subtask.statusCategoryCode === 'CANCELLED'
-
+        const subDone = checkIsDone(subtask)
         const targetStatusId = subDone ? activeStatusId : doneStatusId
         if (!targetStatusId) return
 
@@ -92,6 +76,16 @@ export default function TaskCard({
         onOpenAttachments && onOpenAttachments(task.id, t.attachments)
     }
 
+    const saveTitle = async (newTitle) => {
+        await tasksApi.update(task.id, { title: newTitle })
+        onTaskMoved && onTaskMoved()
+    }
+
+    const saveDescription = async (newDesc) => {
+        await tasksApi.update(task.id, { description: newDesc })
+        setFullTask(prev => prev ? { ...prev, description: newDesc } : prev)
+    }
+
     const accent = task.statusAccentCode
         ? `var(--accent-${task.statusAccentCode}, var(--primary))`
         : 'var(--primary)'
@@ -108,7 +102,15 @@ export default function TaskCard({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={handleCheck}
                 />
-                <div className="task-card__title">{task.title}</div>
+
+                <InlineEdit
+                    value={task.title}
+                    className="task-card__title"
+                    inputClassName="input task-card__title-input"
+                    onSave={saveTitle}
+                    title="Двойной клик — редактировать название"
+                />
+
                 {task.priority > 0 && (
                     <span className="task-card__priority task-card__priority--big">
                         {task.priority === 2 ? '❗' : '⚡'}
@@ -163,7 +165,7 @@ export default function TaskCard({
             {task.subtasks && task.subtasks.length > 0 && (
                 <div className="task-card__subtasks" style={{ '--accent': accent }}>
                     {task.subtasks.map(st => (
-                        <DraggableSubtask
+                        <Subtask
                             key={st.id}
                             subtask={st}
                             onClick={onOpenTask}
@@ -180,12 +182,18 @@ export default function TaskCard({
                     {loadingFull && <div className="task-card__details-loading">Загрузка...</div>}
                     {fullTask && (
                         <>
-                            {fullTask.description?.trim() && (
-                                <div>
-                                    <div className="task-card__details-label">Описание:</div>
-                                    <div className="task-card__details-description">{fullTask.description}</div>
-                                </div>
-                            )}
+                            <div>
+                                <div className="task-card__details-label">Описание:</div>
+                                <InlineEdit
+                                    value={fullTask.description || ''}
+                                    multiline
+                                    className="task-card__details-description"
+                                    inputClassName="input task-card__details-description-input"
+                                    placeholder="Двойной клик, чтобы добавить описание"
+                                    onSave={saveDescription}
+                                    title="Двойной клик — редактировать описание"
+                                />
+                            </div>
                             {fullTask.attachments?.length > 0 && (
                                 <div className="task-card__details-row">
                                     <span className="task-card__details-label">Вложения:</span>

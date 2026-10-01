@@ -1,24 +1,13 @@
 import { useState } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { tasksApi } from '../../api/api'
+import InlineEdit from '../common/InlineEdit'
+import { formatDeadline } from '../../utils/format'
+import { isDone as checkIsDone } from '../../utils/sortTasks'
 
-function formatDeadline(dt) {
-    if (!dt) return ''
-    const d = new Date(dt)
-    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0
-    return hasTime
-        ? d.toLocaleString('ru-RU', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        })
-        : d.toLocaleString('ru-RU', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        })
-}
-
-export default function DraggableSubtask({
-                                             subtask, onClick, onToggleDone, onTaskMoved, onOpenAttachments,
-                                         }) {
+export default function Subtask({
+                                    subtask, onClick, onToggleDone, onTaskMoved, onOpenAttachments,
+                                }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: `subtask-${subtask.id}`,
         data: { type: 'subtask', subtask },
@@ -36,10 +25,7 @@ export default function DraggableSubtask({
         }
         : {}
 
-    const stDone = subtask.statusCategoryCode === 'DONE'
-        || subtask.statusCode === 'DONE'
-        || subtask.statusCategoryCode === 'CANCELLED'
-
+    const stDone = checkIsDone(subtask)
     const hasAttach = (subtask.attachmentNames?.length || 0) > 0
 
     const handleToggleExpand = async (e) => {
@@ -88,6 +74,16 @@ export default function DraggableSubtask({
         onOpenAttachments && onOpenAttachments(subtask.id, t.attachments)
     }
 
+    const saveTitle = async (newTitle) => {
+        await tasksApi.update(subtask.id, { title: newTitle })
+        onTaskMoved && onTaskMoved()
+    }
+
+    const saveDescription = async (newDesc) => {
+        await tasksApi.update(subtask.id, { description: newDesc })
+        setFullSubtask(prev => prev ? { ...prev, description: newDesc } : prev)
+    }
+
     return (
         <div
             ref={setNodeRef}
@@ -103,9 +99,15 @@ export default function DraggableSubtask({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={handleCheck}
                 />
-                <span className={`subtask-mini__title ${stDone ? 'subtask-mini__title--done' : ''}`}>
-                    {subtask.title}
-                </span>
+
+                <InlineEdit
+                    value={subtask.title}
+                    className={`subtask-mini__title subtask-mini__title-text ${stDone ? 'subtask-mini__title--done' : ''}`}
+                    inputClassName="input subtask-mini__title-input"
+                    onSave={saveTitle}
+                    title="Двойной клик — редактировать название"
+                />
+
                 {subtask.priority > 0 && (
                     <span className="subtask-mini__priority task-card__priority--big">
                         {subtask.priority === 2 ? '❗' : '⚡'}
@@ -158,14 +160,18 @@ export default function DraggableSubtask({
                     )}
                     {fullSubtask && (
                         <>
-                            {fullSubtask.description?.trim() && (
-                                <div>
-                                    <div className="subtask-mini__details-label">Описание:</div>
-                                    <div className="subtask-mini__details-description">
-                                        {fullSubtask.description}
-                                    </div>
-                                </div>
-                            )}
+                            <div>
+                                <div className="subtask-mini__details-label">Описание:</div>
+                                <InlineEdit
+                                    value={fullSubtask.description || ''}
+                                    multiline
+                                    className="subtask-mini__details-description"
+                                    inputClassName="input subtask-mini__details-description-input"
+                                    placeholder="Двойной клик, чтобы добавить описание"
+                                    onSave={saveDescription}
+                                    title="Двойной клик — редактировать описание"
+                                />
+                            </div>
                             {fullSubtask.attachments?.length > 0 && (
                                 <div className="subtask-mini__details-row">
                                     <span className="subtask-mini__details-label">Вложения:</span>

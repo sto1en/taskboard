@@ -103,18 +103,19 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         WHERE b.owner.id = :userId
           AND t.createdAt >= :from
     """)
-    long countTotalByOwner(@Param("userId") Long userId, @Param("from") LocalDateTime from);
 
+    long countTotalByOwner(@Param("userId") Long userId, @Param("from") LocalDateTime from);
     @Query("""
-        SELECT count(t) FROM Task t
-        JOIN t.settings s
-        JOIN s.status st
-        JOIN t.project p
-        JOIN p.board b
-        WHERE b.owner.id = :userId
-          AND t.createdAt >= :from
-          AND st.categoryCode = :categoryCode
-    """)
+    SELECT count(t) FROM Task t
+    JOIN t.settings s
+    JOIN s.status st
+    JOIN t.schedule sch
+    JOIN t.project p
+    JOIN p.board b
+    WHERE b.owner.id = :userId
+      AND sch.completedAt >= :from
+      AND st.categoryCode = :categoryCode
+""")
     long countByCategoryByOwner(@Param("userId") Long userId,
                                 @Param("from") LocalDateTime from,
                                 @Param("categoryCode") String categoryCode);

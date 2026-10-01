@@ -2,51 +2,18 @@ import { useState, useEffect, useRef } from 'react'
 import { tasksApi, tagsApi, attachmentsApi } from '../../api/api'
 import Modal from '../Modal/Modal'
 import AttachmentPreview from './AttachmentPreview'
+import {
+    formatDeadline,
+    splitDeadline,
+    buildDeadline,
+    resolveUrl,
+} from '../../utils/format'
 
 const TAG_ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray', 'teal', 'navy', 'olive']
 const TAG_ICONS = [
     '', '📌', '⭐', '🔥', '✅', '❗', '💡', '🎯', '📎', '📁',
     '🏷️', '🎨', '🚀', '🐛', '📝', '💼', '🎓', '❤️', '⚡', '🔔',
 ]
-
-function resolveUrl(url) {
-    if (!url) return null
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) {
-        return url
-    }
-    return `/uploads/${url}`
-}
-
-function splitDeadline(value) {
-    if (!value) return { date: '', time: '', hasTime: false }
-    if (value.includes('T')) {
-        const [date, time] = value.split('T')
-        const timeShort = time.slice(0, 5)
-        const hasTime = timeShort !== '00:00'
-        return { date, time: timeShort, hasTime }
-    }
-    return { date: value, time: '', hasTime: false }
-}
-
-function buildDeadline(date, time, hasTime) {
-    if (!date) return null
-    if (hasTime && time) return `${date}T${time}:00`
-    return `${date}T00:00:00`
-}
-
-function formatDeadline(dt) {
-    if (!dt) return ''
-    const d = new Date(dt)
-    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0
-    return hasTime
-        ? d.toLocaleString('ru-RU', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        })
-        : d.toLocaleString('ru-RU', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        })
-}
 
 export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onUpdated, boardId, columns }) {
     const [task, setTask] = useState(null)
@@ -124,6 +91,19 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
         }
         // eslint-disable-next-line
     }, [open, taskId, boardId])
+
+    // Сброс transient-состояния при закрытии
+    useEffect(() => {
+        if (!open) {
+            setPreviewAttachment(null)
+            setEditingTag(null)
+            setCreatingTag(false)
+            setPendingSubtasks([])
+            setSubtaskInput('')
+            setShowSubtaskAutocomplete(false)
+            setSubtaskError(null)
+        }
+    }, [open])
 
     const setField = (key, value) => {
         setForm(f => ({ ...f, [key]: value }))

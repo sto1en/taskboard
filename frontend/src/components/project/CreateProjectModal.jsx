@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { projectsApi, attachmentsApi } from '../../api/api'
 import Modal from '../Modal/Modal'
+import { resolveUrl } from '../../utils/format'
 
 const ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray']
 
@@ -33,7 +34,7 @@ export default function CreateProjectModal({ open, onClose, onCreated, boardId }
         try {
             const { data } = await attachmentsApi.upload(file)
             setCoverId(data.id)
-            setCoverPreview(data.url)
+            setCoverPreview(resolveUrl(data.url))
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка загрузки')
         } finally {
@@ -56,7 +57,6 @@ export default function CreateProjectModal({ open, onClose, onCreated, boardId }
                 accentCode: accent,
             })
 
-            // Если загрузили обложку — PATCH
             if (coverId) {
                 const { data: updated } = await projectsApi.update(data.id, {
                     coverAttachmentId: coverId,

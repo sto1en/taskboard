@@ -7,7 +7,6 @@ import {
     useSensors,
     closestCenter,
     defaultDropAnimationSideEffects,
-    useDroppable,
 } from '@dnd-kit/core'
 import {
     SortableContext,
@@ -17,47 +16,10 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { tasksApi, statusesApi } from '../../api/api'
-import DraggableSubtask from './DraggableSubtask'
-
-function formatDeadline(dt) {
-    if (!dt) return ''
-    const d = new Date(dt)
-    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0
-    return hasTime
-        ? d.toLocaleString('ru-RU', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        })
-        : d.toLocaleString('ru-RU', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        })
-}
-
-function sortTasks(tasks, sortMode, sortDir) {
-    const dir = sortDir === 'desc' ? -1 : 1
-    const arr = [...tasks]
-
-    switch (sortMode) {
-        case 'by_priority':
-            arr.sort((a, b) => dir * ((b.priority || 0) - (a.priority || 0)))
-            break
-        case 'by_deadline':
-            arr.sort((a, b) => {
-                if (!a.deadline && !b.deadline) return 0
-                if (!a.deadline) return 1
-                if (!b.deadline) return -1
-                return dir * (new Date(a.deadline) - new Date(b.deadline))
-            })
-            break
-        case 'by_created':
-            arr.sort((a, b) => dir * ((b.id || 0) - (a.id || 0)))
-            break
-        case 'manual':
-        default:
-            arr.sort((a, b) => dir * ((a.position || 0) - (b.position || 0)))
-    }
-    return arr
-}
+import Subtask from './Subtask'
+import InlineEdit from '../common/InlineEdit'
+import { formatDeadline } from '../../utils/format'
+import { sortTasks, isDone as checkIsDone } from '../../utils/sortTasks'
 
 function SortableCompactTask({
                                  task, doneStatusId, activeStatusId,
@@ -89,9 +51,7 @@ function SortableCompactTask({
         zIndex: isDragging ? 1000 : 'auto',
     }
 
-    const isDone = task.statusCategoryCode === 'DONE'
-        || task.statusCode === 'DONE'
-        || task.statusCategoryCode === 'CANCELLED'
+    const isDone = checkIsDone(task)
 
     const accent = task.statusAccentCode
         ? `var(--accent-${task.statusAccentCode}, var(--primary))`
@@ -123,10 +83,7 @@ function SortableCompactTask({
     }
 
     const handleSubtaskToggleDone = async (subtask) => {
-        const subDone = subtask.statusCategoryCode === 'DONE'
-            || subtask.statusCode === 'DONE'
-            || subtask.statusCategoryCode === 'CANCELLED'
-
+        const subDone = checkIsDone(subtask)
         const targetStatusId = subDone ? activeStatusId : doneStatusId
         if (!targetStatusId) return
 
@@ -154,6 +111,16 @@ function SortableCompactTask({
         }
         if (!t?.attachments?.length) return
         onOpenAttachments && onOpenAttachments(task.id, t.attachments)
+    }
+
+    const saveTitle = async (newTitle) => {
+        await tasksApi.update(task.id, { title: newTitle })
+        onTaskMoved && onTaskMoved()
+    }
+
+    const saveDescription = async (newDesc) => {
+        await tasksApi.update(task.id, { description: newDesc })
+        setFullTask(prev => prev ? { ...prev, description: newDesc } : prev)
     }
 
     const wrapperClass = [
@@ -187,7 +154,13 @@ function SortableCompactTask({
 
                 <div className="compact-task__main">
                     <div className="compact-task__row-top">
-                        <div className="compact-task__title">{task.title}</div>
+                        <InlineEdit
+                            value={task.title}
+                            className="compact-task__title compact-task__title-text"
+                            inputClassName="input compact-task__title-input"
+                            onSave={saveTitle}
+                            title="Двойной клик — редактировать название"
+                        />
                         {task.priority > 0 && (
                             <span className="compact-task__priority task-card__priority--big">
                                 {task.priority === 2 ? '❗' : '⚡'}
@@ -228,7 +201,7 @@ function SortableCompactTask({
                     {task.subtasks && task.subtasks.length > 0 && (
                         <div className="compact-task__subtasks" style={{ '--accent': accent }}>
                             {task.subtasks.map(st => (
-                                <DraggableSubtask
+                                <Subtask
                                     key={st.id}
                                     subtask={st}
                                     onClick={onOpenTask}
@@ -266,14 +239,18 @@ function SortableCompactTask({
                     )}
                     {fullTask && (
                         <>
-                            {fullTask.description && fullTask.description.trim() && (
-                                <div>
-                                    <div className="compact-task__details-label">Описание:</div>
-                                    <div className="compact-task__details-description">
-                                        {fullTask.description}
-                                    </div>
-                                </div>
-                            )}
+                            <div>
+                                <div className="compact-task__details-label">Описание:</div>
+                                <InlineEdit
+                                    value={fullTask.description || ''}
+                                    multiline
+                                    className="compact-task__details-description"
+                                    inputClassName="input compact-task__details-description-input"
+                                    placeholder="Двойной клик, чтобы добавить описание"
+                                    onSave={saveDescription}
+                                    title="Двойной клик — редактировать описание"
+                                />
+                            </div>
                             {fullTask.attachments && fullTask.attachments.length > 0 && (
                                 <div className="compact-task__details-row">
                                     <span className="compact-task__details-label">Вложения:</span>
@@ -326,11 +303,6 @@ function SortableCompactGroup({
         disabled: !reorderMode,
     })
 
-    const { setNodeRef: setDropRef, isOver } = useDroppable({
-        id: `group-drop-${col.statusId}`,
-        data: { type: 'group', statusId: col.statusId },
-    })
-
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
@@ -344,7 +316,7 @@ function SortableCompactGroup({
         <div
             ref={setNodeRef}
             style={style}
-            className={`compact-group ${isDragging ? 'compact-group--dragging' : ''} ${isOver ? 'compact-group--over' : ''}`}
+            className={`compact-group ${isDragging ? 'compact-group--dragging' : ''}`}
         >
             <div className="compact-group__head">
                 {reorderMode && (
@@ -370,7 +342,7 @@ function SortableCompactGroup({
             </div>
 
             {!isCollapsed && (
-                <div className="compact-group__body" ref={setDropRef}>
+                <div className="compact-group__body">
                     {tasks.length === 0 ? (
                         <div className="compact-group__empty">Пусто</div>
                     ) : (
@@ -571,7 +543,7 @@ export default function CompactView({
 
             if (overData?.type === 'group' || String(over.id).startsWith('group-')) {
                 const statusId = overData?.statusId
-                    || Number(String(over.id).replace('group-drop-', '').replace('group-', ''))
+                    || Number(String(over.id).replace('group-', ''))
                 if (statusId) {
                     if (shiftPressed) {
                         try {
@@ -707,7 +679,7 @@ export default function CompactView({
 
         if (overData?.type === 'group' || String(over.id).startsWith('group-')) {
             overStatusId = overData?.statusId
-                || Number(String(over.id).replace('group-drop-', '').replace('group-', ''))
+                || Number(String(over.id).replace('group-', ''))
         }
 
         if (!overStatusId) return

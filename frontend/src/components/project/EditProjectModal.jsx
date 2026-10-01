@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { projectsApi, attachmentsApi, statusesApi } from '../../api/api'
 import Modal from '../Modal/Modal'
+import { resolveUrl } from '../../utils/format'
 
 const ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray']
 
@@ -24,7 +25,7 @@ export default function EditProjectModal({ open, onClose, project, onUpdated, bo
             setDescription(project.description || '')
             setAccent(project.accentCode || 'blue')
             setCoverId(project.coverAttachmentId || null)
-            setCoverPreview(project.coverUrl || null)
+            setCoverPreview(resolveUrl(project.coverUrl))
             setClearCover(false)
             setStatusId(project.statusId || '')
             setError(null)
@@ -45,7 +46,7 @@ export default function EditProjectModal({ open, onClose, project, onUpdated, bo
         try {
             const { data } = await attachmentsApi.upload(file)
             setCoverId(data.id)
-            setCoverPreview(data.url)
+            setCoverPreview(resolveUrl(data.url))
             setClearCover(false)
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка загрузки')

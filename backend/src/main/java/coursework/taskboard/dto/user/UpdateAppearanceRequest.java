@@ -9,4 +9,7 @@ public class UpdateAppearanceRequest {
     private String accentCode;
     private String density;
     private Boolean sidebarCollapsed;
+
+    private Boolean treeEnabled;
+    private String treeKind;
 }

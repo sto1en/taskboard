@@ -10,9 +10,11 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         if (!token) {
+            setUser(null)
             setLoading(false)
             return
         }
+        setLoading(true)
         userApi.me()
             .then(({ data }) => setUser(data))
             .catch(() => {
@@ -27,8 +29,6 @@ export function AuthProvider({ children }) {
         const { data } = await authApi.login({ username, password })
         localStorage.setItem('token', data.token)
         setToken(data.token)
-        const me = await userApi.me()
-        setUser(me.data)
         return data
     }
 
@@ -36,8 +36,6 @@ export function AuthProvider({ children }) {
         const { data } = await authApi.register(payload)
         localStorage.setItem('token', data.token)
         setToken(data.token)
-        const me = await userApi.me()
-        setUser(me.data)
         return data
     }
 

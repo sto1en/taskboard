@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { attachmentsApi, tasksApi } from '../../api/api'
+import { resolveUrl } from '../../utils/format'
 
 export default function AttachmentsModal({
                                              open, attachments, taskId, onClose, onUpdated,
@@ -11,7 +12,12 @@ export default function AttachmentsModal({
     const fileInputRef = useRef(null)
 
     useEffect(() => {
-        setItems(attachments || [])
+        setItems(
+            (attachments || []).map(a => ({
+                ...a,
+                url: resolveUrl(a.url),
+            }))
+        )
     }, [attachments])
 
     useEffect(() => {
@@ -66,7 +72,7 @@ export default function AttachmentsModal({
             await tasksApi.attach(taskId, attachment.id)
             setItems(prev => [...prev, {
                 id: attachment.id,
-                url: attachment.url,
+                url: resolveUrl(attachment.url),
                 originalName: attachment.originalName,
                 mimeCode: attachment.mimeCode,
             }])

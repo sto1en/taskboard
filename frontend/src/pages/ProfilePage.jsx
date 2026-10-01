@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { userApi, attachmentsApi, boardsApi } from '../api/api'
+import { resolveUrl } from '../utils/format'
 
-// Часовые пояса России
 const RUSSIAN_TIMEZONES = [
     { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
     { value: 'Europe/Moscow',      label: 'Москва (UTC+3)' },
@@ -33,6 +33,36 @@ const RUSSIAN_TIMEZONES = [
     { value: 'Asia/Anadyr',        label: 'Анадырь (UTC+12)' },
 ]
 
+const DEFAULT_APPEARANCE = {
+    theme: 'light',
+    accentCode: 'blue',
+    density: 'cozy',
+    sidebarCollapsed: false,
+    treeEnabled: true,
+    treeKind: 'sakura',
+}
+
+const DEFAULT_LOCALE = { language: 'ru', timezone: 'Europe/Moscow' }
+
+const DEFAULT_WORKSPACE = {
+    defaultBoardId: null,
+    tasksPerPage: 50,
+    confirmBeforeDelete: true,
+}
+
+const DEFAULT_DISPLAY = {
+    taskSortMode: 'manual',
+    taskSortDir: 'asc',
+    projectViewMode: 'auto',
+}
+
+const DEFAULT_NOTIFICATION = {
+    notifyEmail: true,
+    notifyDeadline: true,
+    notifyDigest: 'daily',
+    remindBeforeDays: 1,
+}
+
 export default function ProfilePage() {
     const { user, updateUser } = useAuth()
     const [tab, setTab] = useState('profile')
@@ -47,37 +77,12 @@ export default function ProfilePage() {
     const [avatarPreview, setAvatarPreview] = useState(null)
     const fileInputRef = useRef(null)
 
-    const [appearanceForm, setAppearanceForm] = useState({
-        theme: 'light',
-        accentCode: 'blue',
-        density: 'cozy',
-        sidebarCollapsed: false,
-    })
-
-    const [localeForm, setLocaleForm] = useState({
-        language: 'ru',
-        timezone: 'Europe/Moscow',
-    })
-
-    const [workspaceForm, setWorkspaceForm] = useState({
-        defaultBoardId: null,
-        tasksPerPage: 50,
-        confirmBeforeDelete: true,
-    })
+    const [appearanceForm, setAppearanceForm] = useState(DEFAULT_APPEARANCE)
+    const [localeForm, setLocaleForm] = useState(DEFAULT_LOCALE)
+    const [workspaceForm, setWorkspaceForm] = useState(DEFAULT_WORKSPACE)
     const [boards, setBoards] = useState([])
-
-    const [displayForm, setDisplayForm] = useState({
-        taskSortMode: 'manual',
-        taskSortDir: 'asc',
-        projectViewMode: 'auto',
-    })
-
-    const [notificationForm, setNotificationForm] = useState({
-        notifyEmail: true,
-        notifyDeadline: true,
-        notifyDigest: 'daily',
-        remindBeforeDays: 1,
-    })
+    const [displayForm, setDisplayForm] = useState(DEFAULT_DISPLAY)
+    const [notificationForm, setNotificationForm] = useState(DEFAULT_NOTIFICATION)
 
     useEffect(() => {
         if (!user) return
@@ -87,13 +92,17 @@ export default function ProfilePage() {
             bio: user.profile?.bio || '',
             avatarAttachmentId: user.profile?.avatarAttachmentId || null,
         })
-        setAvatarPreview(user.profile?.avatarUrl || null)
+        setAvatarPreview(resolveUrl(user.profile?.avatarUrl))
 
-        if (user.appearance) setAppearanceForm(user.appearance)
-        if (user.locale) setLocaleForm(user.locale)
-        if (user.workspace) setWorkspaceForm(user.workspace)
-        if (user.display) setDisplayForm(user.display)
-        if (user.notification) setNotificationForm(user.notification)
+        setAppearanceForm({
+            ...DEFAULT_APPEARANCE,
+            ...(user.appearance || {}),
+            treeEnabled: user.appearance?.treeEnabled !== false,
+        })
+        setLocaleForm({ ...DEFAULT_LOCALE, ...(user.locale || {}) })
+        setWorkspaceForm({ ...DEFAULT_WORKSPACE, ...(user.workspace || {}) })
+        setDisplayForm({ ...DEFAULT_DISPLAY, ...(user.display || {}) })
+        setNotificationForm({ ...DEFAULT_NOTIFICATION, ...(user.notification || {}) })
 
         boardsApi.list().then(({ data }) => setBoards(data))
     }, [user])
@@ -107,7 +116,6 @@ export default function ProfilePage() {
         setMsg(null)
     }
 
-    // ===== Профиль =====
     const saveProfile = async () => {
         try {
             const { data } = await userApi.updateProfile(profileForm)
@@ -121,7 +129,7 @@ export default function ProfilePage() {
         if (!file) return
         try {
             const { data: attachment } = await attachmentsApi.upload(file)
-            setAvatarPreview(attachment.url)
+            setAvatarPreview(resolveUrl(attachment.url))
             const newProfile = { ...profileForm, avatarAttachmentId: attachment.id }
             setProfileForm(newProfile)
             const { data } = await userApi.updateProfile(newProfile)
@@ -130,7 +138,6 @@ export default function ProfilePage() {
         } catch (e) { flashErr(e) }
     }
 
-    // ===== Внешний вид =====
     const saveAppearance = async () => {
         try {
             const { data } = await userApi.updateAppearance(appearanceForm)
@@ -139,7 +146,6 @@ export default function ProfilePage() {
         } catch (e) { flashErr(e) }
     }
 
-    // ===== Локаль =====
     const saveLocale = async () => {
         try {
             const { data } = await userApi.updateLocale(localeForm)
@@ -148,7 +154,6 @@ export default function ProfilePage() {
         } catch (e) { flashErr(e) }
     }
 
-    // ===== Рабочее =====
     const saveWorkspace = async () => {
         try {
             const { data } = await userApi.updateWorkspace(workspaceForm)
@@ -157,7 +162,6 @@ export default function ProfilePage() {
         } catch (e) { flashErr(e) }
     }
 
-    // ===== Отображение =====
     const saveDisplay = async () => {
         try {
             const { data } = await userApi.updateDisplay(displayForm)
@@ -166,7 +170,6 @@ export default function ProfilePage() {
         } catch (e) { flashErr(e) }
     }
 
-    // ===== Уведомления =====
     const saveNotification = async () => {
         try {
             const { data } = await userApi.updateNotification(notificationForm)
@@ -301,6 +304,39 @@ export default function ProfilePage() {
                             <option value="comfortable">Просторная</option>
                         </select>
                     </div>
+
+                    <div className="profile-field profile-field--check">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={appearanceForm.treeEnabled !== false}
+                                onChange={(e) => setAppearanceForm(f => ({
+                                    ...f,
+                                    treeEnabled: e.target.checked,
+                                }))}
+                            />
+                            Показывать дерево роста в сайдбаре
+                        </label>
+                    </div>
+
+                    {appearanceForm.treeEnabled !== false && (
+                        <div className="profile-field">
+                            <label>Вид дерева</label>
+                            <select
+                                className="input"
+                                value={appearanceForm.treeKind || 'sakura'}
+                                onChange={(e) => setAppearanceForm(f => ({
+                                    ...f,
+                                    treeKind: e.target.value,
+                                }))}
+                            >
+                                <option value="sakura">🌸 Сакура</option>
+                                <option value="birch">🌳 Берёза</option>
+                                <option value="palm">🌴 Пальма</option>
+                                <option value="apple">🍎 Яблоня</option>
+                            </select>
+                        </div>
+                    )}
 
                     <button className="btn btn-primary" onClick={saveAppearance}>
                         Применить

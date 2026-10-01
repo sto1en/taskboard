@@ -115,6 +115,17 @@ public class UserService {
             appearance.setSidebarCollapsed(request.getSidebarCollapsed());
         }
 
+        // НОВОЕ
+        if (request.getTreeEnabled() != null) {
+            appearance.setTreeEnabled(request.getTreeEnabled());
+        }
+        if (request.getTreeKind() != null) {
+            if (!java.util.Set.of("sakura", "birch", "palm", "apple").contains(request.getTreeKind())) {
+                throw new IllegalArgumentException("Invalid treeKind");
+            }
+            appearance.setTreeKind(request.getTreeKind());
+        }
+
         userAppearanceRepository.save(appearance);
         return userMapper.toAppearanceDto(appearance);
     }

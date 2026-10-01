@@ -3,6 +3,7 @@ import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import api, { statsApi } from '../../api/api'
 import TreeAvatar from './TreeAvatar'
+import { plural } from '../../utils/format'
 
 export default function Sidebar() {
     const { user, logout } = useAuth()
@@ -13,13 +14,16 @@ export default function Sidebar() {
         return localStorage.getItem('sidebar_collapsed') === 'true'
     })
 
+    const treeEnabled = user?.appearance?.treeEnabled !== false
+    const treeKind = user?.appearance?.treeKind || 'sakura'
+
     useEffect(() => {
         api.get('/boards').then(({ data }) => setBoards(data))
     }, [])
 
-    // Дерево роста: считаем выполненные задачи ЗА СЕГОДНЯ
     useEffect(() => {
         if (!user) return
+        if (!treeEnabled) return
 
         const load = () => {
             statsApi.get('day')
@@ -30,7 +34,7 @@ export default function Sidebar() {
         load()
         window.addEventListener('tree:refresh', load)
         return () => window.removeEventListener('tree:refresh', load)
-    }, [user])
+    }, [user, treeEnabled])
 
     useEffect(() => {
         localStorage.setItem('sidebar_collapsed', String(collapsed))
@@ -54,13 +58,7 @@ export default function Sidebar() {
                 )}
 
                 {!collapsed && (
-                    <button
-                        className="sidebar__logout"
-                        title="Выйти"
-                        onClick={logout}
-                    >
-                        ⎋
-                    </button>
+                    <button className="sidebar__logout" title="Выйти" onClick={logout}>⎋</button>
                 )}
 
                 <button
@@ -121,10 +119,9 @@ export default function Sidebar() {
             </nav>
 
             <div className="sidebar__bottom">
-                {/* Дерево роста — над Help */}
-                {!collapsed && (
+                {treeEnabled && !collapsed && (
                     <div className="sidebar__tree">
-                        <TreeAvatar done={doneTasks} maxHeight={400} />
+                        <TreeAvatar done={doneTasks} kind={treeKind} maxHeight={400} />
                         <div className="sidebar__tree-label">
                             {doneTasks} {pluralDone(doneTasks)} сегодня
                         </div>

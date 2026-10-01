@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { boardsApi, attachmentsApi } from '../../api/api'
 import Modal from '../Modal/Modal'
+import { resolveUrl } from '../../utils/format'
 
 const ACCENTS = [
     { code: 'blue',   label: 'Синий' },
@@ -41,7 +42,7 @@ export default function CreateBoardModal({ open, onClose, onCreated }) {
         try {
             const { data } = await attachmentsApi.upload(file)
             setCoverId(data.id)
-            setCoverPreview(data.url)
+            setCoverPreview(resolveUrl(data.url))
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка загрузки обложки')
         } finally {

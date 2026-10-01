@@ -35,6 +35,8 @@ public class AuthMapper {
                 .accentCode("blue")
                 .density("cozy")
                 .sidebarCollapsed(false)
+                .treeEnabled(true)
+                .treeKind("sakura")
                 .build();
     }
 

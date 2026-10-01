@@ -55,22 +55,17 @@ export default function BoardDetailPage() {
     if (error) return <div className="error">{error}</div>
     if (!board) return <div>Доска не найдена</div>
 
-    // Локально переопределяем --accent под цвет доски
     const accentStyle = {
         '--accent': `var(--accent-${board.accentCode || 'blue'})`,
     }
 
     return (
         <div className="board-detail" style={accentStyle}>
-            <div className="board-detail__head">
-                <button className="btn btn-ghost" onClick={() => nav('/boards')}>←</button>
-                <h2 className="board-detail__title">{board.title}</h2>
-            </div>
-
             <BoardToolbar
                 board={board}
                 onUpdate={setBoard}
                 onDelete={handleDeleteBoard}
+                onBack={() => nav('/boards')}
             />
 
             <div className="board-detail__scroll">

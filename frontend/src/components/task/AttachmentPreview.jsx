@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { resolveUrl } from '../../utils/format'
 
 export default function AttachmentPreview({ attachment, onClose }) {
     const [downloading, setDownloading] = useState(false)
@@ -16,10 +17,7 @@ export default function AttachmentPreview({ attachment, onClose }) {
 
     if (!attachment) return null
 
-    const url = attachment.url?.startsWith('http')
-        ? attachment.url
-        : `/uploads/${attachment.url}`
-
+    const url = resolveUrl(attachment.url)
     const isImage = attachment.mimeCode?.startsWith('image/')
 
     const handleDownload = async (e) => {
@@ -39,7 +37,6 @@ export default function AttachmentPreview({ attachment, onClose }) {
             setTimeout(() => URL.revokeObjectURL(objUrl), 1000)
         } catch (err) {
             console.error('Download error:', err)
-            // fallback — открыть в новой вкладке
             window.open(url, '_blank', 'noopener,noreferrer')
         } finally {
             setDownloading(false)
