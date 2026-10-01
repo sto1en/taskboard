@@ -1,19 +1,21 @@
 import { useState, useEffect, useRef } from 'react'
 import { boardsApi, attachmentsApi } from '../../api/api'
 import Modal from '../Modal/Modal'
+import useT from '../../hooks/useT'
 import { resolveUrl } from '../../utils/format'
 
 const ACCENTS = [
-    { code: 'blue',   label: 'Синий' },
-    { code: 'purple', label: 'Фиолетовый' },
-    { code: 'green',  label: 'Зелёный' },
-    { code: 'orange', label: 'Оранжевый' },
-    { code: 'red',    label: 'Красный' },
-    { code: 'pink',   label: 'Розовый' },
-    { code: 'gray',   label: 'Серый' },
+    { code: 'blue',   label: 'Blue' },
+    { code: 'purple', label: 'Purple' },
+    { code: 'green',  label: 'Green' },
+    { code: 'orange', label: 'Orange' },
+    { code: 'red',    label: 'Red' },
+    { code: 'pink',   label: 'Pink' },
+    { code: 'gray',   label: 'Gray' },
 ]
 
 export default function CreateBoardModal({ open, onClose, onCreated }) {
+    const t = useT()
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
     const [accent, setAccent] = useState('blue')
@@ -44,7 +46,7 @@ export default function CreateBoardModal({ open, onClose, onCreated }) {
             setCoverId(data.id)
             setCoverPreview(resolveUrl(data.url))
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка загрузки обложки')
+            setError(err.response?.data?.message || 'Error')
         } finally {
             setUploading(false)
         }
@@ -53,7 +55,7 @@ export default function CreateBoardModal({ open, onClose, onCreated }) {
     const onSubmit = async (e) => {
         e.preventDefault()
         if (!title.trim()) {
-            setError('Введите название')
+            setError(t.titleLabel)
             return
         }
         setLoading(true)
@@ -72,7 +74,7 @@ export default function CreateBoardModal({ open, onClose, onCreated }) {
             }
             onClose()
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка создания доски')
+            setError(err.response?.data?.message || 'Error')
         } finally {
             setLoading(false)
         }
@@ -82,11 +84,11 @@ export default function CreateBoardModal({ open, onClose, onCreated }) {
         <Modal
             open={open}
             onClose={onClose}
-            title="Новая доска"
+            title={t.newBoardModal}
             footer={
                 <>
                     <button type="button" className="btn btn-ghost" onClick={onClose} disabled={loading}>
-                        Отмена
+                        {t.cancel}
                     </button>
                     <button
                         type="submit"
@@ -94,19 +96,18 @@ export default function CreateBoardModal({ open, onClose, onCreated }) {
                         className="btn btn-primary"
                         disabled={loading || uploading || !title.trim()}
                     >
-                        {loading ? 'Создание...' : 'Создать'}
+                        {loading ? '...' : t.create}
                     </button>
                 </>
             }
         >
             <form id="create-board-form" onSubmit={onSubmit} style={{ display: 'contents' }}>
                 <div className="modal__field">
-                    <label className="modal__label">Название</label>
+                    <label className="modal__label">{t.titleLabel}</label>
                     <input
                         className="input"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Например, «Фотография»"
                         maxLength={120}
                         autoFocus
                         required
@@ -114,18 +115,17 @@ export default function CreateBoardModal({ open, onClose, onCreated }) {
                 </div>
 
                 <div className="modal__field">
-                    <label className="modal__label">Описание</label>
+                    <label className="modal__label">{t.descriptionLabel}</label>
                     <textarea
                         className="input"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Необязательно"
                         maxLength={2000}
                     />
                 </div>
 
                 <div className="modal__field">
-                    <label className="modal__label">Обложка (необязательно)</label>
+                    <label className="modal__label">{t.coverLabel}</label>
                     {coverPreview ? (
                         <div className="cover-upload__preview">
                             <img
@@ -148,20 +148,19 @@ export default function CreateBoardModal({ open, onClose, onCreated }) {
                             onClick={() => fileInputRef.current?.click()}
                             disabled={uploading}
                         >
-                            {uploading ? 'Загрузка...' : '📷 Загрузить фото'}
+                            {uploading ? t.uploadingLabel : t.uploadPhoto}
                         </button>
                     )}
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={uploadCover}
+                    <input                        ref={fileInputRef}
+                                                  type="file"
+                                                  accept="image/*"
+                                                  style={{ display: 'none' }}
+                                                  onChange={uploadCover}
                     />
                 </div>
 
                 <div className="modal__field">
-                    <label className="modal__label">Цвет обложки (если нет фото)</label>
+                    <label className="modal__label">{t.coverColorLabel}</label>
                     <div className="color-picker">
                         {ACCENTS.map(a => (
                             <button

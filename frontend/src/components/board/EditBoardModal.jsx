@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { boardsApi, attachmentsApi } from '../../api/api'
 import Modal from '../Modal/Modal'
+import useT from '../../hooks/useT'
 import { resolveUrl } from '../../utils/format'
 
 const ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray']
 
 export default function EditBoardModal({ open, onClose, board, onUpdated }) {
+    const t = useT()
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
     const [accent, setAccent] = useState('blue')
@@ -39,7 +41,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
             setCoverPreview(resolveUrl(data.url))
             setClearCover(false)
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка загрузки')
+            setError(err.response?.data?.message || 'Error')
         } finally {
             setUploading(false)
         }
@@ -54,7 +56,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
     const onSubmit = async (e) => {
         e.preventDefault()
         if (!title.trim()) {
-            setError('Введите название')
+            setError(t.titleLabel)
             return
         }
         setLoading(true)
@@ -76,7 +78,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
             const { data } = await boardsApi.update(board.id, payload)
             onUpdated(data)
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка сохранения')
+            setError(err.response?.data?.message || 'Error')
         } finally {
             setLoading(false)
         }
@@ -88,11 +90,11 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
         <Modal
             open={open}
             onClose={onClose}
-            title="Редактировать доску"
+            title={t.editBoardModal}
             footer={
                 <>
                     <button type="button" className="btn btn-ghost" onClick={onClose} disabled={loading}>
-                        Отмена
+                        {t.cancel}
                     </button>
                     <button
                         type="submit"
@@ -100,14 +102,14 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
                         className="btn btn-primary"
                         disabled={loading || uploading || !title.trim()}
                     >
-                        {loading ? 'Сохранение...' : 'Сохранить'}
+                        {loading ? '...' : t.save}
                     </button>
                 </>
             }
         >
             <form id="edit-board-modal-form" onSubmit={onSubmit} style={{ display: 'contents' }}>
                 <div className="modal__field">
-                    <label className="modal__label">Название</label>
+                    <label className="modal__label">{t.titleLabel}</label>
                     <input
                         className="input"
                         value={title}
@@ -119,7 +121,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
                 </div>
 
                 <div className="modal__field">
-                    <label className="modal__label">Описание</label>
+                    <label className="modal__label">{t.descriptionLabel}</label>
                     <textarea
                         className="input"
                         value={description}
@@ -129,7 +131,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
                 </div>
 
                 <div className="modal__field">
-                    <label className="modal__label">Обложка (необязательно)</label>
+                    <label className="modal__label">{t.coverLabel}</label>
                     {coverPreview ? (
                         <div className="cover-upload__preview">
                             <img src={coverPreview} alt="" />
@@ -148,7 +150,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
                             onClick={() => fileInputRef.current?.click()}
                             disabled={uploading}
                         >
-                            {uploading ? 'Загрузка...' : '📷 Загрузить фото'}
+                            {uploading ? t.uploadingLabel : t.uploadPhoto}
                         </button>
                     )}
                     <input
@@ -161,7 +163,7 @@ export default function EditBoardModal({ open, onClose, board, onUpdated }) {
                 </div>
 
                 <div className="modal__field">
-                    <label className="modal__label">Цвет обложки (если нет фото)</label>
+                    <label className="modal__label">{t.coverColorLabel}</label>
                     <div className="color-picker">
                         {ACCENTS.map(c => (
                             <button

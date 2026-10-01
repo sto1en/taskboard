@@ -1,16 +1,38 @@
 import { useEffect, useState } from 'react'
 import { calendarApi } from '../api/api'
-
-const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+import useT from '../hooks/useT'
 
 export default function CalendarPage() {
+    const t = useT()
     const today = new Date()
     const [year, setYear] = useState(today.getFullYear())
     const [month, setMonth] = useState(today.getMonth())
     const [tasksByDay, setTasksByDay] = useState({})
     const [loading, setLoading] = useState(true)
+
+    const MONTHS = [
+        t.monthJanuary || 'January',
+        t.monthFebruary || 'February',
+        t.monthMarch || 'March',
+        t.monthApril || 'April',
+        t.monthMay || 'May',
+        t.monthJune || 'June',
+        t.monthJuly || 'July',
+        t.monthAugust || 'August',
+        t.monthSeptember || 'September',
+        t.monthOctober || 'October',
+        t.monthNovember || 'November',
+        t.monthDecember || 'December',
+    ]
+    const WEEKDAYS = [
+        t.weekdayMon || 'Mon',
+        t.weekdayTue || 'Tue',
+        t.weekdayWed || 'Wed',
+        t.weekdayThu || 'Thu',
+        t.weekdayFri || 'Fri',
+        t.weekdaySat || 'Sat',
+        t.weekdaySun || 'Sun',
+    ]
 
     useEffect(() => {
         const from = new Date(year, month, 1).toISOString().slice(0, 10)
@@ -77,13 +99,13 @@ export default function CalendarPage() {
                                 <>
                                     <div className="calendar__daynum">{day}</div>
                                     <div className="calendar__tasks">
-                                        {(tasksByDay[day] || []).map(t => (
+                                        {(tasksByDay[day] || []).map(task => (
                                             <div
-                                                key={t.id}
-                                                className={`calendar__task ${t.isOverdue ? 'calendar__task--overdue' : ''}`}
-                                                title={`${t.title}${t.projectTitle ? ' · ' + t.projectTitle : ''}`}
+                                                key={task.id}
+                                                className={`calendar__task ${task.isOverdue ? 'calendar__task--overdue' : ''}`}
+                                                title={`${task.title}${task.projectTitle ? ' · ' + task.projectTitle : ''}`}
                                             >
-                                                {t.title}
+                                                {task.title}
                                             </div>
                                         ))}
                                     </div>

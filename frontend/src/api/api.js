@@ -10,6 +10,8 @@ api.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`
     }
+    const lang = localStorage.getItem('lang') || 'ru'
+    config.headers['Accept-Language'] = lang
     return config
 })
 
@@ -43,10 +45,7 @@ export const boardsApi = {
     create: (data) => api.post('/boards', data),
     update: (id, data) => api.patch(`/boards/${id}`, data),
     delete: (id) => api.delete(`/boards/${id}`),
-
-    // Перемещение доски (drag&drop)
-    move: (id, { position }) =>
-        api.patch(`/boards/${id}`, { position }),
+    move: (id, { position }) => api.patch(`/boards/${id}`, { position }),
 }
 
 // ============================================================
@@ -58,10 +57,16 @@ export const projectsApi = {
     create: (boardId, data) => api.post(`/boards/${boardId}/projects`, data),
     update: (id, data) => api.patch(`/projects/${id}`, data),
     delete: (id) => api.delete(`/projects/${id}`),
+    move: (id, { position }) => api.patch(`/projects/${id}`, { position }),
+}
 
-    // Перемещение проекта (drag&drop)
-    move: (id, { position }) =>
-        api.patch(`/projects/${id}`, { position }),
+// ============================================================
+// Project pinned filters
+// ============================================================
+export const projectFiltersApi = {
+    get:   (projectId) => api.get(`/projects/${projectId}/filters`),
+    save:  (projectId, data) => api.put(`/projects/${projectId}/filters`, data),
+    clear: (projectId) => api.delete(`/projects/${projectId}/filters`),
 }
 
 // ============================================================
@@ -80,10 +85,8 @@ export const tasksApi = {
         api.delete(`/tasks/${taskId}/attachments/${attachmentId}`),
     move: (id, { statusId, position }) =>
         api.patch(`/tasks/${id}`, { statusId, position }),
-
     setParent: (id, parentId) =>
         api.patch(`/tasks/${id}`, { parentId }),
-
     clearParent: (id) =>
         api.patch(`/tasks/${id}`, { clearParent: true }),
 }
@@ -145,20 +148,19 @@ export const userApi = {
 // ============================================================
 export const searchApi = {
     global: (q) => api.get('/search', { params: { q } }),
+    suggestions: (q) => api.get('/search/suggestions', { params: { q } }),
+    filter: (params) => api.get('/search/filter', { params }),
     inProject: (projectId, q) =>
         api.get(`/search/projects/${projectId}`, { params: { q } }),
 }
 
 // ============================================================
-// Stats
+// Stats / Calendar
 // ============================================================
 export const statsApi = {
     get: (period) => api.get('/stats', { params: { period } }),
 }
 
-// ============================================================
-// Calendar
-// ============================================================
 export const calendarApi = {
     get: (from, to) => api.get('/calendar', { params: { from, to } }),
 }

@@ -16,19 +16,15 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { statusesApi } from '../../api/api'
+import useT from '../../hooks/useT'
+import { localizeCategoryLabel } from '../../utils/statusNames'
 
-const CATEGORIES = [
-    { code: 'ACTIVE',    label: 'Активные' },
-    { code: 'FROZEN',    label: 'Отложенные' },
-    { code: 'DONE',      label: 'Выполненные' },
-    { code: 'EXPIRED',   label: 'Просроченные' },
-    { code: 'CANCELLED', label: 'Отменённые' },
-    { code: 'ARCHIVED',  label: 'Архив' },
-]
+const CATEGORIES = ['ACTIVE', 'FROZEN', 'DONE', 'EXPIRED', 'CANCELLED', 'ARCHIVED']
 
 const ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray', 'teal', 'navy', 'olive']
 
 function SortableStatusRow({ status, onEdit, onRemove }) {
+    const t = useT()
     const {
         attributes,
         listeners,
@@ -63,19 +59,19 @@ function SortableStatusRow({ status, onEdit, onRemove }) {
             />
             <span className="status-row__title-text">{status.title}</span>
             <span className="status-row__category-text">
-                {CATEGORIES.find(c => c.code === status.categoryCode)?.label}
+                {localizeCategoryLabel(status.categoryCode, t)}
             </span>
-            {status.isSystem && <span className="status-row__system">системный</span>}
+            {status.isSystem && <span className="status-row__system">{t.systemLabel}</span>}
             <button
                 className="status-row__action"
                 onClick={(e) => { e.stopPropagation(); onEdit(status) }}
-                title="Редактировать"
+                title={t.edit}
             >✎</button>
             {!status.isSystem && (
                 <button
                     className="status-row__action status-row__action--danger"
                     onClick={(e) => { e.stopPropagation(); onRemove(status) }}
-                    title="Удалить"
+                    title={t.delete}
                 >🗑</button>
             )}
         </div>
@@ -83,6 +79,7 @@ function SortableStatusRow({ status, onEdit, onRemove }) {
 }
 
 export default function StatusEditor({ boardId, scope, statuses, onReload }) {
+    const t = useT()
     const [editing, setEditing] = useState(null)
     const [creating, setCreating] = useState(false)
     const [newTitle, setNewTitle] = useState('')
@@ -115,21 +112,21 @@ export default function StatusEditor({ boardId, scope, statuses, onReload }) {
             setEditing(null)
             onReload()
         } catch (err) {
-            alert(err.response?.data?.message || 'Ошибка')
+            alert(err.response?.data?.message || 'Error')
         }
     }
 
     const remove = async (s) => {
         if (s.isSystem) {
-            alert('Нельзя удалить системный статус')
+            alert(t.cantDeleteSystem)
             return
         }
-        if (!confirm('Удалить статус?')) return
+        if (!confirm(t.confirmDeleteStatus)) return
         try {
             await statusesApi.delete(boardId, s.id)
             onReload()
         } catch (err) {
-            alert(err.response?.data?.message || 'Ошибка')
+            alert(err.response?.data?.message || 'Error')
         }
     }
 
@@ -148,7 +145,7 @@ export default function StatusEditor({ boardId, scope, statuses, onReload }) {
             setCreating(false)
             onReload()
         } catch (err) {
-            alert(err.response?.data?.message || 'Ошибка')
+            alert(err.response?.data?.message || 'Error')
         }
     }
 
@@ -209,7 +206,9 @@ export default function StatusEditor({ boardId, scope, statuses, onReload }) {
                                         onChange={(e) => setEditing(f => ({ ...f, categoryCode: e.target.value }))}
                                     >
                                         {CATEGORIES.map(c => (
-                                            <option key={c.code} value={c.code}>{c.label}</option>
+                                            <option key={c} value={c}>
+                                                {localizeCategoryLabel(c, t)}
+                                            </option>
                                         ))}
                                     </select>
                                     <div className="color-picker status-row__colors">
@@ -223,7 +222,7 @@ export default function StatusEditor({ boardId, scope, statuses, onReload }) {
                                             />
                                         ))}
                                     </div>
-                                    <button className="btn btn-primary status-row__btn" onClick={saveEdit}>Сохранить</button>
+                                    <button className="btn btn-primary status-row__btn" onClick={saveEdit}>{t.save}</button>
                                     <button className="btn btn-ghost status-row__btn" onClick={() => setEditing(null)}>×</button>
                                 </div>
                             ) : (
@@ -262,7 +261,7 @@ export default function StatusEditor({ boardId, scope, statuses, onReload }) {
                 <div className="status-row status-row--creating">
                     <input
                         className="input status-row__title"
-                        placeholder="Название статуса"
+                        placeholder={t.statusNamePlaceholder}
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
                         autoFocus
@@ -273,7 +272,9 @@ export default function StatusEditor({ boardId, scope, statuses, onReload }) {
                         onChange={(e) => setNewCategory(e.target.value)}
                     >
                         {CATEGORIES.map(c => (
-                            <option key={c.code} value={c.code}>{c.label}</option>
+                            <option key={c} value={c}>
+                                {localizeCategoryLabel(c, t)}
+                            </option>
                         ))}
                     </select>
                     <div className="color-picker status-row__colors">
@@ -287,12 +288,12 @@ export default function StatusEditor({ boardId, scope, statuses, onReload }) {
                             />
                         ))}
                     </div>
-                    <button className="btn btn-primary status-row__btn" onClick={create}>Добавить</button>
+                    <button className="btn btn-primary status-row__btn" onClick={create}>{t.addingLabel}</button>
                     <button className="btn btn-ghost status-row__btn" onClick={() => setCreating(false)}>×</button>
                 </div>
             ) : (
                 <button className="status-editor__add" onClick={() => setCreating(true)}>
-                    + Добавить статус
+                    {t.addStatusBtn}
                 </button>
             )}
         </div>

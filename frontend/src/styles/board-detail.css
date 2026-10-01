@@ -15,6 +15,7 @@
     gap: 12px;
     margin-bottom: 16px;
     flex-shrink: 0;
+    min-height: 48px;
 }
 
 .board-detail__back {
@@ -26,8 +27,91 @@
 .board-detail__title {
     margin: 0;
     font-size: 22px;
+    font-weight: 700;
     color: var(--text);
     flex-shrink: 0;
+    letter-spacing: -0.3px;
+}
+
+.board-detail__title-text {
+    font-weight: 700;
+}
+
+.board-detail__title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+/* Pin-кнопка рядом с названием проекта */
+.board-detail__pin-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, opacity .15s, color .15s;
+    opacity: 0.5;
+    padding: 0;
+    flex-shrink: 0;
+}
+.board-detail__pin-btn:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
+}
+.board-detail__pin-btn--active {
+    opacity: 1;
+    background: var(--accent, var(--primary));
+    border-color: var(--accent, var(--primary));
+    color: #fff;
+}
+.board-detail__pin-btn--active:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 85%, #000);
+    border-color: color-mix(in srgb, var(--accent, var(--primary)) 85%, #000);
+    color: #fff;
+}
+
+.board-detail__title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex-shrink: 0;
+    max-width: 60%;
+}
+
+.board-detail__subtitle {
+    display: block;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: text;
+    border-radius: 4px;
+    padding: 2px 6px;
+    transition: background .15s;
+    min-height: 18px;
+    max-width: 480px;
+    word-break: break-word;
+}
+.board-detail__subtitle:hover {
+    background: rgba(9, 30, 66, 0.05);
+}
+
+.board-detail__subtitle-input {
+    font-size: 13px;
+    padding: 6px 10px;
+    min-height: 50px;
+    width: 100%;
+    max-width: 480px;
+    box-sizing: border-box;
+    resize: vertical;
 }
 
 .board-detail__toolbar {
@@ -35,38 +119,50 @@
     align-items: center;
     gap: 8px;
     margin-left: auto;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
 }
 
 .reorder-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
+    justify-content: center;
+    padding: 8px 12px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     color: var(--text);
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1;
     cursor: pointer;
     font-family: inherit;
     transition: background .15s, border-color .15s, color .15s;
     white-space: nowrap;
+    min-width: 44px;
+    min-height: 38px;
 }
 .reorder-btn:hover {
-    background: rgba(76, 154, 255, 0.08);
-    border-color: var(--primary);
-    color: var(--primary);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
 }
 .reorder-btn--active {
-    background: var(--primary);
+    background: var(--accent, var(--primary));
     color: #fff;
-    border-color: var(--primary);
+    border-color: var(--accent, var(--primary));
 }
 .reorder-btn--active:hover {
-    background: var(--primary-hover);
-    border-color: var(--primary-hover);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 85%, #000);
+    border-color: color-mix(in srgb, var(--accent, var(--primary)) 85%, #000);
     color: #fff;
+}
+.reorder-btn__icon {
+    font-size: 20px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .board-detail__scroll {
@@ -97,6 +193,14 @@
 }
 .board-detail__scroll--kanban::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
+}
+
+.board-detail__add-status {
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 /* ============================================================
@@ -151,8 +255,8 @@
 }
 .kanban-col__drag:hover {
     opacity: 1;
-    color: var(--primary);
-    background: rgba(76, 154, 255, 0.1);
+    color: var(--accent, var(--primary));
+    background: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
 }
 .kanban-col__drag:active { cursor: grabbing; }
 
@@ -210,9 +314,9 @@ html[data-theme="dark"] .kanban-col__count {
     width: 100%;
 }
 .kanban-col__add:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: rgba(76, 154, 255, 0.04);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
+    background: color-mix(in srgb, var(--accent, var(--primary)) 4%, transparent);
 }
 
 .kanban--reorder .kanban-col {
@@ -264,11 +368,11 @@ html[data-theme="dark"] .kanban-col__count {
 }
 
 .task-card:hover {
-    background: rgba(76, 154, 255, 0.06);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 6%, transparent);
     box-shadow: var(--shadow-md);
 }
 html[data-theme="dark"] .task-card:hover {
-    background: rgba(76, 154, 255, 0.12);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
 }
 
 .task-card__head {
@@ -368,8 +472,8 @@ html[data-theme="dark"] .task-card:hover {
     line-height: 1;
 }
 .task-card__edit:hover {
-    background: rgba(76, 154, 255, 0.1);
-    color: var(--primary);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
+    color: var(--accent, var(--primary));
 }
 
 .task-card__deadline-row {
@@ -396,7 +500,6 @@ html[data-theme="dark"] .task-card__deadline-inline {
     color: #ffc400;
 }
 
-/* теги — строго под дедлайном, слева */
 .task-card__tags-row {
     display: flex;
     flex-wrap: wrap;
@@ -471,7 +574,7 @@ html[data-theme="dark"] .task-card__subtask-count {
     border-left: 2px solid var(--accent, var(--primary));
     min-width: 0;
 }
-.subtask-mini:hover { background: rgba(76, 154, 255, 0.08); }
+.subtask-mini:hover { background: color-mix(in srgb, var(--accent, var(--primary)) 8%, transparent); }
 .subtask-mini:active { cursor: grabbing; }
 .subtask-mini--dragging { opacity: 0.5; cursor: grabbing; }
 .subtask-mini--done {
@@ -501,7 +604,7 @@ html[data-theme="dark"] .subtask-mini--done {
     cursor: pointer;
     transition: border-color .15s, background .15s;
 }
-.subtask-mini__check:hover { border-color: var(--primary); }
+.subtask-mini__check:hover { border-color: var(--accent, var(--primary)); }
 .subtask-mini__check--done {
     background: var(--success);
     border-color: var(--success);
@@ -570,8 +673,8 @@ html[data-theme="dark"] .subtask-mini--done {
     line-height: 1;
 }
 .subtask-mini__edit:hover {
-    background: rgba(76, 154, 255, 0.1);
-    color: var(--primary);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
+    color: var(--accent, var(--primary));
 }
 
 .subtask-mini__deadline-row {
@@ -659,7 +762,7 @@ html[data-theme="dark"] .subtask-mini__deadline {
 }
 
 .subtask-mini__details-attachments {
-    color: var(--primary);
+    color: var(--accent, var(--primary));
     cursor: pointer;
     transition: color .15s;
     word-break: break-word;
@@ -731,7 +834,7 @@ html[data-theme="dark"] .subtask-mini__deadline {
     font-size: 11px;
 }
 .task-card__details-attachments {
-    color: var(--primary);
+    color: var(--accent, var(--primary));
     cursor: pointer;
     transition: color .15s;
     word-break: break-word;
@@ -749,7 +852,7 @@ html[data-theme="dark"] .subtask-mini__deadline {
    ============================================================ */
 
 .kanban-col--over {
-    background: rgba(76, 154, 255, 0.08);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 8%, transparent);
     outline: 2px dashed var(--accent, var(--primary));
     outline-offset: -4px;
 }
@@ -762,10 +865,10 @@ html[data-theme="dark"] .subtask-mini__deadline {
 
 .task-card-wrapper { position: relative; }
 .task-card-wrapper--drop-over.task-card-wrapper--drop-subtask .task-card {
-    outline: 2px dashed var(--primary);
+    outline: 2px dashed var(--accent, var(--primary));
     outline-offset: -2px;
-    background: rgba(76, 154, 255, 0.12);
-    box-shadow: 0 0 0 4px rgba(76, 154, 255, 0.15);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
 }
 .task-card-wrapper--drop-over.task-card-wrapper--drop-above::before {
     content: '';
@@ -774,9 +877,9 @@ html[data-theme="dark"] .subtask-mini__deadline {
     right: 0;
     top: -2px;
     height: 4px;
-    background: var(--primary);
+    background: var(--accent, var(--primary));
     border-radius: 2px;
-    box-shadow: 0 0 8px var(--primary);
+    box-shadow: 0 0 8px var(--accent, var(--primary));
     z-index: 10;
     pointer-events: none;
 }
@@ -787,9 +890,9 @@ html[data-theme="dark"] .subtask-mini__deadline {
     right: 0;
     bottom: -2px;
     height: 4px;
-    background: var(--primary);
+    background: var(--accent, var(--primary));
     border-radius: 2px;
-    box-shadow: 0 0 8px var(--primary);
+    box-shadow: 0 0 8px var(--accent, var(--primary));
     z-index: 10;
     pointer-events: none;
 }
@@ -836,18 +939,20 @@ html[data-theme="dark"] .compact-group__head {
 .compact-group__count {
     margin-left: auto;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text-muted);
-    background: rgba(9, 30, 66, 0.08);
-    padding: 2px 8px;
-    border-radius: 10px;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    opacity: 0.7;
+    letter-spacing: 0.3px;
 }
 html[data-theme="dark"] .compact-group__count {
-    background: rgba(255, 255, 255, 0.08);
+    background: transparent;
     color: var(--text-muted);
 }
 
-.compact-task__title { font-size: 14px; font-weight: 600; }
+.compact-task__title { font-size: 14px; font-weight: 400; }
 
 .compact-task__subtask-count {
     display: inline-flex;
@@ -874,4 +979,33 @@ html[data-theme="dark"] .compact-task__subtask-count {
     margin-top: 4px;
     padding-left: 0;
     border-left: none;
+}
+
+/* ============================================================
+   Кликабельные тег и статус
+   ============================================================ */
+
+.task-tag--clickable {
+    cursor: pointer;
+    transition: transform .12s, filter .12s;
+}
+.task-tag--clickable:hover {
+    transform: scale(1.06);
+    filter: brightness(1.1);
+    text-decoration: none;
+}
+
+.kanban-col__title--clickable {
+    cursor: pointer;
+    transition: opacity .12s;
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin-left: -4px;
+}
+.kanban-col__title--clickable:hover {
+    opacity: 0.75;
+    background: rgba(9, 30, 66, 0.06);
+}
+html[data-theme="dark"] .kanban-col__title--clickable:hover {
+    background: rgba(255, 255, 255, 0.06);
 }

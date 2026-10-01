@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { tasksApi, tagsApi, attachmentsApi } from '../../api/api'
 import Modal from '../Modal/Modal'
+import useT from '../../hooks/useT'
 import { resolveUrl } from '../../utils/format'
 
 export default function CreateTaskModal({
@@ -12,9 +13,10 @@ export default function CreateTaskModal({
                                             columns,
                                             boardId,
                                         }) {
+    const t = useT()
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
-    const [statusId, setStatusId] = useState(presetStatusId || '')
+    const [statusId, setStatusId] = useState('')
     const [priority, setPriority] = useState(0)
     const [deadlineDate, setDeadlineDate] = useState('')
     const [deadlineTime, setDeadlineTime] = useState('')
@@ -38,11 +40,18 @@ export default function CreateTaskModal({
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
 
+    const defaultStatusId = (() => {
+        if (presetStatusId) return presetStatusId
+        const active = (columns || []).find(c => c.categoryCode === 'ACTIVE')
+        if (active) return active.statusId
+        return (columns || [])[0]?.statusId || ''
+    })()
+
     useEffect(() => {
         if (open) {
             setTitle('')
             setDescription('')
-            setStatusId(presetStatusId || '')
+            setStatusId(defaultStatusId)
             setPriority(0)
             setDeadlineDate('')
             setDeadlineTime('')
@@ -64,6 +73,7 @@ export default function CreateTaskModal({
                     .catch(() => setTags([]))
             }
         }
+        // eslint-disable-next-line
     }, [open, presetStatusId, boardId])
 
     const toggleTag = (tagId) => {
@@ -89,14 +99,14 @@ export default function CreateTaskModal({
             setNewTagIcon('')
             setCreatingTag(false)
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка создания тега')
+            setError(err.response?.data?.message || 'Error')
         }
     }
 
     const addSubtask = () => {
-        const t = subtaskInput.trim()
-        if (!t) return
-        setSubtasks(prev => [...prev, { title: t }])
+        const v = subtaskInput.trim()
+        if (!v) return
+        setSubtasks(prev => [...prev, { title: v }])
         setSubtaskInput('')
     }
 
@@ -124,7 +134,7 @@ export default function CreateTaskModal({
                 mimeCode: data.mimeCode,
             }])
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка загрузки файла')
+            setError(err.response?.data?.message || 'Error')
         } finally {
             setUploading(false)
             if (fileInputRef.current) fileInputRef.current.value = ''
@@ -138,7 +148,7 @@ export default function CreateTaskModal({
     const onSubmit = async (e) => {
         e.preventDefault()
         if (!title.trim()) {
-            setError('Введите название')
+            setError(t.titleLabel)
             return
         }
         setLoading(true)
@@ -183,7 +193,7 @@ export default function CreateTaskModal({
 
             onCreated()
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка создания задачи')
+            setError(err.response?.data?.message || 'Error')
         } finally {
             setLoading(false)
         }
@@ -193,11 +203,11 @@ export default function CreateTaskModal({
         <Modal
             open={open}
             onClose={onClose}
-            title="Новая задача"
+            title={t.newTask}
             footer={
                 <>
                     <button type="button" className="btn btn-ghost" onClick={onClose} disabled={loading}>
-                        Отмена
+                        {t.cancel}
                     </button>
                     <button
                         type="submit"
@@ -205,7 +215,7 @@ export default function CreateTaskModal({
                         className="btn btn-primary"
                         disabled={loading || !title.trim()}
                     >
-                        {loading ? 'Создание...' : 'Создать'}
+                        {loading ? t.creatingLabel : t.create}
                     </button>
                 </>
             }
@@ -216,7 +226,7 @@ export default function CreateTaskModal({
                         className="input"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Что нужно сделать?"
+                        placeholder={t.whatToDo}
                         maxLength={255}
                         autoFocus
                         required
@@ -228,53 +238,54 @@ export default function CreateTaskModal({
                     className="task-more-toggle"
                     onClick={() => setShowMore(v => !v)}
                 >
-                    {showMore ? '− Скрыть' : '+ Дополнительно'}
+                    {showMore ? t.hideMore : t.showMore}
                 </button>
 
                 {showMore && (
                     <>
                         <div className="modal__field">
-                            <label className="modal__label">Описание</label>
+                            <label className="modal__label">{t.descriptionLabel}</label>
                             <textarea
                                 className="input"
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                placeholder="Подробности"
+                                placeholder={t.detailsPlaceholder}
                                 maxLength={5000}
                             />
                         </div>
 
                         <div className="modal__row">
                             <div className="modal__field">
-                                <label className="modal__label">Статус</label>
+                                <label className="modal__label">{t.statusLabel}</label>
                                 <select
                                     className="input"
                                     value={statusId}
                                     onChange={(e) => setStatusId(e.target.value)}
                                 >
-                                    <option value="">— По умолчанию —</option>
-                                    {columns.map(c => (
-                                        <option key={c.statusId} value={c.statusId}>{c.title}</option>
+                                    {(columns || []).map(c => (
+                                        <option key={c.statusId} value={c.statusId}>
+                                            {c.title}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
 
                             <div className="modal__field">
-                                <label className="modal__label">Приоритет</label>
+                                <label className="modal__label">{t.priorityLabel}</label>
                                 <select
                                     className="input"
                                     value={priority}
                                     onChange={(e) => setPriority(Number(e.target.value))}
                                 >
-                                    <option value={0}>Обычный</option>
-                                    <option value={1}>Высокий</option>
-                                    <option value={2}>Срочный</option>
+                                    <option value={0}>{t.priorityNormal}</option>
+                                    <option value={1}>{t.priorityHigh}</option>
+                                    <option value={2}>{t.priorityUrgent}</option>
                                 </select>
                             </div>
                         </div>
 
                         <div className="modal__field">
-                            <label className="modal__label">Дата дедлайна</label>
+                            <label className="modal__label">{t.deadlineLabel}</label>
                             <input
                                 className="input"
                                 type="date"
@@ -289,12 +300,12 @@ export default function CreateTaskModal({
                                 checked={hasTime}
                                 onChange={(e) => setHasTime(e.target.checked)}
                             />
-                            <span>Указать время дедлайна</span>
+                            <span>{t.specifyTime}</span>
                         </label>
 
                         {hasTime && (
                             <div className="modal__field">
-                                <label className="modal__label">Время дедлайна</label>
+                                <label className="modal__label">{t.timeLabel}</label>
                                 <input
                                     className="input"
                                     type="time"
@@ -306,13 +317,13 @@ export default function CreateTaskModal({
 
                         <div className="task-detail__group" style={{ paddingBottom: 0, borderBottom: 'none', gap: 12 }}>
                             <div className="task-detail__label-row">
-                                <div className="task-detail__label">Теги</div>
+                                <div className="task-detail__label">{t.tagsLabel}</div>
                                 <button
                                     type="button"
                                     className="task-detail__small-btn"
                                     onClick={() => setCreatingTag(v => !v)}
                                 >
-                                    {creatingTag ? '× Отмена' : '+ Создать тег'}
+                                    {creatingTag ? t.cancelCreate : t.createTag}
                                 </button>
                             </div>
 
@@ -320,21 +331,21 @@ export default function CreateTaskModal({
                                 <div className="task-detail__create-tag">
                                     <input
                                         className="input"
-                                        placeholder="Название тега"
+                                        placeholder={t.tagName}
                                         value={newTagTitle}
                                         onChange={(e) => setNewTagTitle(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && createTag()}
                                         autoFocus
                                     />
                                     <button type="button" className="btn btn-primary" onClick={createTag}>
-                                        ОК
+                                        {t.ok}
                                     </button>
                                 </div>
                             )}
 
                             <div className="task-detail__tags">
                                 {tags.length === 0 && !creatingTag && (
-                                    <div className="task-detail__empty">Нет тегов у доски</div>
+                                    <div className="task-detail__empty">{t.noBoardTags}</div>
                                 )}
                                 {tags.map(tag => {
                                     const active = selectedTagIds.includes(tag.id)
@@ -361,14 +372,14 @@ export default function CreateTaskModal({
                         <div className="task-detail__group" style={{ paddingBottom: 0, borderBottom: 'none', gap: 12 }}>
                             <div className="task-detail__label-row">
                                 <div className="task-detail__label">
-                                    Подзадачи {subtasks.length > 0 ? `(${subtasks.length})` : ''}
+                                    {t.subtasksLabel} {subtasks.length > 0 ? `(${subtasks.length})` : ''}
                                 </div>
                             </div>
 
                             <div className="create-task__subtask-row">
                                 <input
                                     className="input"
-                                    placeholder="Название подзадачи"
+                                    placeholder={t.subtaskPlaceholder}
                                     value={subtaskInput}
                                     onChange={(e) => setSubtaskInput(e.target.value)}
                                     onKeyDown={handleSubtaskKeyDown}
@@ -394,7 +405,7 @@ export default function CreateTaskModal({
                                                 type="button"
                                                 className="create-task__subtask-remove"
                                                 onClick={() => removeSubtask(idx)}
-                                                title="Убрать"
+                                                title={t.removeFromList}
                                             >×</button>
                                         </div>
                                     ))}
@@ -405,7 +416,7 @@ export default function CreateTaskModal({
                         <div className="task-detail__group" style={{ paddingBottom: 0, borderBottom: 'none', gap: 12 }}>
                             <div className="task-detail__label-row">
                                 <div className="task-detail__label">
-                                    Вложения {attachments.length > 0 ? `(${attachments.length})` : ''}
+                                    {t.attachmentsLabel} {attachments.length > 0 ? `(${attachments.length})` : ''}
                                 </div>
                             </div>
 
@@ -431,7 +442,7 @@ export default function CreateTaskModal({
                                 })}
 
                                 <label className="create-task__attachment-add">
-                                    {uploading ? '...' : '+ Добавить'}
+                                    {uploading ? '...' : t.addAttachment}
                                     <input
                                         ref={fileInputRef}
                                         type="file"

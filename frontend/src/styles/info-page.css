@@ -151,10 +151,21 @@ kbd {
 
 .settings-logout {
     margin-top: 8px;
-    color: var(--danger);
-    border-color: rgba(255, 86, 48, 0.3);
+    background: var(--danger) !important;
+    color: #fff !important;
+    border: none !important;
 }
-.settings-logout:hover {
-    background: rgba(255, 86, 48, 0.08);
-    border-color: var(--danger);
+.settings-logout:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 85%, #000) !important;
+    color: #fff !important;
+}
+
+.btn-danger {
+    background: var(--danger) !important;
+    color: #fff !important;
+    border: none !important;
+}
+.btn-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 85%, #000) !important;
+    color: #fff !important;
 }

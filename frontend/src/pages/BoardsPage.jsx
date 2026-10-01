@@ -14,7 +14,8 @@ import {
     rectSortingStrategy,
     arrayMove,
 } from '@dnd-kit/sortable'
-import { boardsApi } from '../api/api'
+import { boardsApi, projectsApi } from '../api/api'
+import useT from '../hooks/useT'
 import SortableBoardCard from '../components/Board/SortableBoardCard'
 import BoardCard from '../components/Board/BoardCard'
 import CreateBoardModal from '../components/Board/CreateBoardModal'
@@ -22,6 +23,7 @@ import EditBoardModal from '../components/Board/EditBoardModal'
 
 export default function BoardsPage() {
     const nav = useNavigate()
+    const t = useT()
     const [boards, setBoards] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -53,19 +55,45 @@ export default function BoardsPage() {
 
     const handleCreated = (newBoard) => {
         setBoards(prev => [...prev, newBoard])
+        window.dispatchEvent(new Event('sidebar:refresh'))
     }
 
     const handleUpdated = (updated) => {
         setBoards(prev => prev.map(b => b.id === updated.id ? updated : b))
         setEditBoard(null)
+        window.dispatchEvent(new Event('sidebar:refresh'))
+    }
+
+    const countPins = async () => {
+        const { data: allBoards } = await boardsApi.list()
+        const pinnedBoards = allBoards.filter(b => b.isPinned)
+        let count = 0
+        for (const b of pinnedBoards) {
+            const { data: projects } = await projectsApi.listByBoard(b.id)
+            const pinnedProjects = projects.filter(p => p.isPinned)
+            if (pinnedProjects.length > 0) {
+                count += pinnedProjects.length
+            } else {
+                count += 1
+            }
+        }
+        return count
     }
 
     const handleTogglePin = async (board) => {
         try {
+            if (!board.isPinned) {
+                const count = await countPins()
+                if (count >= 3) {
+                    alert('Максимум 3 закрепа. Открепите что-нибудь, чтобы закрепить новое.')
+                    return
+                }
+            }
             const { data } = await boardsApi.update(board.id, {
                 isPinned: !board.isPinned,
             })
             setBoards(prev => prev.map(b => b.id === data.id ? data : b))
+            window.dispatchEvent(new Event('sidebar:refresh'))
         } catch (err) {
             alert(err.response?.data?.message || 'Ошибка')
         }
@@ -110,6 +138,7 @@ export default function BoardsPage() {
             await Promise.all(
                 updated.map(b => boardsApi.move(b.id, { position: b.position }))
             )
+            window.dispatchEvent(new Event('sidebar:refresh'))
         } catch (err) {
             console.error('Move failed:', err)
             load()
@@ -125,13 +154,13 @@ export default function BoardsPage() {
         <div className="boards">
             <div className="boards__hero">
                 <div>
-                    <h1 className="boards__hero-title">Мои доски</h1>
+                    <h1 className="boards__hero-title">{t.myBoards}</h1>
                     <p className="boards__hero-sub">
-                        {boards.length} {plural(boards.length, ['доска', 'доски', 'досок'])}
+                        {t.boardsCount(boards.length)}
                     </p>
                 </div>
                 <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-                    + Новая доска
+                    {t.newBoard}
                 </button>
             </div>
 
@@ -159,7 +188,7 @@ export default function BoardsPage() {
                             onClick={() => setShowCreate(true)}
                         >
                             <span className="board-card__plus">+</span>
-                            <span>Создать доску</span>
+                            <span>{t.createBoard}</span>
                         </button>
                     </div>
                 </SortableContext>
@@ -193,11 +222,4 @@ export default function BoardsPage() {
             />
         </div>
     )
-}
-
-function plural(n, forms) {
-    const mod10 = n % 10, mod100 = n % 100
-    if (mod10 === 1 && mod100 !== 11) return forms[0]
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return forms[1]
-    return forms[2]
 }

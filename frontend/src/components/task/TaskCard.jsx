@@ -1,14 +1,20 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { tasksApi } from '../../api/api'
 import Subtask from './Subtask'
 import InlineEdit from '../common/InlineEdit'
+import DetailTextEditor from './DetailTextEditor'
 import { formatDeadline } from '../../utils/format'
 import { isDone as checkIsDone } from '../../utils/sortTasks'
+import useT from '../../hooks/useT'
 
 export default function TaskCard({
                                      task, doneStatusId, activeStatusId,
                                      onOpenTask, onToggleDone, onTaskMoved, onOpenAttachments,
+                                     onHover,
                                  }) {
+    const t = useT()
+    const nav = useNavigate()
     const [expanded, setExpanded] = useState(false)
     const [fullTask, setFullTask] = useState(null)
     const [loadingFull, setLoadingFull] = useState(false)
@@ -60,20 +66,25 @@ export default function TaskCard({
 
     const handleOpenAttachments = async (e) => {
         e.stopPropagation()
-        let t = fullTask
-        const needReload = !t
-            || (t.attachments?.length || 0) < (task.attachmentNames?.length || 0)
+        let loaded = fullTask
+        const needReload = !loaded
+            || (loaded.attachments?.length || 0) < (task.attachmentNames?.length || 0)
         if (needReload) {
             try {
                 const { data } = await tasksApi.get(task.id)
-                t = data
+                loaded = data
                 setFullTask(data)
             } catch {
                 return
             }
         }
-        if (!t?.attachments?.length) return
-        onOpenAttachments && onOpenAttachments(task.id, t.attachments)
+        if (!loaded?.attachments?.length) return
+        onOpenAttachments && onOpenAttachments(task.id, loaded.attachments)
+    }
+
+    const handleTagClick = (e, tag) => {
+        e.stopPropagation()
+        nav(`/search?tagIds=${tag.id}`)
     }
 
     const saveTitle = async (newTitle) => {
@@ -95,6 +106,8 @@ export default function TaskCard({
             className="task-card"
             style={{ '--accent': accent }}
             onClick={handleToggleExpand}
+            onMouseEnter={() => onHover && onHover(task.id)}
+            onMouseLeave={() => onHover && onHover(null)}
         >
             <div className="task-card__head">
                 <button
@@ -108,7 +121,7 @@ export default function TaskCard({
                     className="task-card__title"
                     inputClassName="input task-card__title-input"
                     onSave={saveTitle}
-                    title="Двойной клик — редактировать название"
+                    title={t.edit}
                 />
 
                 {task.priority > 0 && (
@@ -120,14 +133,14 @@ export default function TaskCard({
                     {task.attachmentNames?.length > 0 && (
                         <span
                             className="task-card__attach"
-                            title={`Вложений: ${task.attachmentNames.length}`}
+                            title={`${t.attachmentsLabel}: ${task.attachmentNames.length}`}
                         >📎</span>
                     )}
                     <button
                         className="task-card__edit"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={handleEdit}
-                        title="Редактировать"
+                        title={t.edit}
                     >✎</button>
                 </div>
             </div>
@@ -145,9 +158,10 @@ export default function TaskCard({
                     {task.tags.map(tag => (
                         <span
                             key={tag.id}
-                            className="task-tag"
+                            className="task-tag task-tag--clickable"
                             style={{ background: `var(--accent-${tag.accentCode || 'gray'})` }}
                             title={tag.title}
+                            onClick={(e) => handleTagClick(e, tag)}
                         >
                             {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
                             {tag.title}
@@ -179,28 +193,25 @@ export default function TaskCard({
 
             {expanded && (
                 <div className="task-card__details" onClick={(e) => e.stopPropagation()}>
-                    {loadingFull && <div className="task-card__details-loading">Загрузка...</div>}
+                    {loadingFull && <div className="task-card__details-loading">{t.loading}</div>}
                     {fullTask && (
                         <>
                             <div>
-                                <div className="task-card__details-label">Описание:</div>
-                                <InlineEdit
+                                <div className="task-card__details-label">{t.taskDescriptionLabel}:</div>
+                                <DetailTextEditor
                                     value={fullTask.description || ''}
-                                    multiline
-                                    className="task-card__details-description"
-                                    inputClassName="input task-card__details-description-input"
-                                    placeholder="Двойной клик, чтобы добавить описание"
                                     onSave={saveDescription}
-                                    title="Двойной клик — редактировать описание"
+                                    placeholder={t.addDescription}
+                                    title={t.edit}
                                 />
                             </div>
                             {fullTask.attachments?.length > 0 && (
                                 <div className="task-card__details-row">
-                                    <span className="task-card__details-label">Вложения:</span>
+                                    <span className="task-card__details-label">{t.attachmentsLabel}:</span>
                                     <span
                                         className="task-card__details-attachments"
                                         onClick={handleOpenAttachments}
-                                        title="Открыть вложения"
+                                        title={t.open}
                                     >
                                         {fullTask.attachments[0].originalName}
                                         {fullTask.attachments.length > 1 && (

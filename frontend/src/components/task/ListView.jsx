@@ -18,6 +18,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { tasksApi } from '../../api/api'
 import Subtask from './Subtask'
 import InlineEdit from '../common/InlineEdit'
+import DetailTextEditor from './DetailTextEditor'
 import { formatDeadline } from '../../utils/format'
 import { sortTasks, isDone as checkIsDone } from '../../utils/sortTasks'
 
@@ -25,6 +26,7 @@ function SortableTaskRow({
                              task, doneStatusId, activeStatusId,
                              isDropOver, dropMode,
                              onOpenTask, onToggleDone, onTaskMoved, onOpenAttachments,
+                             onHover,
                          }) {
     const [expanded, setExpanded] = useState(false)
     const [fullTask, setFullTask] = useState(null)
@@ -135,6 +137,8 @@ function SortableTaskRow({
             {...attributes}
             {...listeners}
             className={wrapperClass}
+            onMouseEnter={() => onHover && onHover(task.id)}
+            onMouseLeave={() => onHover && onHover(null)}
         >
             <div
                 className={`word-list__item ${isDone ? 'word-list__item--done' : ''}`}
@@ -237,14 +241,11 @@ function SortableTaskRow({
                         <>
                             <div>
                                 <div className="word-list__details-label">Описание:</div>
-                                <InlineEdit
+                                <DetailTextEditor
                                     value={fullTask.description || ''}
-                                    multiline
-                                    className="word-list__details-description"
-                                    inputClassName="input word-list__details-description-input"
-                                    placeholder="Двойной клик, чтобы добавить описание"
                                     onSave={saveDescription}
-                                    title="Двойной клик — редактировать описание"
+                                    placeholder="Нажми, чтобы добавить описание"
+                                    title="Нажми — редактировать описание"
                                 />
                             </div>
                             {fullTask.attachments && fullTask.attachments.length > 0 && (
@@ -282,6 +283,7 @@ export default function ListView({
                                      onOpenAttachments,
                                      sortMode,
                                      sortDir,
+                                     onHover,
                                  }) {
     const allTasks = columns.flatMap(c =>
         c.tasks.map(t => ({
@@ -556,10 +558,32 @@ export default function ListView({
     const taskIds = sorted.map(t => t.id)
 
     return (
-        <div className="word-list">
-            <div className="word-list__page">
-                <div className="word-list__topbar">
-                    <div className="word-list__count">
+        <div
+            className="word-list"
+            style={{ padding: '32px 24px 24px', boxSizing: 'border-box' }}
+        >
+            <div className="word-list__page" style={{ padding: 0 }}>
+                <div
+                    className="word-list__topbar"
+                    style={{ marginBottom: 20, paddingLeft: 8 }}
+                >
+                    <div
+                        className="word-list__count"
+                        style={{
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: 'var(--text)',
+                            background: 'transparent',
+                            padding: '0 0 0 12px',
+                            letterSpacing: '0.6px',
+                            textTransform: 'uppercase',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            opacity: 0.9,
+                            margin: 0,
+                        }}
+                    >
                         {sorted.length} {plural(sorted.length, ['задача', 'задачи', 'задач'])}
                     </div>
                     <button
@@ -594,6 +618,7 @@ export default function ListView({
                                         onToggleDone={onToggleDone}
                                         onTaskMoved={onTaskMoved}
                                         onOpenAttachments={onOpenAttachments}
+                                        onHover={onHover}
                                     />
                                 ))}
                             </div>

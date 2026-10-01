@@ -18,9 +18,9 @@ export default function ThemeApplier({ children }) {
         root.setAttribute('data-theme', effective)
 
         // ===== Акцент =====
+        // CSS сам подставит значение по html[data-accent="..."]
         const accent = user?.appearance?.accentCode || 'blue'
         root.setAttribute('data-accent', accent)
-        root.style.setProperty('--accent', `var(--accent-${accent})`)
 
         // ===== Плотность =====
         const density = user?.appearance?.density || 'cozy'

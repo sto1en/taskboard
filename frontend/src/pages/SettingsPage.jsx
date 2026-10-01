@@ -1,60 +1,70 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import useT from '../hooks/useT'
+import ConfirmModal from '../components/common/ConfirmModal'
 
 export default function SettingsPage() {
     const { user, logout } = useAuth()
+    const t = useT()
+    const [showLogout, setShowLogout] = useState(false)
+
+    const handleLogoutConfirm = () => {
+        setShowLogout(false)
+        logout()
+    }
 
     return (
         <div className="info-page">
-            <h1 className="info-page__title">Settings</h1>
+            <h1 className="info-page__title">{t.settingsTitle}</h1>
 
             <section className="info-page__section">
-                <h2>Аккаунт</h2>
+                <h2>{t.account}</h2>
                 <div className="settings-list">
-                    <Link to="/profile" className="settings-item">
+                    <Link to="/profile?tab=profile" className="settings-item">
                         <div>
-                            <div className="settings-item__title">Профиль</div>
-                            <div className="settings-item__desc">Имя, аватар, описание</div>
+                            <div className="settings-item__title">{t.profileItem}</div>
+                            <div className="settings-item__desc">{t.profileItemDesc}</div>
                         </div>
                         <span className="settings-item__arrow">→</span>
                     </Link>
 
-                    <Link to="/profile" className="settings-item" onClick={() => {}}>
+                    <Link to="/profile?tab=appearance" className="settings-item">
                         <div>
-                            <div className="settings-item__title">Безопасность</div>
-                            <div className="settings-item__desc">Email и пароль</div>
+                            <div className="settings-item__title">{t.appearanceItem}</div>
+                            <div className="settings-item__desc">{t.appearanceItemDesc}</div>
                         </div>
                         <span className="settings-item__arrow">→</span>
                     </Link>
 
-                    <Link to="/profile" className="settings-item">
+                    <Link to="/profile?tab=locale" className="settings-item">
                         <div>
-                            <div className="settings-item__title">Внешний вид</div>
-                            <div className="settings-item__desc">Тема, акцент, плотность</div>
+                            <div className="settings-item__title">{t.localeItem}</div>
+                            <div className="settings-item__desc">{t.localeItemDesc}</div>
                         </div>
                         <span className="settings-item__arrow">→</span>
                     </Link>
 
-                    <Link to="/profile" className="settings-item">
+                    <Link to="/profile?tab=workspace" className="settings-item">
                         <div>
-                            <div className="settings-item__title">Уведомления</div>
-                            <div className="settings-item__desc">Email, дедлайны, дайджест</div>
+                            <div className="settings-item__title">{t.workspaceItem}</div>
+                            <div className="settings-item__desc">{t.workspaceItemDesc}</div>
                         </div>
                         <span className="settings-item__arrow">→</span>
                     </Link>
 
-                    <Link to="/profile" className="settings-item">
+                    <Link to="/profile?tab=display" className="settings-item">
                         <div>
-                            <div className="settings-item__title">Рабочее пространство</div>
-                            <div className="settings-item__desc">Доска по умолчанию, пагинация</div>
+                            <div className="settings-item__title">{t.displayItem}</div>
+                            <div className="settings-item__desc">{t.displayItemDesc}</div>
                         </div>
                         <span className="settings-item__arrow">→</span>
                     </Link>
 
-                    <Link to="/profile" className="settings-item">
+                    <Link to="/profile?tab=notification" className="settings-item">
                         <div>
-                            <div className="settings-item__title">Отображение</div>
-                            <div className="settings-item__desc">Сортировка и вид проектов</div>
+                            <div className="settings-item__title">{t.notificationItem}</div>
+                            <div className="settings-item__desc">{t.notificationItemDesc}</div>
                         </div>
                         <span className="settings-item__arrow">→</span>
                     </Link>
@@ -62,18 +72,32 @@ export default function SettingsPage() {
             </section>
 
             <section className="info-page__section">
-                <h2>Сессия</h2>
+                <h2>{t.session}</h2>
                 <p className="info-page__hint">
-                    Вы вошли как <b>{user?.username}</b>
+                    {t.loggedInAs} <b>{user?.username}</b>
                 </p>
-                <button className="btn btn-ghost settings-logout" onClick={logout}>
-                    Выйти из аккаунта
+                <button
+                    className="btn btn-danger settings-logout"
+                    onClick={() => setShowLogout(true)}
+                >
+                    {t.logout}
                 </button>
             </section>
 
             <p className="info-page__back">
-                <Link to="/boards">← Вернуться к доскам</Link>
+                <Link to="/boards">{t.backToBoards}</Link>
             </p>
+
+            <ConfirmModal
+                open={showLogout}
+                title={t.confirmLogoutTitle}
+                text={t.confirmLogoutText}
+                confirmLabel={t.yesLogout}
+                cancelLabel={t.cancel}
+                danger
+                onConfirm={handleLogoutConfirm}
+                onClose={() => setShowLogout(false)}
+            />
         </div>
     )
 }

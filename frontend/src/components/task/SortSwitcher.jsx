@@ -1,14 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
+import useT from '../../hooks/useT'
 
-const SORTS = [
-    { code: 'manual',      label: 'Ручная' },
-    { code: 'by_status',   label: 'По статусу' },
-    { code: 'by_deadline', label: 'По дедлайну' },
-    { code: 'by_priority', label: 'По приоритету' },
-    { code: 'by_created',  label: 'По дате создания' },
-]
+const SORT_CODES = ['manual', 'by_status', 'by_deadline', 'by_priority', 'by_created']
+
+const PANEL_ID = 'sort-switcher'
 
 export default function SortSwitcher({ sortMode, sortDir, onChange }) {
+    const t = useT()
     const [open, setOpen] = useState(false)
     const ref = useRef(null)
 
@@ -17,11 +15,34 @@ export default function SortSwitcher({ sortMode, sortDir, onChange }) {
         const onClick = (e) => {
             if (ref.current && !ref.current.contains(e.target)) setOpen(false)
         }
+        const onCloseOthers = (e) => {
+            if (e.detail !== PANEL_ID) setOpen(false)
+        }
         window.addEventListener('mousedown', onClick)
-        return () => window.removeEventListener('mousedown', onClick)
+        window.addEventListener('toolbar:close', onCloseOthers)
+        return () => {
+            window.removeEventListener('mousedown', onClick)
+            window.removeEventListener('toolbar:close', onCloseOthers)
+        }
     }, [open])
 
-    const current = SORTS.find(s => s.code === sortMode) || SORTS[0]
+    const toggle = () => {
+        if (!open) {
+            window.dispatchEvent(new CustomEvent('toolbar:close', { detail: PANEL_ID }))
+        }
+        setOpen(v => !v)
+    }
+
+    const sortLabel = (code) => {
+        switch (code) {
+            case 'manual':      return t.sortManual
+            case 'by_status':   return t.sortByStatus
+            case 'by_deadline': return t.sortByDeadline
+            case 'by_priority': return t.sortByPriority
+            case 'by_created':  return t.sortByCreated
+            default:            return code
+        }
+    }
 
     const toggleDir = () => {
         onChange({ sortMode, sortDir: sortDir === 'asc' ? 'desc' : 'asc' })
@@ -31,31 +52,31 @@ export default function SortSwitcher({ sortMode, sortDir, onChange }) {
         <div className="sort-switcher" ref={ref}>
             <button
                 className="sort-switcher__btn"
-                onClick={() => setOpen(v => !v)}
-                title="Сортировка"
+                onClick={toggle}
+                title={t.taskSort}
             >
                 <span>⇅</span>
-                <span className="sort-switcher__label">{current.label}</span>
+                <span className="sort-switcher__label">{sortLabel(sortMode)}</span>
                 <span className="sort-switcher__caret">▾</span>
             </button>
 
             <button
                 className="sort-switcher__dir"
                 onClick={toggleDir}
-                title={sortDir === 'asc' ? 'По возрастанию' : 'По убыванию'}
+                title={sortDir === 'asc' ? t.asc : t.desc}
             >
                 {sortDir === 'asc' ? '↑' : '↓'}
             </button>
 
             {open && (
                 <div className="sort-switcher__menu">
-                    {SORTS.map(s => (
+                    {SORT_CODES.map(code => (
                         <button
-                            key={s.code}
-                            className={`sort-switcher__item ${s.code === sortMode ? 'sort-switcher__item--active' : ''}`}
-                            onClick={() => { onChange({ sortMode: s.code, sortDir }); setOpen(false) }}
+                            key={code}
+                            className={`sort-switcher__item ${code === sortMode ? 'sort-switcher__item--active' : ''}`}
+                            onClick={() => { onChange({ sortMode: code, sortDir }); setOpen(false) }}
                         >
-                            {s.label}
+                            {sortLabel(code)}
                         </button>
                     ))}
                 </div>

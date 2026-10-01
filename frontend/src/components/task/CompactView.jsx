@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
     DndContext,
     DragOverlay,
@@ -18,15 +18,21 @@ import { CSS } from '@dnd-kit/utilities'
 import { tasksApi, statusesApi } from '../../api/api'
 import Subtask from './Subtask'
 import InlineEdit from '../common/InlineEdit'
+import DetailTextEditor from './DetailTextEditor'
 import { formatDeadline } from '../../utils/format'
 import { sortTasks, isDone as checkIsDone } from '../../utils/sortTasks'
+import { useAuth } from '../../context/AuthContext'
+import useT from '../../hooks/useT'
+import { localizeStatusTitle } from '../../utils/statusNames'
 
 function SortableCompactTask({
                                  task, doneStatusId, activeStatusId,
                                  isDropOver, dropMode,
                                  onOpenTask, onToggleDone, onTaskMoved, onOpenAttachments,
+                                 onHover,
                                  disabled,
                              }) {
+    const t = useT()
     const [expanded, setExpanded] = useState(false)
     const [fullTask, setFullTask] = useState(null)
     const [loadingFull, setLoadingFull] = useState(false)
@@ -97,20 +103,20 @@ function SortableCompactTask({
 
     const handleOpenAttachments = async (e) => {
         e.stopPropagation()
-        let t = fullTask
-        const needReload = !t
-            || (t.attachments?.length || 0) < (task.attachmentNames?.length || 0)
+        let full = fullTask
+        const needReload = !full
+            || (full.attachments?.length || 0) < (task.attachmentNames?.length || 0)
         if (needReload) {
             try {
                 const { data } = await tasksApi.get(task.id)
-                t = data
+                full = data
                 setFullTask(data)
             } catch {
                 return
             }
         }
-        if (!t?.attachments?.length) return
-        onOpenAttachments && onOpenAttachments(task.id, t.attachments)
+        if (!full?.attachments?.length) return
+        onOpenAttachments && onOpenAttachments(task.id, full.attachments)
     }
 
     const saveTitle = async (newTitle) => {
@@ -137,6 +143,8 @@ function SortableCompactTask({
             {...attributes}
             {...listeners}
             className={wrapperClass}
+            onMouseEnter={() => onHover && onHover(task.id)}
+            onMouseLeave={() => onHover && onHover(null)}
         >
             <div
                 className="compact-task"
@@ -159,7 +167,7 @@ function SortableCompactTask({
                             className="compact-task__title compact-task__title-text"
                             inputClassName="input compact-task__title-input"
                             onSave={saveTitle}
-                            title="Двойной клик — редактировать название"
+                            title={t.edit}
                         />
                         {task.priority > 0 && (
                             <span className="compact-task__priority task-card__priority--big">
@@ -218,14 +226,14 @@ function SortableCompactTask({
                     {task.attachmentNames?.length > 0 && (
                         <span
                             className="compact-task__attach"
-                            title={`Вложений: ${task.attachmentNames.length}`}
+                            title={`${t.attachmentsLabel}: ${task.attachmentNames.length}`}
                         >📎</span>
                     )}
                     <button
                         className="compact-task__edit"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={handleEdit}
-                        title="Редактировать"
+                        title={t.edit}
                     >
                         ✎
                     </button>
@@ -235,29 +243,26 @@ function SortableCompactTask({
             {expanded && (
                 <div className="compact-task__details" onClick={(e) => e.stopPropagation()}>
                     {loadingFull && (
-                        <div className="compact-task__details-loading">Загрузка...</div>
+                        <div className="compact-task__details-loading">{t.loading}</div>
                     )}
                     {fullTask && (
                         <>
                             <div>
-                                <div className="compact-task__details-label">Описание:</div>
-                                <InlineEdit
+                                <div className="compact-task__details-label">{t.taskDescriptionLabel}:</div>
+                                <DetailTextEditor
                                     value={fullTask.description || ''}
-                                    multiline
-                                    className="compact-task__details-description"
-                                    inputClassName="input compact-task__details-description-input"
-                                    placeholder="Двойной клик, чтобы добавить описание"
                                     onSave={saveDescription}
-                                    title="Двойной клик — редактировать описание"
+                                    placeholder={t.addDescription}
+                                    title={t.edit}
                                 />
                             </div>
                             {fullTask.attachments && fullTask.attachments.length > 0 && (
                                 <div className="compact-task__details-row">
-                                    <span className="compact-task__details-label">Вложения:</span>
+                                    <span className="compact-task__details-label">{t.attachmentsLabel}:</span>
                                     <span
                                         className="compact-task__details-attachments"
                                         onClick={handleOpenAttachments}
-                                        title="Открыть вложения"
+                                        title={t.open}
                                     >
                                         {fullTask.attachments[0].originalName}
                                         {fullTask.attachments.length > 1 && (
@@ -286,10 +291,17 @@ function SortableCompactGroup({
                                   hoverTaskId,
                                   hoverMode,
                                   onOpenTask,
+                                  onAddTask,
                                   onToggleDone,
                                   onTaskMoved,
                                   onOpenAttachments,
+                                  onHover,
                               }) {
+    const t = useT()
+    const { user } = useAuth()
+    const lang = user?.locale?.language || 'ru'
+    const displayTitle = localizeStatusTitle(col.title, lang)
+
     const {
         attributes,
         listeners,
@@ -324,7 +336,6 @@ function SortableCompactGroup({
                         className="compact-group__drag"
                         {...attributes}
                         {...listeners}
-                        title="Перетащить группу"
                     >⋮⋮</span>
                 )}
                 <span
@@ -337,14 +348,14 @@ function SortableCompactGroup({
                     className="compact-group__dot"
                     style={{ background: `var(--accent-${col.accentCode || 'gray'})` }}
                 />
-                <span className="compact-group__title">{col.title}</span>
+                <span className="compact-group__title">{displayTitle}</span>
                 <span className="compact-group__count">{col.count}</span>
             </div>
 
             {!isCollapsed && (
                 <div className="compact-group__body">
                     {tasks.length === 0 ? (
-                        <div className="compact-group__empty">Пусто</div>
+                        <div className="compact-group__empty">{t.emptyColumn}</div>
                     ) : (
                         <SortableContext
                             items={tasks.map(t => t.id)}
@@ -362,10 +373,23 @@ function SortableCompactGroup({
                                     onToggleDone={onToggleDone}
                                     onTaskMoved={onTaskMoved}
                                     onOpenAttachments={onOpenAttachments}
+                                    onHover={onHover}
                                     disabled={reorderMode}
                                 />
                             ))}
                         </SortableContext>
+                    )}
+
+                    {!reorderMode && (
+                        <button
+                            className="compact-group__add"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onAddTask && onAddTask(col.statusId)
+                            }}
+                        >
+                            {t.addTask}
+                        </button>
                     )}
                 </div>
             )}
@@ -380,15 +404,19 @@ export default function CompactView({
                                         reorderMode,
                                         doneStatusId,
                                         activeStatusId,
+                                        activeStatuses,
                                         onOpenTask,
                                         onAddTask,
+                                        onAddStatus,
                                         onToggleDone,
                                         onTaskMoved,
                                         onColumnsMoved,
                                         onOpenAttachments,
                                         sortMode,
                                         sortDir,
+                                        onHover,
                                     }) {
+    const t = useT()
     const [collapsed, setCollapsed] = useState({})
     const [activeTask, setActiveTask] = useState(null)
     const [activeSubtask, setActiveSubtask] = useState(null)
@@ -415,7 +443,11 @@ export default function CompactView({
         })
     )
 
-    const visibleColumns = localOrder || columns
+    const visibleColumns = useMemo(() => {
+        const base = localOrder || columns
+        if (!activeStatuses || activeStatuses.length === 0) return base
+        return base.filter(c => activeStatuses.includes(c.statusId))
+    }, [columns, localOrder, activeStatuses])
 
     const toggle = (statusId) => {
         setCollapsed(prev => ({ ...prev, [statusId]: !prev[statusId] }))
@@ -501,7 +533,7 @@ export default function CompactView({
                         await tasksApi.clearParent(subtaskId)
                         onTaskMoved && onTaskMoved()
                     } catch (err) {
-                        alert(err.response?.data?.message || 'Не удалось сделать задачей')
+                        alert(err.response?.data?.message || 'Error')
                         onTaskMoved && onTaskMoved()
                     }
                 } else {
@@ -509,7 +541,7 @@ export default function CompactView({
                         await tasksApi.setParent(subtaskId, overData.task.id)
                         onTaskMoved && onTaskMoved()
                     } catch (err) {
-                        alert(err.response?.data?.message || 'Не удалось переместить')
+                        alert(err.response?.data?.message || 'Error')
                         onTaskMoved && onTaskMoved()
                     }
                 }
@@ -534,7 +566,7 @@ export default function CompactView({
                         await tasksApi.setParent(subtaskId, parentTaskId)
                         onTaskMoved && onTaskMoved()
                     } catch (err) {
-                        alert(err.response?.data?.message || 'Не удалось переместить')
+                        alert(err.response?.data?.message || 'Error')
                         onTaskMoved && onTaskMoved()
                     }
                 }
@@ -551,7 +583,7 @@ export default function CompactView({
                             await tasksApi.update(subtaskId, { statusId })
                             onTaskMoved && onTaskMoved()
                         } catch (err) {
-                            alert(err.response?.data?.message || 'Не удалось сделать задачей')
+                            alert(err.response?.data?.message || 'Error')
                             onTaskMoved && onTaskMoved()
                         }
                     } else {
@@ -559,7 +591,7 @@ export default function CompactView({
                             await tasksApi.update(subtaskId, { statusId })
                             onTaskMoved && onTaskMoved()
                         } catch (err) {
-                            alert(err.response?.data?.message || 'Не удалось переместить')
+                            alert(err.response?.data?.message || 'Error')
                             onTaskMoved && onTaskMoved()
                         }
                     }
@@ -572,7 +604,7 @@ export default function CompactView({
                     await tasksApi.clearParent(subtaskId)
                     onTaskMoved && onTaskMoved()
                 } catch (err) {
-                    alert(err.response?.data?.message || 'Не удалось сделать задачей')
+                    alert(err.response?.data?.message || 'Error')
                     onTaskMoved && onTaskMoved()
                 }
                 return
@@ -624,7 +656,7 @@ export default function CompactView({
                     await tasksApi.setParent(active.id, overTaskId)
                     onTaskMoved && onTaskMoved()
                 } catch (err) {
-                    alert(err.response?.data?.message || 'Не удалось сделать подзадачей')
+                    alert(err.response?.data?.message || 'Error')
                     onTaskMoved && onTaskMoved()
                 }
                 return
@@ -667,7 +699,7 @@ export default function CompactView({
                     await tasksApi.setParent(active.id, parentTaskId)
                     onTaskMoved && onTaskMoved()
                 } catch (err) {
-                    alert(err.response?.data?.message || 'Не удалось сделать подзадачей')
+                    alert(err.response?.data?.message || 'Error')
                     onTaskMoved && onTaskMoved()
                 }
             }
@@ -708,7 +740,7 @@ export default function CompactView({
                     className="btn btn-primary"
                     onClick={() => onAddTask && onAddTask()}
                 >
-                    + Задача
+                    {t.addTask}
                 </button>
             </div>
 
@@ -734,12 +766,24 @@ export default function CompactView({
                             hoverTaskId={hoverTaskId}
                             hoverMode={hoverMode}
                             onOpenTask={onOpenTask}
+                            onAddTask={onAddTask}
                             onToggleDone={onToggleDone}
                             onTaskMoved={onTaskMoved}
                             onOpenAttachments={onOpenAttachments}
+                            onHover={onHover}
                         />
                     ))}
                 </SortableContext>
+
+                {!reorderMode && onAddStatus && (
+                    <button
+                        type="button"
+                        className="compact-group__add-status"
+                        onClick={onAddStatus}
+                    >
+                        {t.addStatus}
+                    </button>
+                )}
 
                 <DragOverlay
                     dropAnimation={{

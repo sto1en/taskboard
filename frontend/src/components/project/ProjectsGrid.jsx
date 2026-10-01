@@ -14,10 +14,12 @@ import {
     rectSortingStrategy,
     arrayMove,
 } from '@dnd-kit/sortable'
-import { projectsApi } from '../../api/api'
+import { projectsApi, boardsApi } from '../../api/api'
+import useT from '../../hooks/useT'
 import SortableProjectCard from './SortableProjectCard'
 import CreateProjectModal from './CreateProjectModal'
 import EditProjectModal from './EditProjectModal'
+import ConfirmModal from '../common/ConfirmModal'
 
 export default function ProjectsGrid({
                                          projects,
@@ -27,10 +29,13 @@ export default function ProjectsGrid({
                                          onProjectDeleted,
                                      }) {
     const nav = useNavigate()
+    const t = useT()
     const [showCreate, setShowCreate] = useState(false)
     const [editProject, setEditProject] = useState(null)
     const [activeProject, setActiveProject] = useState(null)
     const [localOrder, setLocalOrder] = useState(null)
+    const [projectToDelete, setProjectToDelete] = useState(null)
+    const [deleting, setDeleting] = useState(false)
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -50,14 +55,57 @@ export default function ProjectsGrid({
         nav(`/boards/${boardId}/projects/${projectId}`)
     }
 
+    const countPins = async () => {
+        const { data: allBoards } = await boardsApi.list()
+        const pinnedBoards = allBoards.filter(b => b.isPinned)
+        let count = 0
+        for (const b of pinnedBoards) {
+            const { data: projects } = await projectsApi.listByBoard(b.id)
+            const pinnedProjects = projects.filter(p => p.isPinned)
+            if (pinnedProjects.length > 0) {
+                count += pinnedProjects.length
+            } else {
+                count += 1
+            }
+        }
+        return count
+    }
+
     const togglePin = async (project) => {
         try {
+            if (!project.isPinned) {
+                const count = await countPins()
+                if (count >= 3) {
+                    alert(t.maxPins)
+                    return
+                }
+            }
             const { data } = await projectsApi.update(project.id, {
                 isPinned: !project.isPinned,
             })
             onProjectUpdated && onProjectUpdated(data)
+            window.dispatchEvent(new Event('sidebar:refresh'))
         } catch (err) {
-            alert(err.response?.data?.message || 'Ошибка')
+            alert(err.response?.data?.message || 'Error')
+        }
+    }
+
+    const handleDeleteClick = (project) => {
+        if (project.isMain) {
+            alert(t.mainProjectCantDelete)
+            return
+        }
+        setProjectToDelete(project)
+    }
+
+    const handleDeleteConfirm = async () => {
+        if (!projectToDelete) return
+        setDeleting(true)
+        try {
+            await onProjectDeleted(projectToDelete.id)
+            setProjectToDelete(null)
+        } finally {
+            setDeleting(false)
         }
     }
 
@@ -125,7 +173,7 @@ export default function ProjectsGrid({
                                 <ProjectCard
                                     project={p}
                                     onClick={() => openProject(p.id)}
-                                    onDelete={onProjectDeleted}
+                                    onDeleteClick={() => handleDeleteClick(p)}
                                     onEdit={() => setEditProject(p)}
                                     onTogglePin={() => togglePin(p)}
                                 />
@@ -137,7 +185,7 @@ export default function ProjectsGrid({
                             onClick={() => setShowCreate(true)}
                         >
                             <span className="project-card__plus">+</span>
-                            <span>Новый проект</span>
+                            <span>{t.newProject}</span>
                         </button>
                     </div>
                 </SortableContext>
@@ -174,11 +222,24 @@ export default function ProjectsGrid({
                     setEditProject(null)
                 }}
             />
+
+            <ConfirmModal
+                open={!!projectToDelete}
+                title={t.yesDelete}
+                text={projectToDelete ? t.deleteProjectConfirm(projectToDelete.title) : ''}
+                confirmLabel={t.yesDelete}
+                cancelLabel={t.cancel}
+                danger
+                loading={deleting}
+                onConfirm={handleDeleteConfirm}
+                onClose={() => setProjectToDelete(null)}
+            />
         </>
     )
 }
 
-function ProjectCard({ project, onClick, onDelete, onEdit, onTogglePin }) {
+function ProjectCard({ project, onClick, onDeleteClick, onEdit, onTogglePin }) {
+    const t = useT()
     const accent = project.accentCode || 'blue'
     const total = project.taskTotal || 0
     const done = project.taskDone || 0
@@ -187,13 +248,7 @@ function ProjectCard({ project, onClick, onDelete, onEdit, onTogglePin }) {
 
     const handleDelete = (e) => {
         e.stopPropagation()
-        if (project.isMain) {
-            alert('Нельзя удалить главный проект доски')
-            return
-        }
-        if (confirm(`Удалить проект "${project.title}"? Все задачи будут удалены.`)) {
-            onDelete && onDelete(project.id)
-        }
+        onDeleteClick && onDeleteClick()
     }
 
     const handleEdit = (e) => {
@@ -237,14 +292,14 @@ function ProjectCard({ project, onClick, onDelete, onEdit, onTogglePin }) {
                     <button
                         className={`project-card__action-btn ${project.isPinned ? 'project-card__action-btn--active' : ''}`}
                         onClick={handlePin}
-                        title={project.isPinned ? 'Открепить' : 'Закрепить'}
+                        title={project.isPinned ? t.unpin : t.pin}
                     >
                         📌
                     </button>
                     <button
                         className="project-card__action-btn"
                         onClick={handleEdit}
-                        title="Редактировать"
+                        title={t.edit}
                     >
                         ✎
                     </button>
@@ -252,7 +307,7 @@ function ProjectCard({ project, onClick, onDelete, onEdit, onTogglePin }) {
                         <button
                             className="project-card__action-btn project-card__action-btn--danger"
                             onClick={handleDelete}
-                            title="Удалить"
+                            title={t.delete}
                         >
                             🗑
                         </button>
@@ -274,8 +329,7 @@ function ProjectCard({ project, onClick, onDelete, onEdit, onTogglePin }) {
                         />
                     </div>
                     <div className="project-card__progress-text">
-                        <span className="project-card__done">{done}</span>
-                        {' / '}{total} задач выполнено
+                        {t.tasksDoneOf(done, total)}
                     </div>
                 </div>
             </div>

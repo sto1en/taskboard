@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { HotkeysProvider } from './context/HotkeysContext'
 import ThemeApplier from './context/ThemeApplier'
 import AppLayout from './components/Layout/AppLayout'
 import LoginPage from './pages/LoginPage'
@@ -13,6 +14,8 @@ import StatsPage from './pages/StatsPage'
 import ProfilePage from './pages/ProfilePage'
 import HelpPage from './pages/HelpPage'
 import SettingsPage from './pages/SettingsPage'
+import SearchPage from './pages/SearchPage'
+import ProjectSearchPage from './pages/ProjectSearchPage'
 
 function ProtectedRoute({ children }) {
     const { token, loading } = useAuth()
@@ -33,24 +36,29 @@ export default function App() {
         <BrowserRouter>
             <AuthProvider>
                 <ThemeApplier>
-                    <Routes>
-                        <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-                        <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+                    <HotkeysProvider>
+                        <Routes>
+                            <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+                            <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
 
-                        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                            <Route path="/boards" element={<BoardsPage />} />
-                            <Route path="/boards/:id" element={<BoardDetailPage />} />
-                            <Route path="/boards/:boardId/settings" element={<BoardSettingsPage />} />
-                            <Route path="/boards/:boardId/projects/:projectId" element={<ProjectKanbanPage />} />
-                            <Route path="/calendar" element={<CalendarPage />} />
-                            <Route path="/stats" element={<StatsPage />} />
-                            <Route path="/profile" element={<ProfilePage />} />
-                            <Route path="/help" element={<HelpPage />} />
-                            <Route path="/settings" element={<SettingsPage />} />
-                        </Route>
+                            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                                <Route path="/boards" element={<BoardsPage />} />
+                                <Route path="/boards/:id" element={<BoardDetailPage />} />
+                                <Route path="/boards/:boardId/settings" element={<BoardSettingsPage />} />
+                                <Route path="/boards/:boardId/projects/:projectId" element={<ProjectKanbanPage />} />
+                                <Route path="/calendar" element={<CalendarPage />} />
+                                <Route path="/stats" element={<StatsPage />} />
+                                <Route path="/profile" element={<ProfilePage />} />
+                                <Route path="/help" element={<HelpPage />} />
+                                <Route path="/settings" element={<SettingsPage />} />
+                                <Route path="/search" element={<SearchPage />} />
+                                <Route path="/boards/:boardId/projects/:projectId/search" element={<ProjectSearchPage />} />
 
-                        <Route path="*" element={<Navigate to="/boards" replace />} />
-                    </Routes>
+                            </Route>
+
+                            <Route path="*" element={<Navigate to="/boards" replace />} />
+                        </Routes>
+                    </HotkeysProvider>
                 </ThemeApplier>
             </AuthProvider>
         </BrowserRouter>

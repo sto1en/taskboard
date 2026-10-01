@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/001-create-tables.yaml
   - include:
       file: db/changelog/002-add-tree-settings.yaml
+  - include:
+      file: db/changelog/003-add-project-user-filters.yaml

@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react'
 import { statsApi } from '../api/api'
-
-const PERIODS = [
-    { key: 'day',   label: 'Сегодня' },
-    { key: 'week',  label: 'Неделя'  },
-    { key: 'month', label: 'Месяц'   },
-    { key: 'year',  label: 'Год'     },
-]
+import useT from '../hooks/useT'
 
 export default function StatsPage() {
+    const t = useT()
     const [period, setPeriod] = useState('month')
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -21,8 +16,15 @@ export default function StatsPage() {
             .finally(() => setLoading(false))
     }, [period])
 
-    if (loading) return <div className="loading">Загрузка...</div>
-    if (!data) return <div className="loading">Нет данных</div>
+    if (loading) return <div className="loading">{t.loading}</div>
+    if (!data) return <div className="loading">{t.nothingFound}</div>
+
+    const periods = [
+        { key: 'day',   label: t.periodDay || 'Today' },
+        { key: 'week',  label: t.periodWeek || 'Week' },
+        { key: 'month', label: t.periodMonth || 'Month' },
+        { key: 'year',  label: t.periodYear || 'Year' },
+    ]
 
     const total = data.total || 0
     const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0
@@ -30,9 +32,9 @@ export default function StatsPage() {
     return (
         <div className="stats">
             <div className="stats__head">
-                <h2 className="stats__title">Статистика</h2>
+                <h2 className="stats__title">{t.statsTitle || 'Statistics'}</h2>
                 <div className="stats__periods">
-                    {PERIODS.map(p => (
+                    {periods.map(p => (
                         <button
                             key={p.key}
                             className={`stats__period ${p.key === period ? 'stats__period--active' : ''}`}
@@ -46,28 +48,28 @@ export default function StatsPage() {
 
             <div className="stats__cards">
                 <div className="stat-card">
-                    <div className="stat-card__label">Всего задач</div>
+                    <div className="stat-card__label">{t.statsTotal || 'Total tasks'}</div>
                     <div className="stat-card__value">{data.total}</div>
                 </div>
                 <div className="stat-card stat-card--done">
-                    <div className="stat-card__label">Выполнено</div>
+                    <div className="stat-card__label">{t.statsDone || 'Done'}</div>
                     <div className="stat-card__value">{data.done}</div>
                     <div className="stat-card__pct">{pct(data.done)}%</div>
                 </div>
                 <div className="stat-card stat-card--active">
-                    <div className="stat-card__label">Активные</div>
+                    <div className="stat-card__label">{t.statsActive || 'Active'}</div>
                     <div className="stat-card__value">{data.active}</div>
                     <div className="stat-card__pct">{pct(data.active)}%</div>
                 </div>
                 <div className="stat-card stat-card--archived">
-                    <div className="stat-card__label">Архив</div>
+                    <div className="stat-card__label">{t.statsArchived || 'Archived'}</div>
                     <div className="stat-card__value">{data.archived}</div>
                     <div className="stat-card__pct">{pct(data.archived)}%</div>
                 </div>
             </div>
 
             <div className="stats__progress">
-                <div className="stats__progress-label">Прогресс выполнения</div>
+                <div className="stats__progress-label">{t.statsProgress || 'Completion progress'}</div>
                 <div className="stats__progress-bar">
                     <div
                         className="stats__progress-fill"
@@ -75,7 +77,9 @@ export default function StatsPage() {
                     />
                 </div>
                 <div className="stats__progress-text">
-                    {data.done} из {data.total} задач выполнено ({pct(data.done)}%)
+                    {t.statsProgressText
+                        ? t.statsProgressText(data.done, data.total, pct(data.done))
+                        : `${data.done} / ${data.total} (${pct(data.done)}%)`}
                 </div>
             </div>
         </div>

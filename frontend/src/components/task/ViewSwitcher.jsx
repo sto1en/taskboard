@@ -1,13 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
+import useT from '../../hooks/useT'
 
 const MODES = [
-    { code: 'auto',    label: 'Авто',      icon: '✨' },
-    { code: 'kanban',  label: 'Kanban',    icon: '▦' },
-    { code: 'list',    label: 'Список',    icon: '☰' },
-    { code: 'compact', label: 'Компакт',   icon: '⊞' },
+    { code: 'kanban',  icon: '▦' },
+    { code: 'list',    icon: '☰' },
+    { code: 'compact', icon: '⊞' },
 ]
 
+const PANEL_ID = 'view-switcher'
+
 export default function ViewSwitcher({ mode, onChange }) {
+    const t = useT()
     const [open, setOpen] = useState(false)
     const ref = useRef(null)
 
@@ -16,9 +19,32 @@ export default function ViewSwitcher({ mode, onChange }) {
         const onClick = (e) => {
             if (ref.current && !ref.current.contains(e.target)) setOpen(false)
         }
+        const onCloseOthers = (e) => {
+            if (e.detail !== PANEL_ID) setOpen(false)
+        }
         window.addEventListener('mousedown', onClick)
-        return () => window.removeEventListener('mousedown', onClick)
+        window.addEventListener('toolbar:close', onCloseOthers)
+        return () => {
+            window.removeEventListener('mousedown', onClick)
+            window.removeEventListener('toolbar:close', onCloseOthers)
+        }
     }, [open])
+
+    const toggle = () => {
+        if (!open) {
+            window.dispatchEvent(new CustomEvent('toolbar:close', { detail: PANEL_ID }))
+        }
+        setOpen(v => !v)
+    }
+
+    const modeLabel = (code) => {
+        switch (code) {
+            case 'kanban':  return t.viewKanban
+            case 'list':    return t.viewList
+            case 'compact': return t.viewCompact
+            default:        return code
+        }
+    }
 
     const current = MODES.find(m => m.code === mode) || MODES[0]
 
@@ -26,8 +52,8 @@ export default function ViewSwitcher({ mode, onChange }) {
         <div className="view-switcher" ref={ref}>
             <button
                 className="view-switcher__btn"
-                onClick={() => setOpen(v => !v)}
-                title="Вид отображения"
+                onClick={toggle}
+                title={t.viewProject}
             >
                 <span className="view-switcher__icon">{current.icon}</span>
                 <span className="view-switcher__caret">▾</span>
@@ -42,7 +68,7 @@ export default function ViewSwitcher({ mode, onChange }) {
                             onClick={() => { onChange(m.code); setOpen(false) }}
                         >
                             <span className="view-switcher__item-icon">{m.icon}</span>
-                            <span>{m.label}</span>
+                            <span>{modeLabel(m.code)}</span>
                         </button>
                     ))}
                 </div>

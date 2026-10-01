@@ -5,8 +5,10 @@ import { useState, useRef, useEffect } from 'react'
  *
  * props:
  *   value       — текущее значение
- *   onSave      — async (newValue) => void | Promise (вызывается при Enter/blur)
- *   multiline   — если true, рендерит <textarea>, Enter сохраняет, Shift+Enter — перенос строки
+ *   onSave      — async (newValue) => void | Promise
+ *   multiline   — если true, рендерит <textarea>
+ *                 Enter сохраняет (только с Ctrl), Shift+Enter — перенос строки
+ *                 Ctrl+Enter — тоже сохранить (для multiline)
  *   placeholder — заглушка, если пусто
  *   className   — класс обёртки (span в режиме просмотра)
  *   inputClassName — класс input/textarea в режиме редактирования
@@ -35,7 +37,6 @@ export default function InlineEdit({
     useEffect(() => {
         if (editing && inputRef.current) {
             inputRef.current.focus()
-            // курсор в конец
             const len = inputRef.current.value.length
             try { inputRef.current.setSelectionRange(len, len) } catch {}
             if (multiline) {
@@ -57,7 +58,7 @@ export default function InlineEdit({
     }
 
     const commit = async () => {
-        const trimmed = multiline ? draft.trim() : draft.trim()
+        const trimmed = draft.trim()
         const original = (value ?? '').trim()
         if (trimmed === original) {
             setEditing(false)
@@ -68,7 +69,6 @@ export default function InlineEdit({
             await onSave?.(trimmed)
             setEditing(false)
         } catch {
-            // при ошибке возвращаем старое
             setDraft(value ?? '')
             setEditing(false)
         } finally {
@@ -80,8 +80,18 @@ export default function InlineEdit({
         if (e.key === 'Escape') {
             e.stopPropagation()
             cancel()
-        } else if (e.key === 'Enter') {
-            if (multiline && e.shiftKey) return // перенос строки
+            return
+        }
+
+        if (e.key === 'Enter') {
+            if (multiline) {
+                // Ctrl/Cmd+Enter — сохранить; иначе — перенос строки (по умолчанию)
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault()
+                    commit()
+                }
+                return
+            }
             e.preventDefault()
             commit()
         }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { userApi } from '../api/api'
 
 export default function LoginPage() {
     const nav = useNavigate()
@@ -16,6 +17,17 @@ export default function LoginPage() {
         setLoading(true)
         try {
             await login(username, password)
+            // После логина — узнаём дефолтную доску
+            try {
+                const { data: me } = await userApi.me()
+                const defaultBoardId = me?.workspace?.defaultBoardId
+                if (defaultBoardId) {
+                    nav(`/boards/${defaultBoardId}`)
+                    return
+                }
+            } catch {
+                // если /me упал — просто идём на /boards
+            }
             nav('/boards')
         } catch (err) {
             setError(err.response?.data?.message || 'Неверный логин или пароль')

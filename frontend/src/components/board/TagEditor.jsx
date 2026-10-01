@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { tagsApi } from '../../api/api'
+import useT from '../../hooks/useT'
 
 const ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray', 'teal', 'navy', 'olive']
 
@@ -25,6 +26,7 @@ const ICONS = [
 ]
 
 function SortableTagRow({ tag, onEdit, onRemove }) {
+    const t = useT()
     const {
         attributes,
         listeners,
@@ -61,19 +63,19 @@ function SortableTagRow({ tag, onEdit, onRemove }) {
                 {tag.title}
             </span>
             <span className="tag-row__count">
-                {tag.taskCount} {plural(tag.taskCount, ['задача', 'задачи', 'задач'])}
+                {tag.taskCount} {plural(tag.taskCount, t)}
             </span>
-            {tag.isSystem && <span className="tag-row__system">системный</span>}
+            {tag.isSystem && <span className="tag-row__system">{t.systemLabel}</span>}
             <button
                 className="tag-row__action"
                 onClick={(e) => { e.stopPropagation(); onEdit(tag) }}
-                title="Редактировать"
+                title={t.edit}
             >✎</button>
             {!tag.isSystem && (
                 <button
                     className="tag-row__action tag-row__action--danger"
                     onClick={(e) => { e.stopPropagation(); onRemove(tag) }}
-                    title="Удалить"
+                    title={t.delete}
                 >🗑</button>
             )}
         </div>
@@ -81,6 +83,7 @@ function SortableTagRow({ tag, onEdit, onRemove }) {
 }
 
 export default function TagEditor({ boardId, tags, onReload }) {
+    const t = useT()
     const [editing, setEditing] = useState(null)
     const [creating, setCreating] = useState(false)
     const [newTitle, setNewTitle] = useState('')
@@ -114,21 +117,21 @@ export default function TagEditor({ boardId, tags, onReload }) {
             setEditing(null)
             onReload()
         } catch (err) {
-            alert(err.response?.data?.message || 'Ошибка')
+            alert(err.response?.data?.message || 'Error')
         }
     }
 
     const remove = async (tag) => {
         if (tag.isSystem) {
-            alert('Нельзя удалить системный тег')
+            alert(t.cantDeleteSystemTag)
             return
         }
-        if (!confirm(`Удалить тег "${tag.title}"?`)) return
+        if (!confirm(t.confirmDeleteTag(tag.title))) return
         try {
             await tagsApi.delete(tag.id)
             onReload()
         } catch (err) {
-            alert(err.response?.data?.message || 'Ошибка')
+            alert(err.response?.data?.message || 'Error')
         }
     }
 
@@ -146,7 +149,7 @@ export default function TagEditor({ boardId, tags, onReload }) {
             setCreating(false)
             onReload()
         } catch (err) {
-            alert(err.response?.data?.message || 'Ошибка')
+            alert(err.response?.data?.message || 'Error')
         }
     }
 
@@ -169,8 +172,8 @@ export default function TagEditor({ boardId, tags, onReload }) {
 
         try {
             await Promise.all(
-                reordered.map((t, idx) =>
-                    tagsApi.update(t.id, { position: idx })
+                reordered.map((tag, idx) =>
+                    tagsApi.update(tag.id, { position: idx })
                 )
             )
             onReload()
@@ -185,7 +188,7 @@ export default function TagEditor({ boardId, tags, onReload }) {
     return (
         <div className="tag-editor">
             {tags.length === 0 && !creating && (
-                <div className="tag-editor__empty">Тегов пока нет</div>
+                <div className="tag-editor__empty">{t.noBoardTags}</div>
             )}
 
             <DndContext
@@ -212,7 +215,7 @@ export default function TagEditor({ boardId, tags, onReload }) {
                                     >
                                         {ICONS.map(ic => (
                                             <option key={ic} value={ic}>
-                                                {ic ? `${ic}` : '— без иконки —'}
+                                                {ic ? `${ic}` : t.noIcon}
                                             </option>
                                         ))}
                                     </select>
@@ -227,7 +230,7 @@ export default function TagEditor({ boardId, tags, onReload }) {
                                             />
                                         ))}
                                     </div>
-                                    <button className="btn btn-primary tag-row__btn" onClick={saveEdit}>OK</button>
+                                    <button className="btn btn-primary tag-row__btn" onClick={saveEdit}>{t.ok}</button>
                                     <button className="btn btn-ghost tag-row__btn" onClick={() => setEditing(null)}>×</button>
                                 </div>
                             ) : (
@@ -268,7 +271,7 @@ export default function TagEditor({ boardId, tags, onReload }) {
                 <div className="tag-row tag-row--creating">
                     <input
                         className="input tag-row__title"
-                        placeholder="Название тега"
+                        placeholder={t.tagName}
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && create()}
@@ -281,7 +284,7 @@ export default function TagEditor({ boardId, tags, onReload }) {
                     >
                         {ICONS.map(ic => (
                             <option key={ic} value={ic}>
-                                {ic ? `${ic}` : '— без иконки —'}
+                                {ic ? `${ic}` : t.noIcon}
                             </option>
                         ))}
                     </select>
@@ -296,19 +299,20 @@ export default function TagEditor({ boardId, tags, onReload }) {
                             />
                         ))}
                     </div>
-                    <button className="btn btn-primary tag-row__btn" onClick={create}>Добавить</button>
+                    <button className="btn btn-primary tag-row__btn" onClick={create}>{t.addingLabel}</button>
                     <button className="btn btn-ghost tag-row__btn" onClick={() => setCreating(false)}>×</button>
                 </div>
             ) : (
                 <button className="tag-editor__add" onClick={() => setCreating(true)}>
-                    + Добавить тег
+                    {t.addTagBtn}
                 </button>
             )}
         </div>
     )
 }
 
-function plural(n, forms) {
+function plural(n, t) {
+    const forms = t.taskPlural || ['задача', 'задачи', 'задач']
     const mod10 = n % 10, mod100 = n % 100
     if (mod10 === 1 && mod100 !== 11) return forms[0]
     if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return forms[1]

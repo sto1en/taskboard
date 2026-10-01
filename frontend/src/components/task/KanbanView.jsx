@@ -17,6 +17,7 @@ import SortableKanbanColumn from '../Board/SortableKanbanColumn'
 import TaskCard from './TaskCard'
 import { tasksApi, statusesApi } from '../../api/api'
 import { sortTasks } from '../../utils/sortTasks'
+import useT from '../../hooks/useT'
 
 export default function KanbanView({
                                        columns,
@@ -29,11 +30,13 @@ export default function KanbanView({
                                        onColumnsMoved,
                                        activeStatuses,
                                        onAddTask,
+                                       onAddStatus,
                                        onOpenTask,
                                        onToggleDone,
                                        onOpenAttachments,
                                        sortMode,
                                        sortDir,
+                                       onHover,
                                    }) {
     const [activeTask, setActiveTask] = useState(null)
     const [activeSubtask, setActiveSubtask] = useState(null)
@@ -42,6 +45,7 @@ export default function KanbanView({
     const [hoverMode, setHoverMode] = useState(null)
     const [shiftPressed, setShiftPressed] = useState(false)
     const [localColumns, setLocalColumns] = useState(columns)
+    const t = useT()
 
     useEffect(() => {
         setLocalColumns(columns)
@@ -139,6 +143,16 @@ export default function KanbanView({
 
         setHoverTaskId(null)
         setHoverMode(null)
+    }
+
+    const getColumnIdFromOver = (over) => {
+        const overData = over.data?.current
+        if (overData?.statusId) return overData.statusId
+        const idStr = String(over.id)
+        if (idStr.startsWith('column-')) {
+            return Number(idStr.replace('column-', ''))
+        }
+        return null
     }
 
     const handleDragEnd = async (event) => {
@@ -335,16 +349,6 @@ export default function KanbanView({
         }
     }
 
-    const getColumnIdFromOver = (over) => {
-        const overData = over.data?.current
-        if (overData?.statusId) return overData.statusId
-        const idStr = String(over.id)
-        if (idStr.startsWith('column-')) {
-            return Number(idStr.replace('column-', ''))
-        }
-        return null
-    }
-
     const columnIds = sorted.map(c => `col-${c.statusId}`)
 
     return (
@@ -372,8 +376,19 @@ export default function KanbanView({
                             onToggleDone={onToggleDone}
                             onTaskMoved={onTaskMoved}
                             onOpenAttachments={onOpenAttachments}
+                            onHover={onHover}
                         />
                     ))}
+
+                    {!reorderMode && onAddStatus && (
+                        <button
+                            type="button"
+                            className="kanban__add-status"
+                            onClick={onAddStatus}
+                        >
+                            {t.addStatus}
+                        </button>
+                    )}
                 </div>
             </SortableContext>
 

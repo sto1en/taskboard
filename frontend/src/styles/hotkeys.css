@@ -1,0 +1,46 @@
+/* ============================================================
+   Hotkeys Help Modal
+   ============================================================ */
+
+.hotkeys-help {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.hotkeys-help__group-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.hotkeys-help__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+}
+.hotkeys-help__row:last-child { border-bottom: none; }
+
+.hotkeys-help__kbd {
+    min-width: 110px;
+    text-align: center;
+    padding: 4px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--text);
+    box-shadow: 0 1px 0 var(--border);
+    white-space: nowrap;
+}
+
+.hotkeys-help__desc {
+    font-size: 13px;
+    color: var(--text);
+}

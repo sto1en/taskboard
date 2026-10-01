@@ -5,6 +5,16 @@ export function sortTasks(tasks, sortMode, sortDir) {
     const arr = [...tasks]
 
     switch (sortMode) {
+        case 'by_status':
+            arr.sort((a, b) => {
+                const ca = a.statusCategoryCode || ''
+                const cb = b.statusCategoryCode || ''
+                if (ca !== cb) return dir * ca.localeCompare(cb)
+                const sa = a.statusCode || ''
+                const sb = b.statusCode || ''
+                return dir * sa.localeCompare(sb)
+            })
+            break
         case 'by_priority':
             arr.sort((a, b) => dir * ((b.priority || 0) - (a.priority || 0)))
             break

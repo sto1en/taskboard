@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { boardsApi, statusesApi, tagsApi } from '../api/api'
 import StatusEditor from '../components/Board/StatusEditor'
 import TagEditor from '../components/Board/TagEditor'
+import useT from '../hooks/useT'
 
 export default function BoardSettingsPage() {
     const { boardId } = useParams()
     const nav = useNavigate()
+    const t = useT()
     const [board, setBoard] = useState(null)
     const [taskStatuses, setTaskStatuses] = useState([])
     const [projectStatuses, setProjectStatuses] = useState([])
@@ -29,7 +31,7 @@ export default function BoardSettingsPage() {
                 setProjectStatuses(projRes.data)
                 setTags(tagsRes.data)
             })
-            .catch(err => setError(err.response?.data?.message || 'Ошибка загрузки'))
+            .catch(err => setError(err.response?.data?.message || 'Error'))
             .finally(() => setLoading(false))
     }
 
@@ -38,19 +40,19 @@ export default function BoardSettingsPage() {
         // eslint-disable-next-line
     }, [boardId])
 
-    if (loading) return <div className="loading">Загрузка...</div>
+    if (loading) return <div className="loading">Loading...</div>
     if (error) return <div className="error">{error}</div>
-    if (!board) return <div>Доска не найдена</div>
+    if (!board) return <div>Board not found</div>
 
     return (
         <div className="board-settings">
             <div className="board-detail__head">
                 <button className="btn btn-ghost" onClick={() => nav(`/boards/${boardId}`)}>←</button>
-                <h2 className="board-detail__title">Настройки доски «{board.title}»</h2>
+                <h2 className="board-detail__title">{t.boardSettingsTitle(board.title)}</h2>
             </div>
 
             <div className="board-settings__section">
-                <h3 className="board-settings__title">Статусы задач</h3>
+                <h3 className="board-settings__title">{t.taskStatuses}</h3>
                 <StatusEditor
                     boardId={Number(boardId)}
                     scope="task"
@@ -60,7 +62,7 @@ export default function BoardSettingsPage() {
             </div>
 
             <div className="board-settings__section">
-                <h3 className="board-settings__title">Статусы проектов</h3>
+                <h3 className="board-settings__title">{t.projectStatuses}</h3>
                 <StatusEditor
                     boardId={Number(boardId)}
                     scope="project"
@@ -70,7 +72,7 @@ export default function BoardSettingsPage() {
             </div>
 
             <div className="board-settings__section">
-                <h3 className="board-settings__title">Теги</h3>
+                <h3 className="board-settings__title">{t.tagsTitle}</h3>
                 <TagEditor
                     boardId={Number(boardId)}
                     tags={tags}

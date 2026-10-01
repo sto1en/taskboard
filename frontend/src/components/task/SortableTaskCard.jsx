@@ -12,6 +12,7 @@ export default function SortableTaskCard({
                                              onToggleDone,
                                              onTaskMoved,
                                              onOpenAttachments,
+                                             onHover,
                                          }) {
     const {
         attributes,
@@ -55,6 +56,7 @@ export default function SortableTaskCard({
                 onToggleDone={onToggleDone}
                 onTaskMoved={onTaskMoved}
                 onOpenAttachments={onOpenAttachments}
+                onHover={onHover}
             />
         </div>
     )

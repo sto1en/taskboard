@@ -18,6 +18,8 @@ import './styles/projects.css'
 import './styles/views.css'
 import './styles/profile.css'
 import './styles/info-page.css'
+import './styles/hotkeys.css'
+import './styles/search.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>

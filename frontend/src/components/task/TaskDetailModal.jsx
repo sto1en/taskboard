@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { tasksApi, tagsApi, attachmentsApi } from '../../api/api'
+import { tasksApi, tagsApi, attachmentsApi, projectsApi } from '../../api/api'
 import Modal from '../Modal/Modal'
 import AttachmentPreview from './AttachmentPreview'
+import DetailTextEditor from './DetailTextEditor'
 import {
     formatDeadline,
     splitDeadline,
     buildDeadline,
     resolveUrl,
 } from '../../utils/format'
+import useT from '../../hooks/useT'
 
 const TAG_ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray', 'teal', 'navy', 'olive']
 const TAG_ICONS = [
@@ -15,11 +17,24 @@ const TAG_ICONS = [
     '🏷️', '🎨', '🚀', '🐛', '📝', '💼', '🎓', '❤️', '⚡', '🔔',
 ]
 
-export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onUpdated, boardId, columns }) {
+export default function TaskDetailModal({
+                                            open,
+                                            onClose,
+                                            taskId,
+                                            onOpenTask,
+                                            onUpdated,
+                                            boardId: boardIdProp,
+                                            columns: columnsProp,
+                                        }) {
+    const t = useT()
     const [task, setTask] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [saving, setSaving] = useState(false)
+
+    const [boardId, setBoardId] = useState(boardIdProp || null)
+    const [columns, setColumns] = useState(columnsProp || [])
+
     const [form, setForm] = useState({
         title: '',
         description: '',
@@ -47,42 +62,78 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
     const [allProjectTasks, setAllProjectTasks] = useState([])
     const [subtaskError, setSubtaskError] = useState(null)
 
-    const load = () => {
+    // ============== Загрузка задачи + boardId/columns ==============
+    const load = async () => {
         if (!taskId) return
         setLoading(true)
         setError(null)
 
-        Promise.all([
-            tasksApi.get(taskId),
-            tagsApi.listByBoard(boardId).catch(() => ({ data: [] })),
-        ])
-            .then(([taskRes, tagsRes]) => {
-                const t = taskRes.data
-                const { date, time, hasTime } = splitDeadline(t.deadline)
-                setTask(t)
-                setForm({
-                    title: t.title || '',
-                    description: t.description || '',
-                    priority: t.priority || 0,
-                    deadlineDate: date,
-                    deadlineTime: time,
-                    hasTime,
-                    statusId: t.statusId || '',
-                })
-                setTags(tagsRes.data)
-                setExistingSubtasks(t.subtasks || [])
-                setPendingSubtasks([])
+        try {
+            const { data: taskData } = await tasksApi.get(taskId)
 
-                if (t.projectId) {
-                    tasksApi.listByProject(t.projectId)
-                        .then(({ data }) => setAllProjectTasks(data))
-                        .catch(() => setAllProjectTasks([]))
-                }
-
-                setDirty(false)
+            const { date, time, hasTime } = splitDeadline(taskData.deadline)
+            setTask(taskData)
+            setForm({
+                title: taskData.title || '',
+                description: taskData.description || '',
+                priority: taskData.priority || 0,
+                deadlineDate: date,
+                deadlineTime: time,
+                hasTime,
+                statusId: taskData.statusId || '',
             })
-            .catch(err => setError(err.response?.data?.message || 'Ошибка загрузки'))
-            .finally(() => setLoading(false))
+
+            setExistingSubtasks(taskData.subtasks || [])
+            setPendingSubtasks([])
+            setDirty(false)
+
+            // === Автономное получение boardId и columns ===
+            let bid = boardIdProp
+            let cols = columnsProp || []
+
+            if (!bid && taskData.projectId) {
+                try {
+                    const { data: project } = await projectsApi.get(taskData.projectId)
+                    bid = project.boardId
+                    setBoardId(bid)
+                } catch {}
+            } else if (bid) {
+                setBoardId(bid)
+            }
+
+            if ((!cols || cols.length === 0) && taskData.projectId) {
+                try {
+                    const { data: kanban } = await tasksApi.kanban(taskData.projectId)
+                    cols = kanban.columns || []
+                    setColumns(cols)
+                } catch {}
+            } else if (cols?.length) {
+                setColumns(cols)
+            }
+
+            // Теги доски
+            if (bid) {
+                try {
+                    const { data: tagsData } = await tagsApi.listByBoard(bid)
+                    setTags(tagsData)
+                } catch {
+                    setTags([])
+                }
+            }
+
+            if (taskData.projectId) {
+                try {
+                    const { data } = await tasksApi.listByProject(taskData.projectId)
+                    setAllProjectTasks(data)
+                } catch {
+                    setAllProjectTasks([])
+                }
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Error')
+        } finally {
+            setLoading(false)
+        }
     }
 
     useEffect(() => {
@@ -90,9 +141,8 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
             load()
         }
         // eslint-disable-next-line
-    }, [open, taskId, boardId])
+    }, [open, taskId])
 
-    // Сброс transient-состояния при закрытии
     useEffect(() => {
         if (!open) {
             setPreviewAttachment(null)
@@ -102,8 +152,10 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
             setSubtaskInput('')
             setShowSubtaskAutocomplete(false)
             setSubtaskError(null)
+            setBoardId(boardIdProp || null)
+            setColumns(columnsProp || [])
         }
-    }, [open])
+    }, [open, boardIdProp, columnsProp])
 
     const setField = (key, value) => {
         setForm(f => ({ ...f, [key]: value }))
@@ -115,7 +167,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
         setError(null)
         try {
             const deadline = buildDeadline(form.deadlineDate, form.deadlineTime, form.hasTime)
-            const tagIds = (task.tags || []).map(t => t.id)
+            const tagIds = (task.tags || []).map(tg => tg.id)
 
             await tasksApi.update(taskId, {
                 title: form.title,
@@ -133,30 +185,30 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                         parentId: taskId,
                     })
                 } catch (err) {
-                    console.error('Failed to create subtask:', ps.title, err)
+                    console.error('Subtask create error:', err)
                 }
             }
 
-            const refreshed = await tasksApi.get(taskId)
-            setTask(refreshed.data)
-            setExistingSubtasks(refreshed.data.subtasks || [])
+            const { data: refreshed } = await tasksApi.get(taskId)
+            setTask(refreshed)
+            setExistingSubtasks(refreshed.subtasks || [])
             setPendingSubtasks([])
 
-            const { date, time, hasTime } = splitDeadline(refreshed.data.deadline)
+            const { date, time, hasTime } = splitDeadline(refreshed.deadline)
             setForm({
-                title: refreshed.data.title || '',
-                description: refreshed.data.description || '',
-                priority: refreshed.data.priority || 0,
+                title: refreshed.title || '',
+                description: refreshed.description || '',
+                priority: refreshed.priority || 0,
                 deadlineDate: date,
                 deadlineTime: time,
                 hasTime,
-                statusId: refreshed.data.statusId || '',
+                statusId: refreshed.statusId || '',
             })
             setDirty(false)
             onUpdated && onUpdated()
             onClose && onClose()
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка сохранения')
+            setError(err.response?.data?.message || 'Error')
         } finally {
             setSaving(false)
         }
@@ -173,7 +225,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
             setTask(data)
             onUpdated && onUpdated()
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка загрузки')
+            setError(err.response?.data?.message || 'Error')
         } finally {
             setUploading(false)
             if (fileInputRef.current) fileInputRef.current.value = ''
@@ -187,23 +239,22 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
             setTask(data)
             onUpdated && onUpdated()
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка удаления')
+            setError(err.response?.data?.message || 'Error')
         }
     }
 
     const toggleTag = (tagId) => {
-        const currentTagIds = (task.tags || []).map(t => t.id)
+        const currentTagIds = (task.tags || []).map(tg => tg.id)
         const newTagIds = currentTagIds.includes(tagId)
             ? currentTagIds.filter(id => id !== tagId)
             : [...currentTagIds, tagId]
-
-        const newTags = tags.filter(t => newTagIds.includes(t.id))
+        const newTags = tags.filter(tg => newTagIds.includes(tg.id))
         setTask(prev => ({ ...prev, tags: newTags }))
         setDirty(true)
     }
 
     const createTag = async () => {
-        if (!newTagTitle.trim()) return
+        if (!newTagTitle.trim() || !boardId) return
         try {
             const { data } = await tagsApi.create(boardId, {
                 title: newTagTitle.trim(),
@@ -221,7 +272,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
             setCreatingTag(false)
             setDirty(true)
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка создания тега')
+            setError(err.response?.data?.message || 'Error')
         }
     }
 
@@ -233,15 +284,15 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                 accentCode: editingTag.accentCode,
                 icon: editingTag.icon || null,
             })
-            setTags(prev => prev.map(t => t.id === data.id ? data : t))
+            setTags(prev => prev.map(tg => tg.id === data.id ? data : tg))
             setTask(prev => ({
                 ...prev,
-                tags: (prev.tags || []).map(t => t.id === data.id ? data : t),
+                tags: (prev.tags || []).map(tg => tg.id === data.id ? data : tg),
             }))
             setEditingTag(null)
             onUpdated && onUpdated()
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка сохранения тега')
+            setError(err.response?.data?.message || 'Error')
         }
     }
 
@@ -279,7 +330,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
             setDirty(true)
             onUpdated && onUpdated()
         } catch (err) {
-            setSubtaskError(err.response?.data?.message || 'Не удалось прикрепить')
+            setSubtaskError(err.response?.data?.message || 'Error')
         }
     }
 
@@ -292,7 +343,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
     }
 
     const deleteExistingSubtask = async (subtaskId) => {
-        if (!confirm('Удалить подзадачу?')) return
+        if (!confirm(t.deleteSubtask + '?')) return
         try {
             await tasksApi.delete(subtaskId)
             const { data } = await tasksApi.get(taskId)
@@ -301,7 +352,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
             setDirty(true)
             onUpdated && onUpdated()
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка удаления')
+            setError(err.response?.data?.message || 'Error')
         }
     }
 
@@ -311,7 +362,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
     }
 
     const detachSubtask = async (subtaskId) => {
-        if (!confirm('Сделать подзадачу самостоятельной?')) return
+        if (!confirm(t.makeStandalone + '?')) return
         try {
             await tasksApi.clearParent(subtaskId)
             const { data } = await tasksApi.get(taskId)
@@ -320,14 +371,14 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
             setDirty(true)
             onUpdated && onUpdated()
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка')
+            setError(err.response?.data?.message || 'Error')
         }
     }
 
     const openSubtask = (subtaskId) => {
         if (!onOpenTask) return
         if (dirty) {
-            if (!confirm('Есть несохранённые изменения. Открыть подзадачу без сохранения?')) return
+            if (!confirm(t.searchUnsavedChanges || 'Unsaved changes. Continue?')) return
         }
         onOpenTask(subtaskId)
     }
@@ -351,11 +402,11 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
             <Modal
                 open={open}
                 onClose={onClose}
-                title={loading ? 'Загрузка...' : 'Задача'}
+                title={loading ? t.loading : t.taskLabel}
                 footer={
                     <>
                         <button type="button" className="btn btn-ghost" onClick={onClose}>
-                            Закрыть
+                            {t.close}
                         </button>
                         <button
                             type="button"
@@ -363,19 +414,19 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                             onClick={save}
                             disabled={saving}
                         >
-                            {saving ? 'Сохранение...' : 'Сохранить'}
+                            {saving ? t.loading : t.save}
                         </button>
                     </>
                 }
             >
-                {loading && <div className="loading">Загрузка...</div>}
+                {loading && <div className="loading">{t.loading}</div>}
                 {error && <div className="modal__error">{error}</div>}
 
                 {task && (
                     <div className="task-detail">
                         <div className="task-detail__group">
                             <div className="modal__field">
-                                <label className="modal__label">Название</label>
+                                <label className="modal__label">{t.nameLabel}</label>
                                 <input
                                     className="input"
                                     value={form.title}
@@ -384,28 +435,27 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                             </div>
 
                             <div className="modal__field">
-                                <label className="modal__label">Описание</label>
-                                <textarea
-                                    className="input"
+                                <label className="modal__label">{t.taskDescriptionLabel}</label>
+                                <DetailTextEditor
                                     value={form.description}
-                                    onChange={(e) => setField('description', e.target.value)}
-                                    placeholder="Добавьте описание..."
-                                    rows={5}
+                                    onSave={(html) => setField('description', html)}
+                                    placeholder={t.addDescription}
+                                    title={t.edit}
                                 />
                             </div>
                         </div>
 
                         <div className="task-detail__group">
                             <div className="modal__row">
-                                {!isSubtask && (
+                                {!isSubtask && columns.length > 0 && (
                                     <div className="modal__field">
-                                        <label className="modal__label">Статус</label>
+                                        <label className="modal__label">{t.statusLabel}</label>
                                         <select
                                             className="input"
                                             value={form.statusId}
                                             onChange={(e) => setField('statusId', Number(e.target.value))}
                                         >
-                                            {(columns || []).map(c => (
+                                            {columns.map(c => (
                                                 <option key={c.statusId} value={c.statusId}>{c.title}</option>
                                             ))}
                                         </select>
@@ -413,21 +463,21 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                 )}
 
                                 <div className="modal__field">
-                                    <label className="modal__label">Приоритет</label>
+                                    <label className="modal__label">{t.priorityLabel}</label>
                                     <select
                                         className="input"
                                         value={form.priority}
                                         onChange={(e) => setField('priority', Number(e.target.value))}
                                     >
-                                        <option value={0}>Обычный</option>
-                                        <option value={1}>Высокий</option>
-                                        <option value={2}>Срочный</option>
+                                        <option value={0}>{t.priorityNormal}</option>
+                                        <option value={1}>{t.priorityHigh}</option>
+                                        <option value={2}>{t.priorityUrgent}</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div className="modal__field">
-                                <label className="modal__label">Дата дедлайна</label>
+                                <label className="modal__label">{t.deadlineLabel}</label>
                                 <input
                                     className="input"
                                     type="date"
@@ -442,12 +492,12 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                     checked={form.hasTime}
                                     onChange={(e) => setField('hasTime', e.target.checked)}
                                 />
-                                <span>Указать время дедлайна</span>
+                                <span>{t.specifyTime}</span>
                             </label>
 
                             {form.hasTime && (
                                 <div className="modal__field">
-                                    <label className="modal__label">Время дедлайна</label>
+                                    <label className="modal__label">{t.timeLabel}</label>
                                     <input
                                         className="input"
                                         type="time"
@@ -460,21 +510,23 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
 
                         <div className="task-detail__group">
                             <div className="task-detail__label-row">
-                                <div className="task-detail__label">Теги</div>
-                                <button
-                                    type="button"
-                                    className="task-detail__small-btn"
-                                    onClick={() => setCreatingTag(v => !v)}
-                                >
-                                    {creatingTag ? '× Отмена' : '+ Создать тег'}
-                                </button>
+                                <div className="task-detail__label">{t.tagsLabel}</div>
+                                {boardId && (
+                                    <button
+                                        type="button"
+                                        className="task-detail__small-btn"
+                                        onClick={() => setCreatingTag(v => !v)}
+                                    >
+                                        {creatingTag ? t.cancelCreate : t.createTag}
+                                    </button>
+                                )}
                             </div>
 
                             {creatingTag && (
                                 <div className="task-detail__create-tag">
                                     <input
                                         className="input"
-                                        placeholder="Название тега"
+                                        placeholder={t.tagName}
                                         value={newTagTitle}
                                         onChange={(e) => setNewTagTitle(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && createTag()}
@@ -487,7 +539,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                     >
                                         {TAG_ICONS.map(ic => (
                                             <option key={ic} value={ic}>
-                                                {ic ? `${ic}` : '— без иконки —'}
+                                                {ic ? `${ic}` : t.noIcon}
                                             </option>
                                         ))}
                                     </select>
@@ -503,17 +555,17 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                         ))}
                                     </div>
                                     <button type="button" className="btn btn-primary" onClick={createTag}>
-                                        ОК
+                                        {t.ok}
                                     </button>
                                 </div>
                             )}
 
                             <div className="task-detail__tags">
                                 {tags.length === 0 && !creatingTag && (
-                                    <div className="task-detail__empty">Нет тегов у доски</div>
+                                    <div className="task-detail__empty">{t.noBoardTags}</div>
                                 )}
                                 {tags.map(tag => {
-                                    const active = (task.tags || []).some(t => t.id === tag.id)
+                                    const active = (task.tags || []).some(tg => tg.id === tag.id)
                                     return (
                                         <div key={tag.id} className="task-detail__tag-wrap">
                                             <button
@@ -538,7 +590,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                                     accentCode: tag.accentCode || 'gray',
                                                     icon: tag.icon || '',
                                                 })}
-                                                title="Изменить тег"
+                                                title={t.edit}
                                             >✎</button>
                                         </div>
                                     )
@@ -550,7 +602,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                             <div className="task-detail__group">
                                 <div className="task-detail__label-row">
                                     <div className="task-detail__label">
-                                        Подзадачи {(existingSubtasks.length + pendingSubtasks.length) > 0
+                                        {t.subtasksLabel} {(existingSubtasks.length + pendingSubtasks.length) > 0
                                         ? `(${existingSubtasks.length + pendingSubtasks.length})`
                                         : ''}
                                     </div>
@@ -559,7 +611,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                 <div className="task-detail__subtask-input-wrap">
                                     <input
                                         className="input"
-                                        placeholder="Найти или создать подзадачу..."
+                                        placeholder={t.findOrCreateSubtask}
                                         value={subtaskInput}
                                         onChange={(e) => {
                                             setSubtaskInput(e.target.value)
@@ -571,24 +623,24 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
 
                                     {showSubtaskAutocomplete && subtaskInput.trim().length > 0 && (
                                         <div className="task-detail__subtask-autocomplete">
-                                            {autocompleteResults.map(t => (
+                                            {autocompleteResults.map(st => (
                                                 <button
-                                                    key={t.id}
+                                                    key={st.id}
                                                     type="button"
                                                     className="task-detail__subtask-ac-item"
-                                                    onClick={() => attachExistingSubtask(t)}
+                                                    onClick={() => attachExistingSubtask(st)}
                                                 >
-                                                    <span className="task-detail__subtask-ac-title">{t.title}</span>
-                                                    {t.statusTitle && (
+                                                    <span className="task-detail__subtask-ac-title">{st.title}</span>
+                                                    {st.statusTitle && (
                                                         <span className="task-detail__subtask-ac-status">
-                                                            {t.statusTitle}
+                                                            {st.statusTitle}
                                                         </span>
                                                     )}
                                                 </button>
                                             ))}
                                             {autocompleteResults.length === 0 && (
                                                 <div className="task-detail__subtask-ac-empty">
-                                                    Нет совпадений — нажми Enter, чтобы создать новую
+                                                    {t.noMatches}
                                                 </div>
                                             )}
                                             {autocompleteResults.length > 0 && (
@@ -597,7 +649,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                                     className="task-detail__subtask-ac-create"
                                                     onClick={addPendingSubtask}
                                                 >
-                                                    + Создать новую «{subtaskInput.trim()}»
+                                                    {t.createNew(subtaskInput.trim())}
                                                 </button>
                                             )}
                                         </div>
@@ -612,7 +664,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
 
                                 <div className="task-detail__subtasks">
                                     {existingSubtasks.length === 0 && pendingSubtasks.length === 0 && (
-                                        <div className="task-detail__empty">Нет подзадач</div>
+                                        <div className="task-detail__empty">{t.noSubtasks}</div>
                                     )}
 
                                     {existingSubtasks.map(st => {
@@ -640,18 +692,14 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                                         type="button"
                                                         className="subtask-card__btn"
                                                         onClick={(e) => { e.stopPropagation(); detachSubtask(st.id) }}
-                                                        title="Сделать самостоятельной"
-                                                    >
-                                                        ↗
-                                                    </button>
+                                                        title={t.makeStandalone}
+                                                    >↗</button>
                                                     <button
                                                         type="button"
                                                         className="subtask-card__btn subtask-card__btn--danger"
                                                         onClick={(e) => { e.stopPropagation(); deleteExistingSubtask(st.id) }}
-                                                        title="Удалить подзадачу"
-                                                    >
-                                                        🗑
-                                                    </button>
+                                                        title={t.deleteSubtask}
+                                                    >🗑</button>
                                                 </div>
 
                                                 <div className="subtask-card__meta">
@@ -670,28 +718,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                                             {st.subtaskDone}/{st.subtaskTotal}
                                                         </span>
                                                     )}
-                                                    {st.attachmentNames && st.attachmentNames.length > 0 && (
-                                                        <span className="subtask-card__attach">
-                                                            📎 {st.attachmentNames[0]}
-                                                            {st.attachmentNames.length > 1 && ` +${st.attachmentNames.length - 1}`}
-                                                        </span>
-                                                    )}
                                                 </div>
-
-                                                {st.tags && st.tags.length > 0 && (
-                                                    <div className="subtask-card__tags">
-                                                        {st.tags.map(tag => (
-                                                            <span
-                                                                key={tag.id}
-                                                                className="task-tag"
-                                                                style={{ background: `var(--accent-${tag.accentCode || 'gray'})` }}
-                                                            >
-                                                                {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
-                                                                {tag.title}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
                                             </div>
                                         )
                                     })}
@@ -701,15 +728,13 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                             <div className="subtask-card__head">
                                                 <span className="subtask-card__check" />
                                                 <span className="subtask-card__title">{ps.title}</span>
-                                                <span className="subtask-card__pending-badge">новая</span>
+                                                <span className="subtask-card__pending-badge">{t.newBadge}</span>
                                                 <button
                                                     type="button"
                                                     className="subtask-card__btn subtask-card__btn--danger"
                                                     onClick={(e) => { e.stopPropagation(); removePendingSubtask(idx) }}
-                                                    title="Убрать из списка"
-                                                >
-                                                    ×
-                                                </button>
+                                                    title={t.removeFromList}
+                                                >×</button>
                                             </div>
                                         </div>
                                     ))}
@@ -719,7 +744,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
 
                         <div className="task-detail__group">
                             <div className="task-detail__label">
-                                Вложения {task.attachments?.length ? `(${task.attachments.length})` : ''}
+                                {t.attachmentsLabel} {task.attachments?.length ? `(${task.attachments.length})` : ''}
                             </div>
                             <div className="task-detail__attachments">
                                 {(task.attachments || []).map(a => {
@@ -751,15 +776,13 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                                 type="button"
                                                 className="task-detail__attachment-remove"
                                                 onClick={() => detachAttachment(a.id)}
-                                            >
-                                                ×
-                                            </button>
+                                            >×</button>
                                         </div>
                                     )
                                 })}
 
                                 <label className="task-detail__attachment-add">
-                                    {uploading ? '...' : '+ Добавить'}
+                                    {uploading ? '...' : t.addAttachment}
                                     <input
                                         ref={fileInputRef}
                                         type="file"
@@ -777,12 +800,12 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                 <div className="modal-overlay" onClick={() => setEditingTag(null)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
                         <div className="modal__head">
-                            <h3 className="modal__title">Изменить тег</h3>
+                            <h3 className="modal__title">{t.editTagModal}</h3>
                             <button className="modal__close" onClick={() => setEditingTag(null)}>×</button>
                         </div>
                         <div className="modal__body">
                             <div className="modal__field">
-                                <label className="modal__label">Название</label>
+                                <label className="modal__label">{t.titleLabel}</label>
                                 <input
                                     className="input"
                                     value={editingTag.title}
@@ -791,7 +814,7 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                 />
                             </div>
                             <div className="modal__field">
-                                <label className="modal__label">Иконка</label>
+                                <label className="modal__label">{t.iconLabel}</label>
                                 <select
                                     className="input"
                                     value={editingTag.icon}
@@ -799,13 +822,13 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                                 >
                                     {TAG_ICONS.map(ic => (
                                         <option key={ic} value={ic}>
-                                            {ic ? `${ic}` : '— без иконки —'}
+                                            {ic ? `${ic}` : t.noIcon}
                                         </option>
                                     ))}
                                 </select>
                             </div>
                             <div className="modal__field">
-                                <label className="modal__label">Цвет</label>
+                                <label className="modal__label">{t.colorLabel}</label>
                                 <div className="color-picker">
                                     {TAG_ACCENTS.map(c => (
                                         <button
@@ -820,8 +843,8 @@ export default function TaskDetailModal({ open, onClose, taskId, onOpenTask, onU
                             </div>
                         </div>
                         <div className="modal__foot">
-                            <button className="btn btn-ghost" onClick={() => setEditingTag(null)}>Отмена</button>
-                            <button className="btn btn-primary" onClick={saveTagEdit}>Сохранить</button>
+                            <button className="btn btn-ghost" onClick={() => setEditingTag(null)}>{t.cancel}</button>
+                            <button className="btn btn-primary" onClick={saveTagEdit}>{t.save}</button>
                         </div>
                     </div>
                 </div>

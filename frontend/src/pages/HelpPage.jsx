@@ -1,70 +1,82 @@
 import { Link } from 'react-router-dom'
+import useT from '../hooks/useT'
 
 export default function HelpPage() {
+    const t = useT()
+
+    const sections = {
+        quickStart: t.helpQuickStart || 'Quick start',
+        concepts: t.helpConcepts || 'Concepts',
+        views: t.helpViews || 'Views',
+        hotkeys: t.helpHotkeys || 'Hotkeys',
+        contact: t.helpContact || 'Contact',
+        back: t.backToBoards || '← Back to boards',
+    }
+
     return (
         <div className="info-page">
-            <h1 className="info-page__title">Help</h1>
+            <h1 className="info-page__title">{t.help || 'Help'}</h1>
 
             <section className="info-page__section">
-                <h2>Быстрый старт</h2>
+                <h2>{sections.quickStart}</h2>
                 <ol>
-                    <li>Создайте доску — это направление работы (например, «Фотография»)</li>
-                    <li>Внутри доски автоматически появится главный проект <b>main</b></li>
-                    <li>Создавайте задачи прямо в этом проекте — так работает простой режим</li>
-                    <li>Когда понадобится структура — создайте новые проекты и этапы</li>
+                    <li>Create a board — a direction of work (e.g. "Photography")</li>
+                    <li>A main project <b>main</b> will be created automatically inside the board</li>
+                    <li>Add tasks directly to this project — this is the simple mode</li>
+                    <li>When structure is needed — create new projects and stages</li>
                 </ol>
             </section>
 
             <section className="info-page__section">
-                <h2>Основные понятия</h2>
+                <h2>{sections.concepts}</h2>
                 <dl className="info-page__defs">
-                    <dt>Доска</dt>
-                    <dd>Направление работы. Содержит проекты.</dd>
+                    <dt>Board</dt>
+                    <dd>A direction of work. Contains projects.</dd>
 
-                    <dt>Проект</dt>
-                    <dd>Конкретная работа внутри направления. Содержит задачи и (опционально) этапы.</dd>
+                    <dt>Project</dt>
+                    <dd>A specific piece of work inside a direction. Contains tasks and (optionally) stages.</dd>
 
-                    <dt>Этап</dt>
-                    <dd>Фаза проекта (Подготовка, Съёмка, Обработка). Не обязателен.</dd>
+                    <dt>Stage</dt>
+                    <dd>A project phase (Preparation, Shooting, Editing). Optional.</dd>
 
-                    <dt>Задача</dt>
-                    <dd>Конкретное действие. Может иметь подзадачи, теги, дедлайн и вложения.</dd>
+                    <dt>Task</dt>
+                    <dd>A concrete action. May have subtasks, tags, deadline, and attachments.</dd>
 
-                    <dt>Статус</dt>
-                    <dd>Состояние задачи (Backlog, В работе, Готово). Настраивается для каждой доски.</dd>
+                    <dt>Status</dt>
+                    <dd>A task state (Backlog, In Progress, Done). Configured per board.</dd>
 
-                    <dt>Тег</dt>
-                    <dd>Метка для фильтрации задач внутри доски.</dd>
+                    <dt>Tag</dt>
+                    <dd>A label for filtering tasks inside a board.</dd>
                 </dl>
             </section>
 
             <section className="info-page__section">
-                <h2>Виды отображения</h2>
+                <h2>{sections.views}</h2>
                 <ul>
-                    <li><b>Kanban</b> — колонки по статусам</li>
-                    <li><b>Список</b> — плоский список задач (как документ)</li>
-                    <li><b>Компакт</b> — группы по статусам со сворачиванием</li>
+                    <li><b>Table</b> — columns by status</li>
+                    <li><b>List</b> — flat task list (like a document)</li>
+                    <li><b>Compact</b> — status groups with collapsing</li>
                 </ul>
-                <p>Вид переключается в шапке проекта кнопкой <b>▦ / ☰ / ⊞</b>.</p>
+                <p>The view is switched in the project header using <b>▦ / ☰ / ⊞</b>.</p>
             </section>
 
             <section className="info-page__section">
-                <h2>Горячие клавиши</h2>
+                <h2>{sections.hotkeys}</h2>
                 <ul>
-                    <li><kbd>Esc</kbd> — закрыть модальное окно</li>
-                    <li><kbd>Enter</kbd> — сохранить переименование</li>
+                    <li><kbd>Esc</kbd> — close modal</li>
+                    <li><kbd>Enter</kbd> — save rename</li>
                 </ul>
             </section>
 
             <section className="info-page__section">
-                <h2>Связь</h2>
+                <h2>{sections.contact}</h2>
                 <p>
-                    По вопросам — пишите на <a href="mailto:support@taskboard.local">support@taskboard.local</a>
+                    For questions — write to <a href="mailto:support@taskboard.local">support@taskboard.local</a>
                 </p>
             </section>
 
             <p className="info-page__back">
-                <Link to="/boards">← Вернуться к доскам</Link>
+                <Link to="/boards">{sections.back}</Link>
             </p>
         </div>
     )

@@ -1198,3 +1198,9 @@ html[data-theme="dark"] .task-detail__subtask-ac-status {
     padding: 8px 14px;
     font-size: 13px;
 }
+
+.confirm-modal__text {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.5;
+}

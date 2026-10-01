@@ -3,6 +3,7 @@ package coursework.taskboard.controller;
 import coursework.taskboard.dto.project.*;
 import coursework.taskboard.model.user.User;
 import coursework.taskboard.service.auth.CurrentUserService;
+import coursework.taskboard.service.project.ProjectFilterService;
 import coursework.taskboard.service.project.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,12 @@ import java.util.List;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final ProjectFilterService projectFilterService;
     private final CurrentUserService currentUserService;
+
+    // ============================================================
+    // Projects
+    // ============================================================
 
     @GetMapping("/boards/{boardId}/projects")
     public ResponseEntity<List<ProjectDto>> listByBoard(@PathVariable Long boardId) {
@@ -49,6 +55,32 @@ public class ProjectController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         User user = currentUserService.getCurrentUser();
         projectService.deleteProject(id, user);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ============================================================
+    // Pinned filters (per user + project)
+    // ============================================================
+
+    @GetMapping("/projects/{projectId}/filters")
+    public ResponseEntity<PinnedFilterDto> getFilters(@PathVariable Long projectId) {
+        User user = currentUserService.getCurrentUser();
+        return projectFilterService.get(projectId, user)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.noContent().build());
+    }
+
+    @PutMapping("/projects/{projectId}/filters")
+    public ResponseEntity<PinnedFilterDto> saveFilters(@PathVariable Long projectId,
+                                                       @RequestBody PinnedFilterDto dto) {
+        User user = currentUserService.getCurrentUser();
+        return ResponseEntity.ok(projectFilterService.save(projectId, dto, user));
+    }
+
+    @DeleteMapping("/projects/{projectId}/filters")
+    public ResponseEntity<Void> clearFilters(@PathVariable Long projectId) {
+        User user = currentUserService.getCurrentUser();
+        projectFilterService.clear(projectId, user);
         return ResponseEntity.noContent().build();
     }
 }

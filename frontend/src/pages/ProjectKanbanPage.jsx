@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { projectsApi, tasksApi } from '../api/api'
+import { projectsApi, tasksApi, projectFiltersApi } from '../api/api'
 import ViewSwitcher from '../components/Task/ViewSwitcher'
 import SortSwitcher from '../components/Task/SortSwitcher'
 import FiltersBar from '../components/Task/FiltersBar'
@@ -8,37 +8,54 @@ import KanbanView from '../components/Task/KanbanView'
 import ListView from '../components/Task/ListView'
 import CompactView from '../components/Task/CompactView'
 import CreateTaskModal from '../components/Task/CreateTaskModal'
+import CreateStatusModal from '../components/Task/CreateStatusModal'
 import TaskDetailModal from '../components/Task/TaskDetailModal'
 import AttachmentsModal from '../components/Task/AttachmentsModal'
 import InlineEdit from '../components/common/InlineEdit'
+import useHotkeys from '../hooks/useHotkeys'
 
 export default function ProjectKanbanPage() {
     const { boardId, projectId } = useParams()
     const [searchParams] = useSearchParams()
     const nav = useNavigate()
+
     const [project, setProject] = useState(null)
     const [kanban, setKanban] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
 
-    const [viewMode, setViewMode] = useState('auto')
+    const [viewMode, setViewMode] = useState('kanban')
     const [sortMode, setSortMode] = useState('manual')
     const [sortDir, setSortDir] = useState('asc')
     const [activeStatuses, setActiveStatuses] = useState([])
     const [reorderMode, setReorderMode] = useState(false)
 
     const [showCreateTask, setShowCreateTask] = useState(false)
+    const [showCreateStatus, setShowCreateStatus] = useState(false)
     const [presetStatusId, setPresetStatusId] = useState(null)
     const [openTaskId, setOpenTaskId] = useState(null)
 
     const [attachmentsToView, setAttachmentsToView] = useState(null)
     const [attachmentsTaskId, setAttachmentsTaskId] = useState(null)
 
+    const [hoveredTaskId, setHoveredTaskId] = useState(null)
+
+    useEffect(() => {
+        if (!projectId) return
+        projectFiltersApi.get(projectId)
+            .then(({ data }) => {
+                if (data?.statusIds?.length > 0) setActiveStatuses(data.statusIds)
+                else setActiveStatuses([])
+                if (data?.sortMode) setSortMode(data.sortMode)
+                if (data?.sortDir) setSortDir(data.sortDir)
+                if (data?.viewMode) setViewMode(data.viewMode)
+            })
+            .catch(() => setActiveStatuses([]))
+    }, [projectId])
+
     useEffect(() => {
         const taskFromUrl = searchParams.get('task')
-        if (taskFromUrl) {
-            setOpenTaskId(Number(taskFromUrl))
-        }
+        if (taskFromUrl) setOpenTaskId(Number(taskFromUrl))
     }, [searchParams])
 
     useEffect(() => {
@@ -80,10 +97,39 @@ export default function ProjectKanbanPage() {
         refreshTree()
     }
 
+    const handleStatusCreated = () => {
+        setShowCreateStatus(false)
+        reloadKanban()
+    }
+
     const handleToggleDone = async (taskId, isDone) => {
         const doneCol = kanban.columns.find(c => c.categoryCode === 'DONE')
         const activeCol = kanban.columns.find(c => c.categoryCode === 'ACTIVE')
         const targetStatusId = isDone ? activeCol?.statusId : doneCol?.statusId
+        if (!targetStatusId) return
+        try {
+            await tasksApi.update(taskId, { statusId: targetStatusId })
+            reloadKanban()
+            refreshTree()
+        } catch (err) {
+            console.error('Toggle done failed:', err)
+        }
+    }
+
+    const handleToggleCancel = async (taskId) => {
+        if (!kanban) return
+        const task = kanban.columns
+            .flatMap(c => c.tasks)
+            .find(t => t.id === taskId)
+        if (!task) return
+
+        const isCancelled = task.statusCategoryCode === 'CANCELLED'
+        const cancelledId = kanban.columns
+            .find(c => c.categoryCode === 'CANCELLED')?.statusId
+        const activeId = kanban.columns
+            .find(c => c.categoryCode === 'ACTIVE')?.statusId
+
+        const targetStatusId = isCancelled ? activeId : cancelledId
         if (!targetStatusId) return
 
         try {
@@ -91,7 +137,30 @@ export default function ProjectKanbanPage() {
             reloadKanban()
             refreshTree()
         } catch (err) {
-            console.error('Toggle done failed:', err)
+            console.error('Toggle cancel failed:', err)
+        }
+    }
+
+    const handleDuplicateTask = async (taskId) => {
+        try {
+            const { data: t } = await tasksApi.get(taskId)
+            const { data: created } = await tasksApi.create(t.projectId, {
+                title: `${t.title} (копия)`,
+                description: t.description || undefined,
+                statusId: t.statusId || undefined,
+                priority: t.priority || undefined,
+                deadline: t.deadline || undefined,
+                tagIds: (t.tags || []).map(tag => tag.id),
+            })
+            if (t.attachments?.length) {
+                for (const a of t.attachments) {
+                    try { await tasksApi.attach(created.id, a.id) } catch {}
+                }
+            }
+            reloadKanban()
+            refreshTree()
+        } catch (err) {
+            alert(err.response?.data?.message || 'Не удалось дублировать')
         }
     }
 
@@ -117,28 +186,83 @@ export default function ProjectKanbanPage() {
         setProject(data)
     }
 
+    const handleTogglePin = async () => {
+        try {
+            const { data } = await projectsApi.update(project.id, {
+                isPinned: !project.isPinned,
+            })
+            setProject(data)
+            window.dispatchEvent(new Event('sidebar:refresh'))
+        } catch (err) {
+            alert(err.response?.data?.message || 'Ошибка')
+        }
+    }
+
+    useHotkeys([
+        {
+            combo: 'escape',
+            when: () => reorderMode,
+            handler: () => setReorderMode(false),
+            allowInInput: true,
+        },
+
+        { combo: 'n', handler: () => handleAddTask() },
+
+        {
+            combo: 'e',
+            handler: () => {
+                if (hoveredTaskId) setOpenTaskId(hoveredTaskId)
+            },
+        },
+        {
+            combo: 'space',
+            handler: () => {
+                if (!hoveredTaskId || !kanban) return
+                const t = kanban.columns
+                    .flatMap(c => c.tasks)
+                    .find(x => x.id === hoveredTaskId)
+                if (!t) return
+                const isDone = t.statusCategoryCode === 'DONE'
+                    || t.statusCode === 'DONE'
+                    || t.statusCategoryCode === 'CANCELLED'
+                handleToggleDone(hoveredTaskId, isDone)
+            },
+        },
+        {
+            combo: 'delete',
+            handler: () => {
+                if (hoveredTaskId) handleToggleCancel(hoveredTaskId)
+            },
+        },
+        {
+            combo: 'c',
+            handler: () => {
+                if (hoveredTaskId) handleDuplicateTask(hoveredTaskId)
+            },
+        },
+
+        { combo: '1', handler: () => setViewMode('kanban') },
+        { combo: '2', handler: () => setViewMode('list') },
+        { combo: '3', handler: () => setViewMode('compact') },
+
+        { combo: 'p', handler: () => setReorderMode(v => !v) },
+    ])
+
     if (loading) return <div className="loading">Загрузка...</div>
     if (error) return <div className="error">{error}</div>
     if (!project || !kanban) return <div>Проект не найден</div>
 
-    const totalTasks = kanban.columns.reduce((s, c) => s + c.count, 0)
-    const autoMode = totalTasks > 100 ? 'list' : 'kanban'
-    const effectiveMode = viewMode === 'auto' ? autoMode : viewMode
-
+    const effectiveMode = viewMode
     const doneCol = kanban.columns.find(c => c.categoryCode === 'DONE')
     const doneStatusId = doneCol?.statusId || null
 
     const activeCol = kanban.columns.find(c => c.categoryCode === 'ACTIVE')
     const activeStatusId = activeCol?.statusId || null
 
-    const accentStyle = {
-        '--accent': `var(--accent-${project.accentCode || 'blue'})`,
-    }
-
     const showReorderButton = effectiveMode === 'kanban' || effectiveMode === 'compact'
 
     return (
-        <div className="board-detail" style={accentStyle}>
+        <div className="board-detail">
             <div className="board-detail__head">
                 <button
                     className="btn btn-ghost board-detail__back"
@@ -149,13 +273,23 @@ export default function ProjectKanbanPage() {
                 </button>
 
                 <div className="board-detail__title-wrap">
-                    <InlineEdit
-                        value={project.title}
-                        className="board-detail__title board-detail__title-text"
-                        inputClassName="input board-detail__title-input"
-                        onSave={saveProjectTitle}
-                        title="Двойной клик — редактировать название проекта"
-                    />
+                    <div className="board-detail__title-row">
+                        <InlineEdit
+                            value={project.title}
+                            className="board-detail__title board-detail__title-text"
+                            inputClassName="input board-detail__title-input"
+                            onSave={saveProjectTitle}
+                            title="Двойной клик — редактировать название проекта"
+                        />
+                        <button
+                            type="button"
+                            className={`board-detail__pin-btn ${project.isPinned ? 'board-detail__pin-btn--active' : ''}`}
+                            onClick={handleTogglePin}
+                            title={project.isPinned ? 'Открепить проект' : 'Закрепить проект'}
+                        >
+                            📌
+                        </button>
+                    </div>
                     <InlineEdit
                         value={project.description || ''}
                         multiline
@@ -185,15 +319,16 @@ export default function ProjectKanbanPage() {
                             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
                         )}
                         onClear={() => setActiveStatuses([])}
+                        projectId={Number(projectId)}
                     />
 
                     {showReorderButton && (
                         <button
                             className={`reorder-btn ${reorderMode ? 'reorder-btn--active' : ''}`}
                             onClick={() => setReorderMode(v => !v)}
-                            title={reorderMode ? 'Выключить режим перестановки' : 'Включить режим перестановки'}
+                            title={reorderMode ? 'Выйти из режима перестановки' : 'Включить режим перестановки'}
                         >
-                            🔀 {reorderMode ? 'Готово' : 'Переставить'}
+                            <span className="reorder-btn__icon">{reorderMode ? '✓' : '↔'}</span>
                         </button>
                     )}
                 </div>
@@ -212,11 +347,13 @@ export default function ProjectKanbanPage() {
                         onColumnsMoved={reloadKanban}
                         activeStatuses={activeStatuses}
                         onAddTask={handleAddTask}
+                        onAddStatus={() => setShowCreateStatus(true)}
                         onOpenTask={setOpenTaskId}
                         onToggleDone={handleToggleDone}
                         onOpenAttachments={handleOpenAttachments}
                         sortMode={sortMode}
                         sortDir={sortDir}
+                        onHover={setHoveredTaskId}
                     />
                 )}
                 {effectiveMode === 'list' && (
@@ -232,6 +369,7 @@ export default function ProjectKanbanPage() {
                         onOpenAttachments={handleOpenAttachments}
                         sortMode={sortMode}
                         sortDir={sortDir}
+                        onHover={setHoveredTaskId}
                     />
                 )}
                 {effectiveMode === 'compact' && (
@@ -242,7 +380,9 @@ export default function ProjectKanbanPage() {
                         reorderMode={reorderMode}
                         doneStatusId={doneStatusId}
                         activeStatusId={activeStatusId}
+                        activeStatuses={activeStatuses}
                         onAddTask={handleAddTask}
+                        onAddStatus={() => setShowCreateStatus(true)}
                         onOpenTask={setOpenTaskId}
                         onToggleDone={handleToggleDone}
                         onTaskMoved={reloadKanban}
@@ -250,6 +390,7 @@ export default function ProjectKanbanPage() {
                         onOpenAttachments={handleOpenAttachments}
                         sortMode={sortMode}
                         sortDir={sortDir}
+                        onHover={setHoveredTaskId}
                     />
                 )}
             </div>
@@ -262,6 +403,13 @@ export default function ProjectKanbanPage() {
                 boardId={Number(boardId)}
                 presetStatusId={presetStatusId}
                 columns={kanban.columns}
+            />
+
+            <CreateStatusModal
+                open={showCreateStatus}
+                onClose={() => setShowCreateStatus(false)}
+                boardId={Number(boardId)}
+                onCreated={handleStatusCreated}
             />
 
             <TaskDetailModal
