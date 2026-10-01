@@ -1,0 +1,844 @@
+databaseChangeLog:
+
+  # ============================================================
+  # Справочники
+  # ============================================================
+
+  - changeSet:
+      id: 001-01-accents
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: accents }
+      changes:
+        - createTable:
+            tableName: accents
+            columns:
+              - column: { name: code,  type: VARCHAR(30), constraints: { primaryKey: true, nullable: false } }
+              - column: { name: label, type: VARCHAR(60), constraints: { nullable: false } }
+
+  - changeSet:
+      id: 001-02-mime-types
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: mime_types }
+      changes:
+        - createTable:
+            tableName: mime_types
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: code
+                  type: VARCHAR(100)
+                  constraints: { nullable: false, unique: true }
+
+  - changeSet:
+      id: 001-03-status-categories
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: status_categories }
+      changes:
+        - createTable:
+            tableName: status_categories
+            columns:
+              - column: { name: code,       type: VARCHAR(30), constraints: { primaryKey: true, nullable: false } }
+              - column: { name: label,      type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT,         constraints: { nullable: false } }
+              - column: { name: is_final,   type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: false }
+
+  # ============================================================
+  # Пользователь
+  # ============================================================
+
+  - changeSet:
+      id: 001-04-users
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: users }
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: username,      type: VARCHAR(32),  constraints: { nullable: false, unique: true } }
+              - column: { name: email,         type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: password_hash, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: created_at,    type: TIMESTAMP,    constraints: { nullable: false } }
+
+  - changeSet:
+      id: 001-05-user-settings
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_settings }
+      changes:
+        - createTable:
+            tableName: user_settings
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_settings_user
+              - column: { name: last_active_at,       type: TIMESTAMP,   constraints: { nullable: true } }
+              - column: { name: default_landing_page, type: VARCHAR(20), constraints: { nullable: false }, defaultValue: boards }
+
+  - changeSet:
+      id: 001-06-attachments
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: attachments }
+      changes:
+        - createTable:
+            tableName: attachments
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: owner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_attachments_user
+              - column:
+                  name: mime_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: mime_types(id)
+                    foreignKeyName: fk_attachments_mime
+              - column: { name: hash,       type: VARCHAR(64), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP,   constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: attachments
+            columnNames: owner_id, hash
+            constraintName: uq_attachments_owner_hash
+
+  - changeSet:
+      id: 001-07-attachment-meta
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: attachment_meta }
+      changes:
+        - createTable:
+            tableName: attachment_meta
+            columns:
+              - column:
+                  name: attachment_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: attachments(id)
+                    foreignKeyName: fk_attachment_meta_attachment
+              - column: { name: url,           type: TEXT,         constraints: { nullable: false } }
+              - column: { name: original_name, type: VARCHAR(255), constraints: { nullable: true } }
+              - column: { name: alt,           type: VARCHAR(255), constraints: { nullable: true } }
+              - column: { name: width,         type: INT,          constraints: { nullable: true } }
+              - column: { name: height,        type: INT,          constraints: { nullable: true } }
+              - column: { name: size_bytes,    type: INT,          constraints: { nullable: false } }
+
+  - changeSet:
+      id: 001-08-user-profiles
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_profiles }
+      changes:
+        - createTable:
+            tableName: user_profiles
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_profiles_user
+              - column: { name: display_name, type: VARCHAR(100), constraints: { nullable: false } }
+              - column: { name: bio,          type: VARCHAR(500), constraints: { nullable: true } }
+              - column:
+                  name: avatar_attachment_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: attachments(id)
+                    foreignKeyName: fk_user_profiles_avatar
+
+  - changeSet:
+      id: 001-09-user-appearance
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_appearance }
+      changes:
+        - createTable:
+            tableName: user_appearance
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_appearance_user
+              - column: { name: theme,             type: VARCHAR(20), constraints: { nullable: false }, defaultValue: light }
+              - column: { name: accent_code,       type: VARCHAR(30), constraints: { nullable: true },  defaultValue: blue }
+              - column: { name: density,           type: VARCHAR(20), constraints: { nullable: false }, defaultValue: cozy }
+              - column: { name: sidebar_collapsed, type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: false }
+
+  - changeSet:
+      id: 001-10-user-locale
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_locale }
+      changes:
+        - createTable:
+            tableName: user_locale
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_locale_user
+              - column: { name: language, type: VARCHAR(5),  constraints: { nullable: false }, defaultValue: ru }
+              - column: { name: timezone, type: VARCHAR(50), constraints: { nullable: false }, defaultValue: 'Europe/Moscow' }
+
+  - changeSet:
+      id: 001-11-user-workspace
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_workspace }
+      changes:
+        - createTable:
+            tableName: user_workspace
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_workspace_user
+              - column: { name: default_board_id,      type: BIGINT,   constraints: { nullable: true } }
+              - column: { name: tasks_per_page,        type: SMALLINT, constraints: { nullable: false }, defaultValueNumeric: 50 }
+              - column: { name: confirm_before_delete, type: BOOLEAN,  constraints: { nullable: false }, defaultValueBoolean: true }
+
+  - changeSet:
+      id: 001-12-user-display
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_display }
+      changes:
+        - createTable:
+            tableName: user_display
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_display_user
+              - column: { name: task_sort_mode,    type: VARCHAR(30), constraints: { nullable: false }, defaultValue: manual }
+              - column: { name: task_sort_dir,     type: VARCHAR(5),  constraints: { nullable: false }, defaultValue: asc }
+              - column: { name: project_view_mode, type: VARCHAR(20), constraints: { nullable: false }, defaultValue: auto }
+
+  - changeSet:
+      id: 001-13-user-notification
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_notification }
+      changes:
+        - createTable:
+            tableName: user_notification
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_notification_user
+              - column: { name: notify_email,       type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: true }
+              - column: { name: notify_deadline,    type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: true }
+              - column: { name: notify_digest,      type: VARCHAR(20), constraints: { nullable: false }, defaultValue: daily }
+              - column: { name: remind_before_days, type: SMALLINT,    constraints: { nullable: false }, defaultValueNumeric: 1 }
+
+  # ============================================================
+  # Доски
+  # ============================================================
+
+  - changeSet:
+      id: 001-14-boards
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: boards }
+      changes:
+        - createTable:
+            tableName: boards
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: owner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_boards_owner
+              - column: { name: title,       type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT,        constraints: { nullable: false }, defaultValue: '' }
+              - column: { name: position,    type: INT,         constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: created_at,  type: TIMESTAMP,   constraints: { nullable: false } }
+              - column: { name: updated_at,  type: TIMESTAMP,   constraints: { nullable: false } }
+
+  - changeSet:
+      id: 001-14b-user-workspace-fk
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - foreignKeyConstraintExists:
+                foreignKeyName: fk_user_workspace_default_board
+      changes:
+        - addForeignKeyConstraint:
+            baseTableName: user_workspace
+            baseColumnNames: default_board_id
+            referencedTableName: boards
+            referencedColumnNames: id
+            constraintName: fk_user_workspace_default_board
+
+  - changeSet:
+      id: 001-15-board-appearance
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: board_appearance }
+      changes:
+        - createTable:
+            tableName: board_appearance
+            columns:
+              - column:
+                  name: board_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: boards(id)
+                    foreignKeyName: fk_board_appearance_board
+              - column: { name: accent_code, type: VARCHAR(30), constraints: { nullable: false }, defaultValue: blue }
+              - column:
+                  name: cover_attachment_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: attachments(id)
+                    foreignKeyName: fk_board_appearance_cover
+
+  - changeSet:
+      id: 001-16-board-settings
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: board_settings }
+      changes:
+        - createTable:
+            tableName: board_settings
+            columns:
+              - column:
+                  name: board_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: boards(id)
+                    foreignKeyName: fk_board_settings_board
+              - column: { name: is_pinned, type: BOOLEAN, constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: is_public, type: BOOLEAN, constraints: { nullable: false }, defaultValueBoolean: false }
+
+  - changeSet:
+      id: 001-17-board-members
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: board_members }
+      changes:
+        - createTable:
+            tableName: board_members
+            columns:
+              - column:
+                  name: board_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: boards(id)
+                    foreignKeyName: fk_board_members_board
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_board_members_user
+              - column: { name: role,     type: VARCHAR(20), constraints: { nullable: false }, defaultValue: member }
+              - column: { name: added_at, type: TIMESTAMP,   constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: board_members
+            columnNames: board_id, user_id
+            constraintName: pk_board_members
+
+  - changeSet:
+      id: 001-18-board-statuses
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: board_statuses }
+      changes:
+        - createTable:
+            tableName: board_statuses
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: board_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: boards(id)
+                    foreignKeyName: fk_board_statuses_board
+              - column: { name: scope,         type: VARCHAR(20), constraints: { nullable: false } }
+              - column: { name: category_code, type: VARCHAR(30), constraints: { nullable: false } }
+              - column: { name: code,          type: VARCHAR(60), constraints: { nullable: false } }
+              - column: { name: title,         type: VARCHAR(60), constraints: { nullable: false } }
+              - column: { name: position,      type: INT,         constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: is_default,    type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: is_system,     type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: created_at,    type: TIMESTAMP,   constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: board_statuses
+            columnNames: board_id, scope, code
+            constraintName: uq_board_statuses_scope_code
+
+  - changeSet:
+      id: 001-19-board-status-appearance
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: board_status_appearance }
+      changes:
+        - createTable:
+            tableName: board_status_appearance
+            columns:
+              - column:
+                  name: status_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: board_statuses(id)
+                    foreignKeyName: fk_bs_appearance_status
+              - column: { name: accent_code,  type: VARCHAR(30), constraints: { nullable: true } }
+              - column: { name: is_bold,      type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: is_italic,    type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: icon,         type: VARCHAR(50), constraints: { nullable: true } }
+              - column: { name: display_mode, type: VARCHAR(20), constraints: { nullable: false }, defaultValue: default }
+
+  - changeSet:
+      id: 001-20-board-status-settings
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: board_status_settings }
+      changes:
+        - createTable:
+            tableName: board_status_settings
+            columns:
+              - column:
+                  name: status_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: board_statuses(id)
+                    foreignKeyName: fk_bs_settings_status
+              - column: { name: is_pinned,            type: BOOLEAN, constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: is_hidden,            type: BOOLEAN, constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: allow_drag_in,        type: BOOLEAN, constraints: { nullable: false }, defaultValueBoolean: true }
+              - column: { name: auto_transition_days, type: INT,     constraints: { nullable: true } }
+
+  # ============================================================
+  # Теги
+  # ============================================================
+
+  - changeSet:
+      id: 001-21-tags
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: tags }
+      changes:
+        - createTable:
+            tableName: tags
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: board_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: boards(id)
+                    foreignKeyName: fk_tags_board
+              - column: { name: code,       type: VARCHAR(60), constraints: { nullable: false } }
+              - column: { name: title,      type: VARCHAR(60), constraints: { nullable: false } }
+              - column: { name: position,   type: INT,         constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: is_system,  type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: created_at, type: TIMESTAMP,   constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: tags
+            columnNames: board_id, code
+            constraintName: uq_tags_board_code
+
+  - changeSet:
+      id: 001-22-tag-appearance
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: tag_appearance }
+      changes:
+        - createTable:
+            tableName: tag_appearance
+            columns:
+              - column:
+                  name: tag_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: tags(id)
+                    foreignKeyName: fk_tag_appearance_tag
+              - column: { name: accent_code, type: VARCHAR(30), constraints: { nullable: true } }
+              - column: { name: icon,        type: VARCHAR(50), constraints: { nullable: true } }
+              - column: { name: is_bold,     type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: false }
+
+  # ============================================================
+  # Проекты / этапы / задачи
+  # ============================================================
+
+  - changeSet:
+      id: 001-23-projects
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: projects }
+      changes:
+        - createTable:
+            tableName: projects
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: board_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: boards(id)
+                    foreignKeyName: fk_projects_board
+              - column: { name: is_main,     type: BOOLEAN,      constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: title,       type: VARCHAR(200), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT,         constraints: { nullable: false }, defaultValue: '' }
+              - column: { name: position,    type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: created_at,  type: TIMESTAMP,    constraints: { nullable: false } }
+              - column: { name: updated_at,  type: TIMESTAMP,    constraints: { nullable: false } }
+
+  - changeSet:
+      id: 001-24-project-settings
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: project_settings }
+      changes:
+        - createTable:
+            tableName: project_settings
+            columns:
+              - column:
+                  name: project_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: projects(id)
+                    foreignKeyName: fk_project_settings_project
+              - column:
+                  name: status_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: board_statuses(id)
+                    foreignKeyName: fk_project_settings_status
+              - column: { name: is_pinned,   type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: is_template, type: BOOLEAN,     constraints: { nullable: false }, defaultValueBoolean: false }
+              - column: { name: accent_code, type: VARCHAR(30), constraints: { nullable: true } }
+              - column:
+                  name: cover_attachment_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: attachments(id)
+                    foreignKeyName: fk_project_settings_cover
+
+  - changeSet:
+      id: 001-25-stages
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: stages }
+      changes:
+        - createTable:
+            tableName: stages
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: project_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: projects(id)
+                    foreignKeyName: fk_stages_project
+              - column: { name: state,       type: VARCHAR(20),  constraints: { nullable: false }, defaultValue: PENDING }
+              - column: { name: title,       type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT,         constraints: { nullable: false }, defaultValue: '' }
+              - column: { name: position,    type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: created_at,  type: TIMESTAMP,    constraints: { nullable: false } }
+              - column: { name: updated_at,  type: TIMESTAMP,    constraints: { nullable: false } }
+
+  - changeSet:
+      id: 001-26-tasks
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: tasks }
+      changes:
+        - createTable:
+            tableName: tasks
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: project_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: projects(id)
+                    foreignKeyName: fk_tasks_project
+              - column:
+                  name: stage_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: stages(id)
+                    foreignKeyName: fk_tasks_stage
+              - column:
+                  name: parent_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: tasks(id)
+                    foreignKeyName: fk_tasks_parent
+              - column: { name: title,       type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT,         constraints: { nullable: false }, defaultValue: '' }
+              - column: { name: position,    type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: created_at,  type: TIMESTAMP,    constraints: { nullable: false } }
+              - column: { name: updated_at,  type: TIMESTAMP,    constraints: { nullable: false } }
+
+  - changeSet:
+      id: 001-27-task-settings
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: task_settings }
+      changes:
+        - createTable:
+            tableName: task_settings
+            columns:
+              - column:
+                  name: task_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: tasks(id)
+                    foreignKeyName: fk_task_settings_task
+              - column:
+                  name: status_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: board_statuses(id)
+                    foreignKeyName: fk_task_settings_status
+              - column: { name: priority,  type: SMALLINT, constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: is_pinned, type: BOOLEAN,  constraints: { nullable: false }, defaultValueBoolean: false }
+
+  - changeSet:
+      id: 001-28-task-schedule
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: task_schedule }
+      changes:
+        - createTable:
+            tableName: task_schedule
+            columns:
+              - column:
+                  name: task_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: tasks(id)
+                    foreignKeyName: fk_task_schedule_task
+              - column: { name: deadline,     type: TIMESTAMP, constraints: { nullable: true } }
+              - column: { name: expired_at,   type: TIMESTAMP, constraints: { nullable: true } }
+              - column: { name: completed_at, type: TIMESTAMP, constraints: { nullable: true } }
+
+  - changeSet:
+      id: 001-29-task-tags
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: task_tags }
+      changes:
+        - createTable:
+            tableName: task_tags
+            columns:
+              - column:
+                  name: task_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: tasks(id)
+                    foreignKeyName: fk_task_tags_task
+              - column:
+                  name: tag_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: tags(id)
+                    foreignKeyName: fk_task_tags_tag
+        - addPrimaryKey:
+            tableName: task_tags
+            columnNames: task_id, tag_id
+            constraintName: pk_task_tags
+
+  - changeSet:
+      id: 001-30-task-attachments
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: task_attachments }
+      changes:
+        - createTable:
+            tableName: task_attachments
+            columns:
+              - column:
+                  name: task_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: tasks(id)
+                    foreignKeyName: fk_task_attachments_task
+              - column:
+                  name: attachment_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: attachments(id)
+                    foreignKeyName: fk_task_attachments_attachment
+              - column: { name: position, type: INT, constraints: { nullable: false }, defaultValueNumeric: 0 }
+        - addPrimaryKey:
+            tableName: task_attachments
+            columnNames: task_id, attachment_id
+            constraintName: pk_task_attachments

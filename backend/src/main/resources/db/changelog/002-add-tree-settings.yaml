@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-add-tree-settings
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: user_appearance
+                columnName: tree_enabled
+      changes:
+        - addColumn:
+            tableName: user_appearance
+            columns:
+              - column:
+                  name: tree_enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tree_kind
+                  type: VARCHAR(20)
+                  defaultValue: sakura
+                  constraints:
+                    nullable: false
