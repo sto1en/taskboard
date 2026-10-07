@@ -1,5 +1,8 @@
 package coursework.taskboard.model.user;
 
+import coursework.taskboard.model.shop.Avatar;
+import coursework.taskboard.model.shop.Frame;
+import coursework.taskboard.model.shop.TreeSkin;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,6 +29,7 @@ public class UserAppearance {
     private String theme = "light";
 
     @Column(name = "accent_code", length = 30)
+    @Builder.Default
     private String accentCode = "blue";
 
     @Column(nullable = false, length = 20)
@@ -43,4 +47,20 @@ public class UserAppearance {
     @Column(name = "tree_kind", nullable = false, length = 20)
     @Builder.Default
     private String treeKind = "sakura";
+
+    // ============================================================
+    // Магазин: активные рамка и скин дерева
+    // ============================================================
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "active_frame_id")
+    private Frame activeFrame;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "active_tree_skin_id")
+    private TreeSkin activeTreeSkin;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "active_avatar_id")
+    private Avatar activeAvatar;
 }

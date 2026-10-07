@@ -6,6 +6,8 @@ import {
     useSensor,
     useSensors,
     closestCorners,
+    pointerWithin,
+    rectIntersection,
     defaultDropAnimationSideEffects,
 } from '@dnd-kit/core'
 import {
@@ -18,6 +20,57 @@ import TaskCard from './TaskCard'
 import { tasksApi, statusesApi } from '../../api/api'
 import { sortTasks } from '../../utils/sortTasks'
 import useT from '../../hooks/useT'
+
+// ============================================================
+// Кастомный collision detection для канбана.
+// - Когда тянем КОЛОНКУ: возвращаем только колонки,
+//   а смена места происходит при пересечении середины соседней.
+// - Когда тянем задачу: обычное поведение (ближайшие углы).
+// ============================================================
+function kanbanCollision(args) {
+    const activeType = args.active?.data?.current?.type
+
+    if (activeType === 'column') {
+        // Берём колонки, чей прямоугольник пересекается с активной
+        const collisions = rectIntersection({
+            ...args,
+            droppableContainers: args.droppableContainers.filter(c => {
+                const type = c.data?.current?.type
+                return type === 'column'
+            }),
+        })
+
+        // Дополнительно — если ничего не пересеклось, вернём ближайшую колонку
+        if (collisions.length === 0) {
+            return closestCorners({
+                ...args,
+                droppableContainers: args.droppableContainers.filter(c => {
+                    const type = c.data?.current?.type
+                    return type === 'column'
+                }),
+            })
+        }
+        return collisions
+    }
+
+    // Для задач — стандартное поведение
+    return closestCorners(args)
+}
+
+// ============================================================
+// Проверка «пересёк ли центр активной колонки середину over-колонки»
+// ============================================================
+function computeColumnReorder(active, over) {
+    if (!active.rect.current?.translated || !over.rect) return null
+    const activeRect = active.rect.current.translated
+    const activeCenterX = activeRect.left + activeRect.width / 2
+    const overCenterX = over.rect.left + over.rect.width / 2
+
+    // Если центр активной колонки правее центра over — тащим вправо
+    // Если левее — влево
+    if (activeCenterX < overCenterX) return 'left'
+    return 'right'
+}
 
 export default function KanbanView({
                                        columns,
@@ -37,6 +90,8 @@ export default function KanbanView({
                                        sortMode,
                                        sortDir,
                                        onHover,
+                                       onEditStatus,
+                                       onRecolorStatus,
                                    }) {
     const [activeTask, setActiveTask] = useState(null)
     const [activeSubtask, setActiveSubtask] = useState(null)
@@ -114,6 +169,15 @@ export default function KanbanView({
             return
         }
 
+        const activeType = active.data.current?.type
+
+        // При перетаскивании колонки — не подсвечиваем задачи
+        if (activeType === 'column') {
+            setHoverTaskId(null)
+            setHoverMode(null)
+            return
+        }
+
         const overData = over.data.current
 
         if (overData?.type === 'task' && overData.task?.id) {
@@ -149,6 +213,9 @@ export default function KanbanView({
         const overData = over.data?.current
         if (overData?.statusId) return overData.statusId
         const idStr = String(over.id)
+        if (idStr.startsWith('col-')) {
+            return Number(idStr.replace('col-', ''))
+        }
         if (idStr.startsWith('column-')) {
             return Number(idStr.replace('column-', ''))
         }
@@ -172,12 +239,25 @@ export default function KanbanView({
             if (!reorderMode) return
             const activeId = String(active.id).replace('col-', '')
             const overIdRaw = String(over.id)
-            const overId = overIdRaw.startsWith('col-') ? overIdRaw.replace('col-', '') : overIdRaw
+            let overId
+            if (overIdRaw.startsWith('col-')) {
+                overId = overIdRaw.replace('col-', '')
+            } else if (overData?.statusId) {
+                overId = String(overData.statusId)
+            } else {
+                overId = overIdRaw
+            }
             if (activeId === overId) return
 
             const oldIndex = sorted.findIndex(c => String(c.statusId) === activeId)
             const newIndex = sorted.findIndex(c => String(c.statusId) === overId)
             if (oldIndex === -1 || newIndex === -1) return
+
+            // Проверяем: пересекли ли мы середину over-колонки
+            const direction = computeColumnReorder(active, over)
+            // Если over левее активной и мы ещё не пересекли его центр — не двигаем
+            // (это уже отфильтровано collision detection, оставим как подстраховку)
+            if (direction === null) return
 
             const reordered = arrayMove(sorted, oldIndex, newIndex)
             setLocalColumns(reordered)
@@ -354,7 +434,7 @@ export default function KanbanView({
     return (
         <DndContext
             sensors={sensors}
-            collisionDetection={closestCorners}
+            collisionDetection={kanbanCollision}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
@@ -377,6 +457,8 @@ export default function KanbanView({
                             onTaskMoved={onTaskMoved}
                             onOpenAttachments={onOpenAttachments}
                             onHover={onHover}
+                            onEditStatus={onEditStatus}
+                            onRecolorStatus={onRecolorStatus}
                         />
                     ))}
 

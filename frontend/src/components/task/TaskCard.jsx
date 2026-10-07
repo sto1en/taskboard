@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { tasksApi } from '../../api/api'
 import Subtask from './Subtask'
 import InlineEdit from '../common/InlineEdit'
 import DetailTextEditor from './DetailTextEditor'
 import { formatDeadline } from '../../utils/format'
-import { isDone as checkIsDone } from '../../utils/sortTasks'
+import { isDone as checkIsDone, isCancelled as checkIsCancelled, isExpired as checkIsExpired } from '../../utils/sortTasks'
 import useT from '../../hooks/useT'
 
 export default function TaskCard({
@@ -15,11 +15,14 @@ export default function TaskCard({
                                  }) {
     const t = useT()
     const nav = useNavigate()
+    const location = useLocation()
     const [expanded, setExpanded] = useState(false)
     const [fullTask, setFullTask] = useState(null)
     const [loadingFull, setLoadingFull] = useState(false)
 
     const isDone = checkIsDone(task)
+    const isCancelled = checkIsCancelled(task)
+    const isExpired = checkIsExpired(task)
 
     const handleCheck = (e) => {
         e.stopPropagation()
@@ -87,6 +90,17 @@ export default function TaskCard({
         nav(`/search?tagIds=${tag.id}`)
     }
 
+    const handleDeadlineClick = (e) => {
+        e.stopPropagation()
+        const d = new Date(task.deadline)
+        if (isNaN(d.getTime())) return
+        const yyyy = d.getFullYear()
+        const mm = String(d.getMonth() + 1).padStart(2, '0')
+        const dd = String(d.getDate()).padStart(2, '0')
+        const backPath = location.pathname + location.search
+        nav(`/calendar?date=${yyyy}-${mm}-${dd}&from=${encodeURIComponent(backPath)}`)
+    }
+
     const saveTitle = async (newTitle) => {
         await tasksApi.update(task.id, { title: newTitle })
         onTaskMoved && onTaskMoved()
@@ -111,7 +125,12 @@ export default function TaskCard({
         >
             <div className="task-card__head">
                 <button
-                    className={`task-card__check ${isDone ? 'task-card__check--done' : ''}`}
+                    className={[
+                        'task-card__check',
+                        isDone ? 'task-card__check--done' : '',
+                        isCancelled ? 'task-card__check--cancelled' : '',
+                        isExpired ? 'task-card__check--expired' : '',
+                    ].filter(Boolean).join(' ')}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={handleCheck}
                 />
@@ -147,9 +166,15 @@ export default function TaskCard({
 
             {task.deadline && (
                 <div className="task-card__deadline-row">
-                    <span className="task-card__deadline-inline">
+                    <button
+                        type="button"
+                        className="task-card__deadline-inline task-card__deadline-inline--clickable"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={handleDeadlineClick}
+                        title="Открыть в календаре"
+                    >
                         📅 {formatDeadline(task.deadline)}
-                    </span>
+                    </button>
                 </div>
             )}
 

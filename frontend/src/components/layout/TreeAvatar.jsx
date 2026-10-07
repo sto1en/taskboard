@@ -6,8 +6,8 @@ import * as Apple from './trees/AppleTree.jsx'
 import useT from '../../hooks/useT'
 
 const STAGES = {
-    sprout: { min: 0,  max: 2,   label: 'Росток' },
-    young:  { min: 3,  max: 9,   label: 'Молодое дерево' },
+    sprout: { min: 0, max: 2,   label: 'Росток' },
+    young:  { min: 3, max: 9,   label: 'Молодое дерево' },
     mature: { min: 10, max: 999, label: 'Взрослое дерево' },
 }
 
@@ -106,17 +106,10 @@ function ProgressBar({ done, target, label }) {
                             style={{
                                 flex: 1,
                                 height: '100%',
-                                background: isFilled
-                                    ? accent
-                                    : 'rgba(127,127,127,0.18)',
-                                filter: isFilled
-                                    ? 'brightness(1.25) saturate(1.3)'
-                                    : 'none',
-                                boxShadow: isFilled
-                                    ? `0 0 8px ${accent}, 0 0 14px ${accent}`
-                                    : 'none',
-                                borderRight:
-                                    i < segments - 1 ? '1px solid var(--bg)' : 'none',
+                                background: isFilled ? accent : 'rgba(127,127,127,0.18)',
+                                filter: isFilled ? 'brightness(1.25) saturate(1.3)' : 'none',
+                                boxShadow: isFilled ? `0 0 8px ${accent}, 0 0 14px ${accent}` : 'none',
+                                borderRight: i < segments - 1 ? '1px solid var(--bg)' : 'none',
                                 boxSizing: 'border-box',
                             }}
                         />
@@ -148,6 +141,7 @@ export default function TreeAvatar({ done = 0, kind = 'sakura', maxHeight = 400 
     const [grown, setGrown] = useState(false)
     const [bounce, setBounce] = useState(false)
     const [leaves, setLeaves] = useState([])
+    const [tipOpen, setTipOpen] = useState(false)
     const prevDoneRef = useRef(done)
     const prevKindRef = useRef(kind)
     const nextLeafId = useRef(0)
@@ -175,9 +169,11 @@ export default function TreeAvatar({ done = 0, kind = 'sakura', maxHeight = 400 
     }, [done, kind])
 
     const handleTreeClick = useCallback(() => {
+        if (stage !== 'mature') return
+
         const byKind = LEAVES_BY_KIND[kind] || LEAVES_BY_KIND.sakura
         const pool = byKind[stage] || byKind.mature
-        const count = stage === 'sprout' ? 5 : stage === 'young' ? 10 : 18
+        const count = 18
 
         const newLeaves = Array.from({ length: count }).map(() => {
             const id = ++nextLeafId.current
@@ -228,10 +224,14 @@ export default function TreeAvatar({ done = 0, kind = 'sakura', maxHeight = 400 
                     opacity: grown ? 1 : 0,
                     transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease',
                     transformOrigin: 'bottom center',
-                    cursor: 'pointer',
+                    cursor: stage === 'mature' ? 'pointer' : 'default',
                 }}
                 onClick={handleTreeClick}
-                title={`Выполнено: ${done} (${STAGES[stage].label})`}
+                title={
+                    stage === 'mature'
+                        ? `Выполнено: ${done} (${STAGES[stage].label}) — нажми, чтобы осыпать листья`
+                        : `${STAGES[stage].label} · ещё ${stage === 'sprout' ? 3 - done : 10 - done} до следующей стадии`
+                }
             >
                 <Comp />
 
@@ -251,6 +251,33 @@ export default function TreeAvatar({ done = 0, kind = 'sakura', maxHeight = 400 
                         {l.leaf}
                     </span>
                 ))}
+
+                {/* ? — в правом верхнем углу самого дерева */}
+                <div
+                    className="tree-help"
+                    onClick={(e) => { e.stopPropagation(); setTipOpen(v => !v) }}
+                    onMouseEnter={() => setTipOpen(true)}
+                    onMouseLeave={() => setTipOpen(false)}
+                    onBlur={() => setTipOpen(false)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Что такое дерево прогресса"
+                >
+                    ?
+                    {tipOpen && (
+                        <div className="tree-help__tip" role="tooltip">
+                            <div className="tree-help__tip-title">Дерево прогресса 🌱</div>
+                            <div className="tree-help__tip-text">
+                                Оно растёт, пока ты закрываешь задачи. Каждая выполненная
+                                сегодня — новый росток.
+                            </div>
+                            <div className="tree-help__tip-text">
+                                Выполни 10 — и дерево станет взрослым. Тогда можно{' '}
+                                <b>кликнуть</b> по нему, и с него посыпятся листья ✨
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <ProgressBar done={done} target={10} label={t.progressTree} />

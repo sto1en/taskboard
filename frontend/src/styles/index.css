@@ -474,3 +474,77 @@ html[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
   background: #5f6b76;
   background-clip: content-box;
 }
+
+/* ============================================================
+   RescheduleBanner — ненавязчивое предложение перенести
+   просроченную задачу
+   ============================================================ */
+
+.reschedule-banner {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  max-width: 720px;
+  width: calc(100% - 32px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--danger);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  color: var(--text);
+  animation: rescheduleSlideIn .25s ease-out;
+}
+
+@keyframes rescheduleSlideIn {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.reschedule-banner__text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.reschedule-banner__warn {
+  margin-top: 4px;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.reschedule-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.reschedule-banner__btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.reschedule-banner__close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.reschedule-banner__close:hover {
+  background: rgba(9, 30, 66, 0.06);
+  color: var(--text);
+}
+html[data-theme="dark"] .reschedule-banner__close:hover {
+  background: rgba(255, 255, 255, 0.06);
+}

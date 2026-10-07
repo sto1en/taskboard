@@ -15,6 +15,7 @@ import coursework.taskboard.repository.project.ProjectRepository;
 import coursework.taskboard.repository.project.ProjectSettingsRepository;
 import coursework.taskboard.repository.task.TaskRepository;
 import coursework.taskboard.repository.user.UserWorkspaceRepository;
+import coursework.taskboard.service.achievement.AchievementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,7 @@ public class BoardService {
 
     private final BoardMapper boardMapper;
     private final ProjectMapper projectMapper;
+    private final AchievementService achievementService;
 
     @Value("${app.upload.base-url}")
     private String uploadBaseUrl;
@@ -84,6 +86,10 @@ public class BoardService {
                 userWorkspaceRepository.save(ws);
             }
         });
+
+        // Ачивка «Хранитель досок»
+        long boardsCount = boardRepository.countByOwnerId(user.getId());
+        achievementService.checkBoards(user, boardsCount);
 
         long projectCount = projectRepository.countByBoardId(board.getId());
         return boardMapper.toBoardDto(board, appearance, settings, member,
@@ -152,6 +158,8 @@ public class BoardService {
         if (request.getPosition() != null) board.setPosition(request.getPosition());
         boardRepository.save(board);
 
+        boolean coverSetNow = false;
+
         if (request.getAccentCode() != null
                 || request.getCoverAttachmentId() != null
                 || Boolean.TRUE.equals(request.getClearCover())) {
@@ -173,9 +181,14 @@ public class BoardService {
                     throw new IllegalArgumentException("Not your attachment");
                 }
                 appearance.setCover(cover);
+                coverSetNow = true;
             }
 
             boardAppearanceRepository.save(appearance);
+        }
+
+        if (coverSetNow) {
+            achievementService.boardCoverSet(user);
         }
 
         if (request.getIsPinned() != null || request.getIsPublic() != null) {

@@ -53,6 +53,19 @@ export default function BoardsPage() {
 
     useEffect(() => { load() }, [])
 
+    // ============================================================
+    // Горячая клавиша N: на странице /boards → новая доска
+    // ============================================================
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.detail === 'board') {
+                setShowCreate(true)
+            }
+        }
+        window.addEventListener('hotkey:new', handler)
+        return () => window.removeEventListener('hotkey:new', handler)
+    }, [])
+
     const handleCreated = (newBoard) => {
         setBoards(prev => [...prev, newBoard])
         window.dispatchEvent(new Event('sidebar:refresh'))

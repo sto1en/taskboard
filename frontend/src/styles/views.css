@@ -353,7 +353,7 @@ html[data-theme="dark"] .filters-bar__count {
 .word-list {
     display: flex;
     justify-content: center;
-    padding: 32px 24px 24px;      /* ← верхний и боковой отступ */
+    padding: 32px 24px 24px;
     width: 100%;
     box-sizing: border-box;
 }
@@ -375,7 +375,6 @@ html[data-theme="dark"] .filters-bar__count {
     border-bottom: none;
 }
 
-/* Счётчик — с отступом слева и сверху, без фона */
 .word-list__count {
     font-size: 15px;
     font-weight: 600;
@@ -463,6 +462,20 @@ html[data-theme="dark"] .word-list__item:hover {
 }
 .word-list__check--done::after {
     content: '✓';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+}
+.word-list__check--cancelled {
+    background: var(--text-muted);
+    border-color: var(--text-muted);
+}
+.word-list__check--cancelled::after {
+    content: '✕';
     position: absolute;
     inset: 0;
     display: grid;
@@ -861,6 +874,20 @@ html[data-theme="dark"] .compact-task:hover { background: color-mix(in srgb, var
     font-size: 10px;
     font-weight: 700;
 }
+.compact-task__check--cancelled {
+    background: var(--text-muted);
+    border-color: var(--text-muted);
+}
+.compact-task__check--cancelled::after {
+    content: '✕';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+}
 
 .compact-task__main {
     flex: 1;
@@ -1167,7 +1194,7 @@ html[data-theme="dark"] .compact-task__subtask-count {
 }
 
 /* ============================================================
-   Единый hover для кнопок тулбара — акцентная заливка (жёстко)
+   Единый hover для кнопок тулбара — акцентная заливка
    ============================================================ */
 
 .view-switcher__btn:hover,

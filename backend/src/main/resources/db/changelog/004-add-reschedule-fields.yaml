@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-01-task-schedule-reschedule
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: task_schedule
+                columnName: reschedule_count
+      changes:
+        - addColumn:
+            tableName: task_schedule
+            columns:
+              - column:
+                  name: reschedule_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+              - column:
+                  name: reschedule_snoozed_until
+                  type: TIMESTAMP
+                  constraints: { nullable: true }

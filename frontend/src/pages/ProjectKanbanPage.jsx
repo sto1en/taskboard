@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { projectsApi, tasksApi, projectFiltersApi } from '../api/api'
+import { projectsApi, tasksApi, projectFiltersApi, statusesApi } from '../api/api'
 import ViewSwitcher from '../components/Task/ViewSwitcher'
 import SortSwitcher from '../components/Task/SortSwitcher'
 import FiltersBar from '../components/Task/FiltersBar'
@@ -13,6 +13,12 @@ import TaskDetailModal from '../components/Task/TaskDetailModal'
 import AttachmentsModal from '../components/Task/AttachmentsModal'
 import InlineEdit from '../components/common/InlineEdit'
 import useHotkeys from '../hooks/useHotkeys'
+
+const ACCENTS = [
+    'blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray', 'teal',
+    'navy', 'olive', 'indigo', 'violet', 'magenta', 'coral', 'amber',
+    'lime', 'mint', 'cyan', 'slate', 'maroon', 'brown',
+]
 
 export default function ProjectKanbanPage() {
     const { boardId, projectId } = useParams()
@@ -39,6 +45,7 @@ export default function ProjectKanbanPage() {
     const [attachmentsTaskId, setAttachmentsTaskId] = useState(null)
 
     const [hoveredTaskId, setHoveredTaskId] = useState(null)
+    const [colorMenu, setColorMenu] = useState(null)  // { column, x, y }
 
     useEffect(() => {
         if (!projectId) return
@@ -77,6 +84,18 @@ export default function ProjectKanbanPage() {
             .finally(() => setLoading(false))
     }, [projectId])
 
+    // Закрытие палитры цветов по клику вне
+    useEffect(() => {
+        if (!colorMenu) return
+        const close = () => setColorMenu(null)
+        window.addEventListener('click', close)
+        window.addEventListener('scroll', close, true)
+        return () => {
+            window.removeEventListener('click', close)
+            window.removeEventListener('scroll', close, true)
+        }
+    }, [colorMenu])
+
     const reloadKanban = () => {
         tasksApi.kanban(projectId).then(({ data }) => setKanban(data))
     }
@@ -89,6 +108,16 @@ export default function ProjectKanbanPage() {
         setPresetStatusId(statusId || null)
         setShowCreateTask(true)
     }
+
+    // hotkey:new — новая задача
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.detail === 'task') handleAddTask(null)
+        }
+        window.addEventListener('hotkey:new', handler)
+        return () => window.removeEventListener('hotkey:new', handler)
+        // eslint-disable-next-line
+    }, [])
 
     const handleTaskCreated = () => {
         setShowCreateTask(false)
@@ -198,6 +227,43 @@ export default function ProjectKanbanPage() {
         }
     }
 
+    // ============================================================
+    // Редактирование статуса — вызывается из InlineEdit
+    // ============================================================
+    const handleEditStatus = async (column, newTitle) => {
+        try {
+            await statusesApi.update(boardId, column.statusId, { title: newTitle })
+            reloadKanban()
+        } catch (err) {
+            alert(err.response?.data?.message || 'Ошибка')
+        }
+    }
+
+    // ============================================================
+    // Смена цвета статуса — ПКМ открывает мини-палитру
+    // ============================================================
+    const handleRecolorStatus = (column, e) => {
+        setColorMenu({
+            column,
+            x: e.clientX,
+            y: e.clientY,
+        })
+    }
+
+    const applyStatusColor = async (colorCode) => {
+        if (!colorMenu) return
+        try {
+            await statusesApi.update(boardId, colorMenu.column.statusId, {
+                accentCode: colorCode,
+            })
+            reloadKanban()
+        } catch (err) {
+            alert(err.response?.data?.message || 'Ошибка')
+        } finally {
+            setColorMenu(null)
+        }
+    }
+
     useHotkeys([
         {
             combo: 'escape',
@@ -206,40 +272,27 @@ export default function ProjectKanbanPage() {
             allowInInput: true,
         },
 
-        { combo: 'n', handler: () => handleAddTask() },
-
-        {
-            combo: 'e',
-            handler: () => {
-                if (hoveredTaskId) setOpenTaskId(hoveredTaskId)
-            },
-        },
+        { combo: 'e', handler: () => { if (hoveredTaskId) setOpenTaskId(hoveredTaskId) } },
         {
             combo: 'space',
+            allowInInput: false,   // ← вот это ключевое: не реагируем на space в input/textarea
             handler: () => {
                 if (!hoveredTaskId || !kanban) return
                 const t = kanban.columns
                     .flatMap(c => c.tasks)
                     .find(x => x.id === hoveredTaskId)
                 if (!t) return
-                const isDone = t.statusCategoryCode === 'DONE'
-                    || t.statusCode === 'DONE'
-                    || t.statusCategoryCode === 'CANCELLED'
+
+                const isDone =
+                    t.statusCategoryCode === 'DONE' ||
+                    t.statusCode === 'DONE' ||
+                    t.statusCategoryCode === 'CANCELLED'
+
                 handleToggleDone(hoveredTaskId, isDone)
             },
         },
-        {
-            combo: 'delete',
-            handler: () => {
-                if (hoveredTaskId) handleToggleCancel(hoveredTaskId)
-            },
-        },
-        {
-            combo: 'c',
-            handler: () => {
-                if (hoveredTaskId) handleDuplicateTask(hoveredTaskId)
-            },
-        },
+        { combo: 'delete', handler: () => { if (hoveredTaskId) handleToggleCancel(hoveredTaskId) } },
+        { combo: 'c', handler: () => { if (hoveredTaskId) handleDuplicateTask(hoveredTaskId) } },
 
         { combo: '1', handler: () => setViewMode('kanban') },
         { combo: '2', handler: () => setViewMode('list') },
@@ -354,6 +407,8 @@ export default function ProjectKanbanPage() {
                         sortMode={sortMode}
                         sortDir={sortDir}
                         onHover={setHoveredTaskId}
+                        onEditStatus={handleEditStatus}
+                        onRecolorStatus={handleRecolorStatus}
                     />
                 )}
                 {effectiveMode === 'list' && (
@@ -391,6 +446,8 @@ export default function ProjectKanbanPage() {
                         sortMode={sortMode}
                         sortDir={sortDir}
                         onHover={setHoveredTaskId}
+                        onEditStatus={handleEditStatus}
+                        onRecolorStatus={handleRecolorStatus}
                     />
                 )}
             </div>
@@ -435,6 +492,31 @@ export default function ProjectKanbanPage() {
                 }}
                 onUpdated={reloadKanban}
             />
+
+            {/* Мини-палитра цветов для ПКМ по статусу */}
+            {colorMenu && (
+                <div
+                    className="color-menu"
+                    style={{
+                        position: 'fixed',
+                        left: colorMenu.x,
+                        top: colorMenu.y,
+                        zIndex: 2000,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {ACCENTS.map(c => (
+                        <button
+                            key={c}
+                            type="button"
+                            className="color-menu__item"
+                            style={{ background: `var(--accent-${c})` }}
+                            title={c}
+                            onClick={() => applyStatusColor(c)}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     )
 }

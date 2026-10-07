@@ -36,8 +36,23 @@ export function sortTasks(tasks, sortMode, sortDir) {
     return arr
 }
 
+// «Отменено» — крестик
+export function isCancelled(task) {
+    return task.statusCategoryCode === 'CANCELLED'
+        || task.statusCode === 'CANCELLED'
+}
+
+// «Просрочено» — часики
+export function isExpired(task) {
+    return task.statusCategoryCode === 'EXPIRED'
+        || task.statusCode === 'EXPIRED'
+}
+
+// «Выполнено» — галочка. CANCELLED / EXPIRED сюда не входят.
 export function isDone(task) {
+    if (isCancelled(task)) return false
+    if (isExpired(task)) return false
     return task.statusCategoryCode === 'DONE'
         || task.statusCode === 'DONE'
-        || task.statusCategoryCode === 'CANCELLED'
+        || task.statusCategoryCode === 'ARCHIVED'
 }

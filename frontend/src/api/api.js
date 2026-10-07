@@ -7,9 +7,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token')
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-    }
+    if (token) config.headers.Authorization = `Bearer ${token}`
     const lang = localStorage.getItem('lang') || 'ru'
     config.headers['Accept-Language'] = lang
     return config
@@ -20,25 +18,17 @@ api.interceptors.response.use(
     (error) => {
         if (error.response?.status === 401) {
             localStorage.removeItem('token')
-            if (window.location.pathname !== '/login') {
-                window.location.href = '/login'
-            }
+            if (window.location.pathname !== '/login') window.location.href = '/login'
         }
         return Promise.reject(error)
     }
 )
 
-// ============================================================
-// Auth
-// ============================================================
 export const authApi = {
     register: (data) => api.post('/auth/register', data),
     login: (data) => api.post('/auth/login', data),
 }
 
-// ============================================================
-// Boards
-// ============================================================
 export const boardsApi = {
     list: () => api.get('/boards'),
     get: (id) => api.get(`/boards/${id}`),
@@ -48,9 +38,6 @@ export const boardsApi = {
     move: (id, { position }) => api.patch(`/boards/${id}`, { position }),
 }
 
-// ============================================================
-// Projects
-// ============================================================
 export const projectsApi = {
     listByBoard: (boardId) => api.get(`/boards/${boardId}/projects`),
     get: (id) => api.get(`/projects/${id}`),
@@ -60,18 +47,12 @@ export const projectsApi = {
     move: (id, { position }) => api.patch(`/projects/${id}`, { position }),
 }
 
-// ============================================================
-// Project pinned filters
-// ============================================================
 export const projectFiltersApi = {
     get:   (projectId) => api.get(`/projects/${projectId}/filters`),
     save:  (projectId, data) => api.put(`/projects/${projectId}/filters`, data),
     clear: (projectId) => api.delete(`/projects/${projectId}/filters`),
 }
 
-// ============================================================
-// Tasks
-// ============================================================
 export const tasksApi = {
     listByProject: (projectId) => api.get(`/projects/${projectId}/tasks`),
     kanban: (projectId) => api.get(`/projects/${projectId}/kanban`),
@@ -85,15 +66,14 @@ export const tasksApi = {
         api.delete(`/tasks/${taskId}/attachments/${attachmentId}`),
     move: (id, { statusId, position }) =>
         api.patch(`/tasks/${id}`, { statusId, position }),
-    setParent: (id, parentId) =>
-        api.patch(`/tasks/${id}`, { parentId }),
-    clearParent: (id) =>
-        api.patch(`/tasks/${id}`, { clearParent: true }),
+    setParent: (id, parentId) => api.patch(`/tasks/${id}`, { parentId }),
+    clearParent: (id) => api.patch(`/tasks/${id}`, { clearParent: true }),
+    rescheduleCandidates: () => api.get('/tasks/reschedule-candidates'),
+    snoozeReschedule: (id, hours = 24) =>
+        api.patch(`/tasks/${id}/snooze-reschedule`, null, { params: { hours } }),
+    moveDate: (id, date) => api.patch(`/tasks/${id}/move-date`, null, { params: { date } }),
 }
 
-// ============================================================
-// Tags
-// ============================================================
 export const tagsApi = {
     listByBoard: (boardId) => api.get(`/boards/${boardId}/tags`),
     search: (boardId, q) => api.get(`/boards/${boardId}/tags/search`, { params: { q } }),
@@ -102,9 +82,6 @@ export const tagsApi = {
     delete: (id) => api.delete(`/tags/${id}`),
 }
 
-// ============================================================
-// Statuses
-// ============================================================
 export const statusesApi = {
     list: (boardId, scope) =>
         api.get(`/boards/${boardId}/statuses`, { params: scope ? { scope } : {} }),
@@ -115,9 +92,6 @@ export const statusesApi = {
         api.delete(`/boards/${boardId}/statuses/${statusId}`),
 }
 
-// ============================================================
-// Attachments
-// ============================================================
 export const attachmentsApi = {
     upload: (file) => {
         const formData = new FormData()
@@ -130,9 +104,6 @@ export const attachmentsApi = {
     delete: (id) => api.delete(`/attachments/${id}`),
 }
 
-// ============================================================
-// User
-// ============================================================
 export const userApi = {
     me: () => api.get('/users/me'),
     updateProfile: (data) => api.patch('/users/me/profile', data),
@@ -143,9 +114,6 @@ export const userApi = {
     updateNotification: (data) => api.patch('/users/me/notification', data),
 }
 
-// ============================================================
-// Search
-// ============================================================
 export const searchApi = {
     global: (q) => api.get('/search', { params: { q } }),
     suggestions: (q) => api.get('/search/suggestions', { params: { q } }),
@@ -154,15 +122,30 @@ export const searchApi = {
         api.get(`/search/projects/${projectId}`, { params: { q } }),
 }
 
-// ============================================================
-// Stats / Calendar
-// ============================================================
 export const statsApi = {
     get: (period) => api.get('/stats', { params: { period } }),
+    overview: (period) => api.get('/stats/overview', { params: { period } }),
+    dailyLoad: (from, to) => api.get('/stats/daily-load', { params: { from, to } }),
 }
 
 export const calendarApi = {
     get: (from, to) => api.get('/calendar', { params: { from, to } }),
+}
+
+export const achievementsApi = {
+    list: () => api.get('/achievements'),
+}
+
+export const shopApi = {
+    get: () => api.get('/shop'),
+    buyAvatar: (id) => api.post(`/shop/avatars/${id}/buy`),
+    equipAvatar: (id) => api.post(`/shop/avatars/${id}/equip`),
+    buyFrame: (id) => api.post(`/shop/frames/${id}/buy`),
+    equipFrame: (id) => api.post(`/shop/frames/${id}/equip`),
+    unequipFrame: () => api.post('/shop/frames/unequip'),
+    buyTreeSkin: (id) => api.post(`/shop/tree-skins/${id}/buy`),
+    equipTreeSkin: (id) => api.post(`/shop/tree-skins/${id}/equip`),
+    unequipTreeSkin: () => api.post('/shop/tree-skins/unequip'),
 }
 
 export default api

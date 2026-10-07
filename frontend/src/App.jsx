@@ -16,6 +16,7 @@ import HelpPage from './pages/HelpPage'
 import SettingsPage from './pages/SettingsPage'
 import SearchPage from './pages/SearchPage'
 import ProjectSearchPage from './pages/ProjectSearchPage'
+import ShopPage from './pages/ShopPage'
 
 function ProtectedRoute({ children }) {
     const { token, loading } = useAuth()
@@ -27,7 +28,7 @@ function ProtectedRoute({ children }) {
 function PublicRoute({ children }) {
     const { token, loading } = useAuth()
     if (loading) return <div className="loading">Загрузка...</div>
-    if (token) return <Navigate to="/boards" replace />
+    if (token) return <Navigate to="/calendar" replace />
     return children
 }
 
@@ -42,21 +43,21 @@ export default function App() {
                             <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
 
                             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                                <Route path="/calendar" element={<CalendarPage />} />
                                 <Route path="/boards" element={<BoardsPage />} />
                                 <Route path="/boards/:id" element={<BoardDetailPage />} />
                                 <Route path="/boards/:boardId/settings" element={<BoardSettingsPage />} />
                                 <Route path="/boards/:boardId/projects/:projectId" element={<ProjectKanbanPage />} />
-                                <Route path="/calendar" element={<CalendarPage />} />
                                 <Route path="/stats" element={<StatsPage />} />
+                                <Route path="/shop" element={<ShopPage />} />
                                 <Route path="/profile" element={<ProfilePage />} />
                                 <Route path="/help" element={<HelpPage />} />
                                 <Route path="/settings" element={<SettingsPage />} />
                                 <Route path="/search" element={<SearchPage />} />
                                 <Route path="/boards/:boardId/projects/:projectId/search" element={<ProjectSearchPage />} />
-
                             </Route>
 
-                            <Route path="*" element={<Navigate to="/boards" replace />} />
+                            <Route path="*" element={<Navigate to="/calendar" replace />} />
                         </Routes>
                     </HotkeysProvider>
                 </ThemeApplier>

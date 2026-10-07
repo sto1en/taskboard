@@ -3,17 +3,24 @@ package coursework.taskboard.service.project;
 import coursework.taskboard.dto.project.*;
 import coursework.taskboard.model.attachment.Attachment;
 import coursework.taskboard.model.attachment.AttachmentMeta;
-import coursework.taskboard.model.board.*;
+import coursework.taskboard.model.board.Board;
+import coursework.taskboard.model.board.BoardSettings;
+import coursework.taskboard.model.board.BoardStatus;
 import coursework.taskboard.model.project.Project;
 import coursework.taskboard.model.project.ProjectSettings;
 import coursework.taskboard.model.stage.Stage;
 import coursework.taskboard.model.user.User;
 import coursework.taskboard.repository.attachment.AttachmentMetaRepository;
 import coursework.taskboard.repository.attachment.AttachmentRepository;
-import coursework.taskboard.repository.board.*;
-import coursework.taskboard.repository.project.*;
+import coursework.taskboard.repository.board.BoardMemberRepository;
+import coursework.taskboard.repository.board.BoardRepository;
+import coursework.taskboard.repository.board.BoardSettingsRepository;
+import coursework.taskboard.repository.board.BoardStatusRepository;
+import coursework.taskboard.repository.project.ProjectRepository;
+import coursework.taskboard.repository.project.ProjectSettingsRepository;
 import coursework.taskboard.repository.stage.StageRepository;
 import coursework.taskboard.repository.task.TaskRepository;
+import coursework.taskboard.service.achievement.AchievementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -31,6 +38,7 @@ public class ProjectService {
     private final ProjectSettingsRepository projectSettingsRepository;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
+    private final BoardSettingsRepository boardSettingsRepository;
     private final BoardStatusRepository boardStatusRepository;
     private final StageRepository stageRepository;
     private final TaskRepository taskRepository;
@@ -38,6 +46,7 @@ public class ProjectService {
     private final AttachmentMetaRepository attachmentMetaRepository;
 
     private final ProjectMapper projectMapper;
+    private final AchievementService achievementService;
 
     @Value("${app.upload.base-url}")
     private String uploadBaseUrl;
@@ -113,6 +122,11 @@ public class ProjectService {
                 project, defaultStatus, request.getAccentCode());
         projectSettingsRepository.save(settings);
 
+        long totalProjects = user.getBoards().stream()
+                .mapToLong(b -> projectRepository.countByBoardId(b.getId()))
+                .sum();
+        achievementService.checkProjects(user, totalProjects);
+
         return projectMapper.toProjectDto(project, settings, 0, 0, 0, null, null);
     }
 
@@ -128,10 +142,23 @@ public class ProjectService {
         projectRepository.save(project);
 
         if (request.getAccentCode() != null) settings.setAccentCode(request.getAccentCode());
-        if (request.getIsPinned() != null) settings.setIsPinned(request.getIsPinned());
         if (request.getIsTemplate() != null) settings.setIsTemplate(request.getIsTemplate());
 
-        // Обложка: clearCover = true → сбросить; coverAttachmentId != null → установить
+        if (request.getIsPinned() != null) {
+            settings.setIsPinned(request.getIsPinned());
+
+            if (Boolean.TRUE.equals(request.getIsPinned())) {
+                Board board = project.getBoard();
+                BoardSettings boardSettings = boardSettingsRepository
+                        .findById(board.getId())
+                        .orElseThrow();
+                if (!Boolean.TRUE.equals(boardSettings.getIsPinned())) {
+                    boardSettings.setIsPinned(true);
+                    boardSettingsRepository.save(boardSettings);
+                }
+            }
+        }
+
         if (Boolean.TRUE.equals(request.getClearCover())) {
             settings.setCover(null);
         } else if (request.getCoverAttachmentId() != null) {

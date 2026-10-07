@@ -3,7 +3,7 @@ import { useDraggable } from '@dnd-kit/core'
 import { tasksApi } from '../../api/api'
 import InlineEdit from '../common/InlineEdit'
 import { formatDeadline } from '../../utils/format'
-import { isDone as checkIsDone } from '../../utils/sortTasks'
+import { isDone as checkIsDone, isCancelled as checkIsCancelled, isExpired as checkIsExpired } from '../../utils/sortTasks'
 
 export default function Subtask({
                                     subtask, onClick, onToggleDone, onTaskMoved, onOpenAttachments,
@@ -26,6 +26,8 @@ export default function Subtask({
         : {}
 
     const stDone = checkIsDone(subtask)
+    const stCancelled = checkIsCancelled(subtask)
+    const stExpired = checkIsExpired(subtask)
     const hasAttach = (subtask.attachmentNames?.length || 0) > 0
 
     const handleToggleExpand = async (e) => {
@@ -90,12 +92,22 @@ export default function Subtask({
             style={style}
             {...attributes}
             {...listeners}
-            className={`subtask-mini ${stDone ? 'subtask-mini--done' : ''} ${isDragging ? 'subtask-mini--dragging' : ''}`}
+            className={[
+                'subtask-mini',
+                stDone ? 'subtask-mini--done' : '',
+                stCancelled ? 'subtask-mini--cancelled' : '',
+                isDragging ? 'subtask-mini--dragging' : '',
+            ].filter(Boolean).join(' ')}
             onClick={handleToggleExpand}
         >
             <div className="subtask-mini__row-top">
                 <button
-                    className={`subtask-mini__check ${stDone ? 'subtask-mini__check--done' : ''}`}
+                    className={[
+                        'subtask-mini__check',
+                        stDone ? 'subtask-mini__check--done' : '',
+                        stCancelled ? 'subtask-mini__check--cancelled' : '',
+                        stExpired ? 'subtask-mini__check--expired' : '',
+                    ].filter(Boolean).join(' ')}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={handleCheck}
                 />

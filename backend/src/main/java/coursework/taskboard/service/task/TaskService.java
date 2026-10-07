@@ -22,10 +22,13 @@ import coursework.taskboard.repository.stage.StageRepository;
 import coursework.taskboard.repository.tag.TagAppearanceRepository;
 import coursework.taskboard.repository.tag.TagRepository;
 import coursework.taskboard.repository.task.*;
+import coursework.taskboard.service.achievement.AchievementService;
+import coursework.taskboard.service.shop.ShopService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +56,8 @@ public class TaskService {
     private final AttachmentMetaRepository attachmentMetaRepository;
 
     private final TaskMapper taskMapper;
+    private final AchievementService achievementService;
+    private final ShopService shopService;
 
     // ============================================================
     // Создать задачу
@@ -120,14 +125,13 @@ public class TaskService {
             }
         }
 
+        checkFunnyAchievementsOnText(user, task.getTitle());
+
         return taskMapper.toTaskDto(task, settings, schedule, status,
                 boardStatusAppearanceRepository.findById(status.getId()).orElse(null),
                 tagDtos, new ArrayList<>(), new ArrayList<>(), 0, 0);
     }
 
-    // ============================================================
-    // Одна задача — детально
-    // ============================================================
     @Transactional(readOnly = true)
     public TaskDto getTask(Long taskId, User user) {
         Task task = getTaskWithAccess(taskId, user);
@@ -184,9 +188,6 @@ public class TaskService {
                 tags, attachments, subtasks, subtaskTotal, subtaskDone);
     }
 
-    // ============================================================
-    // Список задач проекта
-    // ============================================================
     @Transactional(readOnly = true)
     public List<TaskShortDto> getProjectTasks(Long projectId, User user) {
         getProjectWithAccess(projectId, user);
@@ -195,9 +196,6 @@ public class TaskService {
         return toShortDtos(tasks);
     }
 
-    // ============================================================
-    // Kanban по проекту
-    // ============================================================
     @Transactional(readOnly = true)
     public KanbanDto getProjectKanban(Long projectId, User user) {
         Project project = getProjectWithAccess(projectId, user);
@@ -230,9 +228,6 @@ public class TaskService {
         return KanbanDto.builder().columns(columns).build();
     }
 
-    // ============================================================
-    // Обновить задачу
-    // ============================================================
     @Transactional
     public TaskDto updateTask(Long taskId, UpdateTaskRequest request, User user) {
         Task task = getTaskWithAccess(taskId, user);
@@ -294,6 +289,10 @@ public class TaskService {
 
         taskRepository.save(task);
 
+        if (request.getTitle() != null) {
+            checkFunnyAchievementsOnText(user, task.getTitle());
+        }
+
         if (request.getStatusId() != null) {
             BoardStatus newStatus = boardStatusRepository.findById(request.getStatusId())
                     .orElseThrow(() -> new IllegalArgumentException("Status not found"));
@@ -304,6 +303,10 @@ public class TaskService {
             if (!"task".equals(newStatus.getScope())) {
                 throw new IllegalArgumentException("Status must have scope='task'");
             }
+
+            String oldCategory = settings.getStatus() != null
+                    ? settings.getStatus().getCategoryCode() : null;
+            String newCategory = newStatus.getCategoryCode();
 
             boolean wasFinal = isFinalStatus(settings.getStatus());
             boolean willBeFinal = isFinalStatus(newStatus);
@@ -317,7 +320,6 @@ public class TaskService {
             settings.setStatus(newStatus);
             taskSettingsRepository.save(settings);
 
-            // Каскадно — всем подзадачам (только для корневой задачи)
             if (task.getParent() == null) {
                 for (Task sub : taskRepository.findByParentIdOrderByPositionAsc(task.getId())) {
                     TaskSettings subSettings = taskSettingsRepository.findById(sub.getId()).orElse(null);
@@ -339,9 +341,17 @@ public class TaskService {
                 }
             }
 
-            // Синхронизация родителя, если текущая задача — подзадача
             if (task.getParent() != null) {
                 syncParentStatus(task);
+            }
+
+            // ============================================================
+            // Триггеры ачивок и начисления листьев
+            // ============================================================
+            if (!wasFinal && willBeFinal) {
+                onTaskCompleted(user, task, schedule, oldCategory, newCategory);
+            } else if ("EXPIRED".equals(newCategory) && !"EXPIRED".equals(oldCategory)) {
+                achievementService.firstExpired(user);
             }
         } else {
             taskSettingsRepository.save(settings);
@@ -352,7 +362,31 @@ public class TaskService {
         taskSettingsRepository.save(settings);
 
         if (request.getDeadline() != null) {
-            schedule.setDeadline(request.getDeadline());
+            LocalDateTime oldDeadline = schedule.getDeadline();
+            LocalDateTime newDeadline = request.getDeadline();
+
+            boolean wasOverdue = oldDeadline != null
+                    && oldDeadline.isBefore(OverduePolicyService.thresholdNow())
+                    && schedule.getCompletedAt() == null;
+
+            schedule.setDeadline(newDeadline);
+
+            if (wasOverdue) {
+                int count = schedule.getRescheduleCount() == null ? 0 : schedule.getRescheduleCount();
+                schedule.setRescheduleCount(count + 1);
+                schedule.setExpiredAt(null);
+                schedule.setRescheduleSnoozedUntil(null);
+
+                if (newDeadline.isAfter(LocalDateTime.now())) {
+                    BoardStatus activeStatus = boardStatusRepository
+                            .findByBoardIdAndScopeAndIsDefaultTrue(board.getId(), "task")
+                            .orElse(null);
+                    if (activeStatus != null) {
+                        settings.setStatus(activeStatus);
+                        taskSettingsRepository.save(settings);
+                    }
+                }
+            }
         }
         taskScheduleRepository.save(schedule);
 
@@ -387,8 +421,97 @@ public class TaskService {
     }
 
     // ============================================================
-    // Синхронизация статуса родителя с подзадачами
+    // Ачивки и награда при завершении задачи
     // ============================================================
+    private void onTaskCompleted(User user, Task task, TaskSchedule schedule,
+                                 String oldCategory, String newCategory) {
+
+        if (!"DONE".equals(newCategory) && !"ARCHIVED".equals(newCategory)) {
+            return;
+        }
+
+        // 🍃 Начисляем по 1 листу за каждую закрытую задачу
+        shopService.addLeaves(user, 1);
+
+        achievementService.firstTask(user);
+
+        long totalDone = countDoneTasksForUser(user);
+        achievementService.checkTotalTasks(user, totalDone);
+
+        long doneToday = countDoneTasksToday(user);
+        achievementService.checkDayTasks(user, doneToday);
+
+        int hour = LocalDateTime.now().getHour();
+        if (hour >= 23 || hour < 5) {
+            achievementService.nightOwl(user);
+        }
+
+        if (schedule != null && schedule.getDeadline() != null
+                && LocalDateTime.now().isBefore(schedule.getDeadline())) {
+            long onTimeCount = countOnTimeForUser(user);
+            achievementService.checkOnTime(user, onTimeCount);
+        }
+
+        long last10min = countDoneLastMinutes(user, 10);
+        if (last10min >= 5) {
+            achievementService.ninja(user);
+        }
+    }
+
+    private void checkFunnyAchievementsOnText(User user, String title) {
+        if (title == null) return;
+        String low = title.toLowerCase();
+        if (low.contains("утка") || low.contains("duck")) {
+            achievementService.duck(user);
+        }
+        if (low.contains("лол") || low.contains(":d") || low.contains(":д") || low.contains("lol")) {
+            achievementService.joker(user);
+        }
+    }
+
+    private long countDoneTasksForUser(User user) {
+        return taskRepository.findAllByOwnerId(user.getId()).stream()
+                .filter(t -> {
+                    TaskSettings s = taskSettingsRepository.findById(t.getId()).orElse(null);
+                    if (s == null || s.getStatus() == null) return false;
+                    String c = s.getStatus().getCategoryCode();
+                    return "DONE".equals(c) || "ARCHIVED".equals(c);
+                })
+                .count();
+    }
+
+    private long countDoneTasksToday(User user) {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        return taskRepository.findAllByOwnerId(user.getId()).stream()
+                .filter(t -> {
+                    TaskSchedule sch = taskScheduleRepository.findById(t.getId()).orElse(null);
+                    if (sch == null || sch.getCompletedAt() == null) return false;
+                    return sch.getCompletedAt().isAfter(startOfDay);
+                })
+                .count();
+    }
+
+    private long countOnTimeForUser(User user) {
+        return taskRepository.findAllByOwnerId(user.getId()).stream()
+                .filter(t -> {
+                    TaskSchedule sch = taskScheduleRepository.findById(t.getId()).orElse(null);
+                    if (sch == null || sch.getDeadline() == null || sch.getCompletedAt() == null) return false;
+                    return sch.getCompletedAt().isBefore(sch.getDeadline());
+                })
+                .count();
+    }
+
+    private long countDoneLastMinutes(User user, int minutes) {
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(minutes);
+        return taskRepository.findAllByOwnerId(user.getId()).stream()
+                .filter(t -> {
+                    TaskSchedule sch = taskScheduleRepository.findById(t.getId()).orElse(null);
+                    if (sch == null || sch.getCompletedAt() == null) return false;
+                    return sch.getCompletedAt().isAfter(threshold);
+                })
+                .count();
+    }
+
     private void syncParentStatus(Task task) {
         Task parent = task.getParent();
         if (parent == null) return;
@@ -427,7 +550,6 @@ public class TaskService {
                     taskScheduleRepository.save(parentSchedule);
                 }
 
-                // Рекурсивно наверх
                 syncParentStatus(parent);
             }
         } else {
@@ -456,9 +578,6 @@ public class TaskService {
         }
     }
 
-    // ============================================================
-    // Удалить задачу
-    // ============================================================
     @Transactional
     public void deleteTask(Long taskId, User user) {
         Task task = getTaskWithAccess(taskId, user);
@@ -466,8 +585,40 @@ public class TaskService {
     }
 
     // ============================================================
-    // Вложения
+    // Reschedule
     // ============================================================
+
+    @Transactional(readOnly = true)
+    public List<TaskShortDto> getRescheduleCandidates(User user) {
+        List<Long> projectIds = projectRepository.findAll().stream()
+                .filter(p -> p.getBoard().getOwner().getId().equals(user.getId()))
+                .map(Project::getId)
+                .toList();
+
+        if (projectIds.isEmpty()) return List.of();
+
+        List<TaskSchedule> schedules = taskScheduleRepository.findPendingReschedule(
+                LocalDateTime.now(),
+                OverduePolicyService.thresholdNow(),
+                projectIds
+        );
+
+        List<Task> tasks = new ArrayList<>();
+        for (TaskSchedule ts : schedules) {
+            tasks.add(ts.getTask());
+        }
+        return toShortDtos(tasks);
+    }
+
+    @Transactional
+    public void snoozeReschedule(Long taskId, int hours, User user) {
+        getTaskWithAccess(taskId, user);
+        TaskSchedule schedule = taskScheduleRepository.findById(taskId)
+                .orElseThrow(() -> new IllegalArgumentException("Schedule not found"));
+        schedule.setRescheduleSnoozedUntil(LocalDateTime.now().plusHours(hours));
+        taskScheduleRepository.save(schedule);
+    }
+
     @Transactional
     public void attachAttachment(Long taskId, Long attachmentId, User user) {
         Task task = getTaskWithAccess(taskId, user);
@@ -507,9 +658,6 @@ public class TaskService {
         }
     }
 
-    // ============================================================
-    // Helpers
-    // ============================================================
     private List<TaskShortDto> toShortDtos(List<Task> tasks) {
         List<TaskShortDto> result = new ArrayList<>();
 
@@ -630,5 +778,23 @@ public class TaskService {
         }
 
         return task;
+    }
+
+    @Transactional
+    public void moveDeadline(Long taskId, LocalDate newDate, User user) {
+        getTaskWithAccess(taskId, user);
+        TaskSchedule schedule = taskScheduleRepository.findById(taskId)
+                .orElseThrow(() -> new IllegalArgumentException("Schedule not found"));
+
+        // Сохраняем время если было, иначе 00:00
+        LocalDateTime newDeadline;
+        if (schedule.getDeadline() != null
+                && (schedule.getDeadline().getHour() != 0 || schedule.getDeadline().getMinute() != 0)) {
+            newDeadline = newDate.atTime(schedule.getDeadline().toLocalTime());
+        } else {
+            newDeadline = newDate.atStartOfDay();
+        }
+        schedule.setDeadline(newDeadline);
+        taskScheduleRepository.save(schedule);
     }
 }

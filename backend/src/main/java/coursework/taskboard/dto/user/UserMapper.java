@@ -57,6 +57,11 @@ public class UserMapper {
                 .sidebarCollapsed(appearance.getSidebarCollapsed())
                 .treeEnabled(appearance.getTreeEnabled())
                 .treeKind(appearance.getTreeKind())
+                .activeFrameId(appearance.getActiveFrame() != null ? appearance.getActiveFrame().getId() : null)
+                .activeFrameCode(appearance.getActiveFrame() != null ? appearance.getActiveFrame().getCode() : null)
+                .activeFrameCssClass(appearance.getActiveFrame() != null ? appearance.getActiveFrame().getCssClass() : null)
+                .activeTreeSkinId(appearance.getActiveTreeSkin() != null ? appearance.getActiveTreeSkin().getId() : null)
+                .activeTreeSkinCode(appearance.getActiveTreeSkin() != null ? appearance.getActiveTreeSkin().getCode() : null)
                 .build();
     }
 
@@ -98,8 +103,7 @@ public class UserMapper {
     }
 
     // ============================================================
-    // Для регистрации — вынесено из AuthMapper
-    // (можешь оставить в AuthMapper, но здесь логичнее)
+    // Дефолты для регистрации
     // ============================================================
     public UserProfile toUserProfile(User user, String displayName) {
         return UserProfile.builder()

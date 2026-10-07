@@ -33,9 +33,7 @@
     letter-spacing: -0.3px;
 }
 
-.board-detail__title-text {
-    font-weight: 700;
-}
+.board-detail__title-text { font-weight: 700; }
 
 .board-detail__title-row {
     display: flex;
@@ -44,7 +42,6 @@
     min-width: 0;
 }
 
-/* Pin-кнопка рядом с названием проекта */
 .board-detail__pin-btn {
     display: inline-flex;
     align-items: center;
@@ -411,6 +408,37 @@ html[data-theme="dark"] .task-card:hover {
     font-weight: 700;
 }
 
+.task-card__check--cancelled {
+    background: var(--text-muted);
+    border-color: var(--text-muted);
+}
+.task-card__check--cancelled::after {
+    content: '✕';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.task-card__check--expired {
+    background: var(--danger);
+    border-color: var(--danger);
+}
+.task-card__check--expired::after {
+    content: '⌛';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
 .task-card__title {
     flex: 0 1 auto;
     min-width: 0;
@@ -529,6 +557,16 @@ html[data-theme="dark"] .task-card__deadline-inline {
 }
 .task-tag__icon { font-size: 10px; }
 
+.task-tag--clickable {
+    cursor: pointer;
+    transition: transform .12s, filter .12s;
+}
+.task-tag--clickable:hover {
+    transform: scale(1.06);
+    filter: brightness(1.1);
+    text-decoration: none;
+}
+
 .task-card__subtask-count {
     display: inline-flex;
     align-items: center;
@@ -574,7 +612,9 @@ html[data-theme="dark"] .task-card__subtask-count {
     border-left: 2px solid var(--accent, var(--primary));
     min-width: 0;
 }
-.subtask-mini:hover { background: color-mix(in srgb, var(--accent, var(--primary)) 8%, transparent); }
+.subtask-mini:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 8%, transparent);
+}
 .subtask-mini:active { cursor: grabbing; }
 .subtask-mini--dragging { opacity: 0.5; cursor: grabbing; }
 .subtask-mini--done {
@@ -583,6 +623,10 @@ html[data-theme="dark"] .task-card__subtask-count {
 }
 html[data-theme="dark"] .subtask-mini--done {
     background: rgba(74, 222, 128, 0.1);
+}
+.subtask-mini--cancelled {
+    border-left-color: var(--text-muted);
+    background: rgba(127, 127, 127, 0.08);
 }
 
 .subtask-mini__row-top {
@@ -618,6 +662,35 @@ html[data-theme="dark"] .subtask-mini--done {
     color: #fff;
     font-size: 8px;
     font-weight: 700;
+}
+.subtask-mini__check--cancelled {
+    background: var(--text-muted);
+    border-color: var(--text-muted);
+}
+.subtask-mini__check--cancelled::after {
+    content: '✕';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+}
+.subtask-mini__check--expired {
+    background: var(--danger);
+    border-color: var(--danger);
+}
+.subtask-mini__check--expired::after {
+    content: '⌛';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 1;
 }
 
 .subtask-mini__title {
@@ -985,16 +1058,6 @@ html[data-theme="dark"] .compact-task__subtask-count {
    Кликабельные тег и статус
    ============================================================ */
 
-.task-tag--clickable {
-    cursor: pointer;
-    transition: transform .12s, filter .12s;
-}
-.task-tag--clickable:hover {
-    transform: scale(1.06);
-    filter: brightness(1.1);
-    text-decoration: none;
-}
-
 .kanban-col__title--clickable {
     cursor: pointer;
     transition: opacity .12s;
@@ -1008,4 +1071,97 @@ html[data-theme="dark"] .compact-task__subtask-count {
 }
 html[data-theme="dark"] .kanban-col__title--clickable:hover {
     background: rgba(255, 255, 255, 0.06);
+}
+
+.kanban-col__title-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.kanban-col__title--editable {
+    display: inline-block;
+    cursor: text;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background .15s;
+}
+.kanban-col__title--editable:hover {
+    background: rgba(9, 30, 66, 0.06);
+}
+html[data-theme="dark"] .kanban-col__title--editable:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.kanban-col__title-input {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    min-width: 120px;
+    max-width: 220px;
+}
+
+/* CompactView — заголовок группы */
+.compact-group__title-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.compact-group__title--editable {
+    display: inline-block;
+    cursor: text;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background .15s;
+}
+.compact-group__title--editable:hover {
+    background: rgba(9, 30, 66, 0.06);
+}
+html[data-theme="dark"] .compact-group__title--editable:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.compact-group__title-input {
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    min-width: 140px;
+    max-width: 240px;
+}
+
+/* ============================================================
+   Мини-палитра цветов (ПКМ по статусу)
+   ============================================================ */
+
+.color-menu {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
+    animation: treeTipFade .12s ease-out;
+}
+
+.color-menu__item {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: transform .12s, border-color .12s;
+}
+.color-menu__item:hover {
+    transform: scale(1.15);
+    border-color: var(--text);
 }

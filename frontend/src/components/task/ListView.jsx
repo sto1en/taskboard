@@ -20,7 +20,12 @@ import Subtask from './Subtask'
 import InlineEdit from '../common/InlineEdit'
 import DetailTextEditor from './DetailTextEditor'
 import { formatDeadline } from '../../utils/format'
-import { sortTasks, isDone as checkIsDone } from '../../utils/sortTasks'
+import {
+    sortTasks,
+    isDone as checkIsDone,
+    isCancelled as checkIsCancelled,
+    isExpired as checkIsExpired,
+} from '../../utils/sortTasks'
 
 function SortableTaskRow({
                              task, doneStatusId, activeStatusId,
@@ -52,6 +57,8 @@ function SortableTaskRow({
     }
 
     const isDone = checkIsDone(task)
+    const isCancelled = checkIsCancelled(task)
+    const isExpired = checkIsExpired(task)
 
     const accent = task.statusAccentCode
         ? `var(--accent-${task.statusAccentCode}, var(--primary))`
@@ -146,7 +153,12 @@ function SortableTaskRow({
                 onClick={handleToggleExpand}
             >
                 <button
-                    className={`word-list__check ${isDone ? 'word-list__check--done' : ''}`}
+                    className={[
+                        'word-list__check',
+                        isDone ? 'word-list__check--done' : '',
+                        isCancelled ? 'word-list__check--cancelled' : '',
+                        isExpired ? 'word-list__check--expired' : '',
+                    ].filter(Boolean).join(' ')}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                         e.stopPropagation()

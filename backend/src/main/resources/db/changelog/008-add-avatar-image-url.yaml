@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-01-avatar-image-url
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: avatars
+                columnName: image_url
+      changes:
+        - addColumn:
+            tableName: avatars
+            columns:
+              - column:
+                  name: image_url
+                  type: VARCHAR(255)
+                  constraints: { nullable: true }

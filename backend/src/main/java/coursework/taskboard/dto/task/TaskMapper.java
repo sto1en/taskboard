@@ -10,6 +10,7 @@ import coursework.taskboard.model.stage.Stage;
 import coursework.taskboard.model.tag.Tag;
 import coursework.taskboard.model.tag.TagAppearance;
 import coursework.taskboard.model.task.*;
+import coursework.taskboard.service.task.OverduePolicyService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -105,6 +106,12 @@ public class TaskMapper {
                                        long subtaskDone,
                                        List<TaskShortDto> subtasks,
                                        List<TagShortDto> tags) {
+
+        LocalDateTime deadline = schedule != null ? schedule.getDeadline() : null;
+        LocalDateTime completedAt = schedule != null ? schedule.getCompletedAt() : null;
+
+        boolean isOverdue = OverduePolicyService.isOverdue(deadline, completedAt);
+
         return TaskShortDto.builder()
                 .id(task.getId())
                 .title(task.getTitle())
@@ -115,7 +122,8 @@ public class TaskMapper {
                 .statusTitle(status != null ? status.getTitle() : null)
                 .statusAccentCode(appearance != null ? appearance.getAccentCode() : null)
                 .priority(settings != null ? settings.getPriority() : 0)
-                .deadline(schedule != null ? schedule.getDeadline() : null)
+                .deadline(deadline)
+                .isOverdue(isOverdue)
                 .position(task.getPosition())
                 .attachmentNames(attachmentNames)
                 .subtaskTotal(subtaskTotal)

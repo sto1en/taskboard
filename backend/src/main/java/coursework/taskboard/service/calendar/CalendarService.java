@@ -12,6 +12,7 @@ import coursework.taskboard.repository.board.BoardStatusAppearanceRepository;
 import coursework.taskboard.repository.project.ProjectRepository;
 import coursework.taskboard.repository.task.TaskScheduleRepository;
 import coursework.taskboard.repository.task.TaskSettingsRepository;
+import coursework.taskboard.service.task.OverduePolicyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +42,6 @@ public class CalendarService {
                     .forEach(p -> projectIds.add(p.getId()));
         }
 
-        // Дедлайн — LocalDateTime, диапазон расширяем
         LocalDateTime fromDt = from.atStartOfDay();
         LocalDateTime toDt = to.plusDays(1).atStartOfDay();
 
@@ -50,8 +50,6 @@ public class CalendarService {
                 : taskScheduleRepository.findInPeriod(fromDt, toDt, projectIds);
 
         Map<LocalDate, List<CalendarTaskDto>> byDate = new TreeMap<>();
-
-        LocalDateTime now = LocalDateTime.now();
 
         for (TaskSchedule schedule : schedules) {
             if (schedule.getDeadline() == null) continue;
@@ -67,8 +65,10 @@ public class CalendarService {
                         .findById(settings.getStatus().getId()).orElse(null);
             }
 
-            boolean isOverdue = schedule.getDeadline().isBefore(now)
-                    && schedule.getCompletedAt() == null;
+            boolean isOverdue = OverduePolicyService.isOverdue(
+                    schedule.getDeadline(),
+                    schedule.getCompletedAt()
+            );
 
             CalendarTaskDto dto = CalendarTaskDto.builder()
                     .id(task.getId())

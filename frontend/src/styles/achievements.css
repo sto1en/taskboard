@@ -1,0 +1,215 @@
+/* ============================================================
+   Stats tabs
+   ============================================================ */
+
+.stats__tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+.stats__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+    white-space: nowrap;
+}
+
+.stats__tab:hover {
+    color: var(--text);
+}
+.stats__tab--active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.stats__tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 18px;
+    padding: 0 6px;
+    background: color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
+    color: var(--accent, var(--primary));
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* ============================================================
+   Achievements grid
+   ============================================================ */
+
+.achievements__empty {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.achievements__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.achievement-card {
+    display: flex;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--ach-accent, var(--accent, var(--primary)));
+    border-radius: 10px;
+    box-shadow: var(--shadow-sm);
+    transition: transform .15s, box-shadow .15s;
+}
+
+.achievement-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.achievement-card--locked {
+    opacity: 0.55;
+    filter: grayscale(0.7);
+    border-left-color: var(--border);
+}
+
+.achievement-card__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    background: color-mix(in srgb, var(--ach-accent, var(--accent, var(--primary))) 12%, transparent);
+    border-radius: 12px;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.achievement-card__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.achievement-card__title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.achievement-card__desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.achievement-card__date {
+    font-size: 11px;
+    color: var(--text-muted);
+    opacity: 0.8;
+    margin-top: 2px;
+}
+
+/* ============================================================
+   Toast
+   ============================================================ */
+
+.achievement-toast {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 500;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--success);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(9, 30, 66, 0.25);
+    max-width: 360px;
+    animation: achievementSlideIn .35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes achievementSlideIn {
+    from { opacity: 0; transform: translateX(40px) scale(0.9); }
+    to   { opacity: 1; transform: translateX(0)   scale(1); }
+}
+
+.achievement-toast__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    background: color-mix(in srgb, var(--success) 15%, transparent);
+    border-radius: 10px;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.achievement-toast__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.achievement-toast__title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--success);
+}
+
+.achievement-toast__name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.achievement-toast__desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.achievement-toast__close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+.achievement-toast__close:hover {
+    color: var(--text);
+    background: rgba(9, 30, 66, 0.06);
+}
+html[data-theme="dark"] .achievement-toast__close:hover {
+    background: rgba(255, 255, 255, 0.06);
+}

@@ -1,0 +1,112 @@
+databaseChangeLog:
+
+  # ============================================================
+  # Справочник аватарок
+  # ============================================================
+  - changeSet:
+      id: 007-01-avatars
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: avatars }
+      changes:
+        - createTable:
+            tableName: avatars
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: code,        type: VARCHAR(64),  constraints: { nullable: false, unique: true } }
+              - column: { name: title,       type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: description, type: VARCHAR(500), constraints: { nullable: false } }
+              - column: { name: emoji,       type: VARCHAR(32),  constraints: { nullable: true } }
+              - column: { name: css_class,   type: VARCHAR(64),  constraints: { nullable: true } }
+              - column: { name: price,       type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: sort_order,  type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+
+
+  - changeSet:
+      id: 007-04-achievement-reward
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: achievements
+                columnName: reward
+      changes:
+        - addColumn:
+            tableName: achievements
+            columns:
+              - column:
+                  name: reward
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+
+  # ============================================================
+  # Купленные аватарки
+  # ============================================================
+  - changeSet:
+      id: 007-02-user-avatars
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_avatars }
+      changes:
+        - createTable:
+            tableName: user_avatars
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_avatars_user
+              - column:
+                  name: avatar_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: avatars(id)
+                    foreignKeyName: fk_user_avatars_avatar
+              - column: { name: purchased_at, type: TIMESTAMP, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: user_avatars
+            columnNames: user_id, avatar_id
+            constraintName: uq_user_avatars
+
+  # ============================================================
+  # Активная аватарка в user_appearance
+  # ============================================================
+  - changeSet:
+      id: 007-03-user-appearance-active-avatar
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: user_appearance
+                columnName: active_avatar_id
+      changes:
+        - addColumn:
+            tableName: user_appearance
+            columns:
+              - column:
+                  name: active_avatar_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: avatars(id)
+                    foreignKeyName: fk_user_appearance_active_avatar
+

@@ -18,12 +18,12 @@ public interface TaskScheduleRepository extends JpaRepository<TaskSchedule, Long
         JOIN ts.task t
         JOIN t.settings s
         JOIN s.status st
-        WHERE ts.deadline < :now
+        WHERE ts.deadline < :threshold
           AND ts.completedAt IS NULL
           AND ts.expiredAt IS NULL
           AND st.categoryCode = 'ACTIVE'
     """)
-    List<TaskSchedule> findOverdue(@Param("now") LocalDateTime now);
+    List<TaskSchedule> findOverdue(@Param("threshold") LocalDateTime threshold);
 
     // ============================================================
     // Календарь — диапазон дат
@@ -52,4 +52,51 @@ public interface TaskScheduleRepository extends JpaRepository<TaskSchedule, Long
     List<TaskSchedule> findCompletedInPeriod(@Param("userId") Long userId,
                                              @Param("from") LocalDateTime from,
                                              @Param("to") LocalDateTime to);
+
+    // ============================================================
+    // Reschedule
+    // ============================================================
+    @Query("""
+        SELECT ts FROM TaskSchedule ts
+        JOIN ts.task t
+        JOIN t.settings s
+        JOIN s.status st
+        WHERE t.project.id IN :projectIds
+          AND ts.deadline IS NOT NULL
+          AND ts.completedAt IS NULL
+          AND ts.deadline < :threshold
+          AND st.categoryCode NOT IN ('DONE', 'CANCELLED', 'ARCHIVED')
+          AND (ts.rescheduleSnoozedUntil IS NULL OR ts.rescheduleSnoozedUntil < :now)
+        ORDER BY ts.deadline ASC
+    """)
+    List<TaskSchedule> findPendingReschedule(@Param("now") LocalDateTime now,
+                                             @Param("threshold") LocalDateTime threshold,
+                                             @Param("projectIds") List<Long> projectIds);
+
+    // ============================================================
+    // Нагрузка по дням: сколько задач с дедлайном в каждый день
+    // ============================================================
+    @Query(value = """
+        SELECT to_char(ts.deadline, 'YYYY-MM-DD') AS d,
+               count(*) FILTER (WHERE sch.status_category = 'ACTIVE')  AS open_count,
+               count(*) FILTER (WHERE sch.status_category = 'DONE')    AS done_count,
+               count(*) FILTER (WHERE sch.status_category = 'EXPIRED') AS overdue_count
+        FROM task_schedule ts
+        JOIN (
+            SELECT s.task_id, st.category_code AS status_category
+            FROM task_settings s
+            JOIN board_statuses st ON st.id = s.status_id
+        ) sch ON sch.task_id = ts.task_id
+        JOIN tasks t ON t.id = ts.task_id
+        JOIN projects p ON p.id = t.project_id
+        JOIN boards b ON b.id = p.board_id
+        WHERE b.owner_id = :userId
+          AND ts.deadline >= :from
+          AND ts.deadline < :to
+        GROUP BY d
+        ORDER BY d
+    """, nativeQuery = true)
+    List<Object[]> loadByDay(@Param("userId") Long userId,
+                             @Param("from") LocalDateTime from,
+                             @Param("to") LocalDateTime to);
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { attachmentsApi, tasksApi } from '../../api/api'
 import { resolveUrl } from '../../utils/format'
 
@@ -20,6 +21,9 @@ export default function AttachmentsModal({
         )
     }, [attachments])
 
+    // ============================================================
+    // Escape закрывает: сначала превью, потом модалку
+    // ============================================================
     useEffect(() => {
         if (!open) {
             setPreview(null)
@@ -35,6 +39,39 @@ export default function AttachmentsModal({
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
     }, [open, preview, onClose])
+
+    // ============================================================
+    // N / Т — открыть выбор файла, если модалка вложений открыта.
+    // Используем e.code ('KeyN'), чтобы работало в русской раскладке.
+    // Перехватываем событие через capture, чтобы Sidebar не открыл
+    // CreateTaskModal поверх.
+    // ============================================================
+    useEffect(() => {
+        if (!open) return
+
+        const onKey = (e) => {
+            if (e.code !== 'KeyN') return
+            if (e.ctrlKey || e.metaKey || e.altKey) return
+
+            const target = e.target
+            const isInput = target && (
+                target.tagName === 'INPUT'
+                || target.tagName === 'TEXTAREA'
+                || target.isContentEditable
+            )
+
+            if (isInput && target.type !== 'file') return
+
+            e.preventDefault()
+            e.stopPropagation()
+            if (!uploading) {
+                fileInputRef.current?.click()
+            }
+        }
+
+        window.addEventListener('keydown', onKey, true)
+        return () => window.removeEventListener('keydown', onKey, true)
+    }, [open, uploading])
 
     if (!open) return null
 
@@ -85,6 +122,50 @@ export default function AttachmentsModal({
         }
     }
 
+    // ============================================================
+    // Портал для превью: ищем .layout__content
+    // ============================================================
+    const contentEl = typeof document !== 'undefined'
+        ? document.querySelector('.layout__content')
+        : null
+
+    const previewPortal = preview && contentEl
+        ? createPortal(
+            <div
+                className="attachments-modal__preview"
+                onClick={() => setPreview(null)}
+            >
+                <img
+                    src={preview.url}
+                    alt={preview.originalName}
+                    onClick={(e) => e.stopPropagation()}
+                />
+                <div className="attachments-modal__preview-actions">
+                    <button
+                        className="attachments-modal__btn"
+                        onClick={(e) => handleDownload(e, preview)}
+                    >⬇ Скачать</button>
+                    <a
+                        href={preview.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="attachments-modal__btn"
+                    >↗ Открыть</a>
+                    <button
+                        className="attachments-modal__btn"
+                        onClick={() => setPreview(null)}
+                    >× Закрыть</button>
+                </div>
+            </div>,
+            contentEl
+        )
+        : null
+
+    // Если открыто превью — рендерим только его, модалку прячем.
+    if (preview) {
+        return previewPortal
+    }
+
     return (
         <div className="attachments-modal-overlay" onClick={onClose}>
             <div className="attachments-modal" onClick={(e) => e.stopPropagation()}>
@@ -122,9 +203,7 @@ export default function AttachmentsModal({
                                                 <div className="attachments-modal__file-name">
                                                     {a.originalName}
                                                 </div>
-                                                <div className="attachments-modal__file-mime">
-                                                    {a.mimeCode}
-                                                </div>
+                                                {/* MIME-подпись убрана */}
                                             </div>
                                         )}
 
@@ -152,46 +231,22 @@ export default function AttachmentsModal({
                 </div>
 
                 <div className="attachments-modal__foot">
-                    <label className="attachments-modal__add">
-                        {uploading ? 'Загрузка...' : '+ Добавить вложение'}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            style={{ display: 'none' }}
-                            onChange={handleUpload}
-                            disabled={uploading}
-                        />
-                    </label>
-                </div>
-
-                {preview && (
-                    <div
-                        className="attachments-modal__preview"
-                        onClick={() => setPreview(null)}
+                    <button
+                        type="button"
+                        className="btn btn-primary attachments-modal__add"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
                     >
-                        <img
-                            src={preview.url}
-                            alt={preview.originalName}
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                        <div className="attachments-modal__preview-actions">
-                            <button
-                                className="attachments-modal__btn"
-                                onClick={(e) => handleDownload(e, preview)}
-                            >⬇ Скачать</button>
-                            <a
-                                href={preview.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="attachments-modal__btn"
-                            >↗ Открыть</a>
-                            <button
-                                className="attachments-modal__btn"
-                                onClick={() => setPreview(null)}
-                            >× Закрыть</button>
-                        </div>
-                    </div>
-                )}
+                        {uploading ? 'Загрузка...' : '+ Добавить вложение'}
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        style={{ display: 'none' }}
+                        onChange={handleUpload}
+                        disabled={uploading}
+                    />
+                </div>
             </div>
         </div>
     )

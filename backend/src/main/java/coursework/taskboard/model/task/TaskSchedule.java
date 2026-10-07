@@ -30,4 +30,11 @@ public class TaskSchedule {
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    @Column(name = "reschedule_count", nullable = false)
+    @Builder.Default
+    private Integer rescheduleCount = 0;
+
+    @Column(name = "reschedule_snoozed_until")
+    private LocalDateTime rescheduleSnoozedUntil;
 }

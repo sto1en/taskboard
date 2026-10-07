@@ -5,3 +5,13 @@ databaseChangeLog:
       file: db/changelog/002-add-tree-settings.yaml
   - include:
       file: db/changelog/003-add-project-user-filters.yaml
+  - include:
+      file: db/changelog/004-add-reschedule-fields.yaml
+  - include:
+      file: db/changelog/005-add-achievements.yaml
+  - include:
+      file: db/changelog/006-add-shop.yaml
+  - include:
+      file: db/changelog/007-add-avatars-and-tree-skins-v2.yaml
+  - include:
+      file: db/changelog/008-add-avatar-image-url.yaml

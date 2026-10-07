@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { searchApi } from '../api/api'
 import useT from '../hooks/useT'
 import SearchFilters from '../components/Search/SearchFilters'
@@ -7,7 +7,6 @@ import SearchResults from '../components/Search/SearchResults'
 import SearchPagination from '../components/Search/SearchPagination'
 import TaskDetailModal from '../components/Task/TaskDetailModal'
 
-// Порядок типов: задача → проект → доска → тег
 const KIND_ORDER = { task: 0, project: 1, board: 2, tag: 3 }
 
 function isDoneItem(item) {
@@ -21,24 +20,22 @@ function sortResults(items) {
         const doneA = isDoneItem(a) ? 1 : 0
         const doneB = isDoneItem(b) ? 1 : 0
         if (doneA !== doneB) return doneA - doneB
-
         const ka = KIND_ORDER[a.kind] ?? 99
         const kb = KIND_ORDER[b.kind] ?? 99
         if (ka !== kb) return ka - kb
-
         return (a.id || 0) - (b.id || 0)
     })
 }
 
 export default function SearchPage() {
     const t = useT()
-    const nav = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
 
     const [loading, setLoading] = useState(false)
     const [data, setData] = useState({ items: [], total: 0, page: 0, size: 20, totalPages: 0, hasMore: false })
     const [openTaskId, setOpenTaskId] = useState(null)
 
+    // Разбор URL → объект фильтров
     const filters = useMemo(() => {
         const arr = (key) => {
             const v = searchParams.get(key)
@@ -80,6 +77,7 @@ export default function SearchPage() {
         return p
     }
 
+    // Запрос на бэк
     useEffect(() => {
         const params = {}
         if (filters.q) params.q = filters.q
@@ -109,6 +107,7 @@ export default function SearchPage() {
 
         if (!hasFilter) {
             setData({ items: [], total: 0, page: 0, size: 20, totalPages: 0, hasMore: false })
+            setLoading(false)
             return
         }
 

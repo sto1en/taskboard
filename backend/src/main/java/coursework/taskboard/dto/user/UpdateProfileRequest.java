@@ -13,4 +13,10 @@ public class UpdateProfileRequest {
     private String bio;
 
     private Long avatarAttachmentId;
+
+    /**
+     * Если true — аватар сбрасывается (avatarAttachmentId игнорируется).
+     * Используется фронтом для кнопки «Удалить аватар».
+     */
+    private Boolean clearAvatar;
 }

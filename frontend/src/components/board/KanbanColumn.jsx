@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core'
-import { useNavigate } from 'react-router-dom'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import SortableTaskCard from '../Task/SortableTaskCard'
+import InlineEdit from '../common/InlineEdit'
 import useT from '../../hooks/useT'
 import { useAuth } from '../../context/AuthContext'
 import { localizeStatusTitle } from '../../utils/statusNames'
@@ -21,9 +21,10 @@ export default function KanbanColumn({
                                          onTaskMoved,
                                          onOpenAttachments,
                                          onHover,
+                                         onEditStatus,
+                                         onRecolorStatus,
                                      }) {
     const t = useT()
-    const nav = useNavigate()
     const { user } = useAuth()
     const lang = user?.locale?.language || 'ru'
     const displayTitle = localizeStatusTitle(column.title, lang)
@@ -39,9 +40,16 @@ export default function KanbanColumn({
         ? `var(--accent-${column.accentCode}, #97a0af)`
         : 'var(--primary)'
 
-    const handleStatusClick = (e) => {
+    const handleStatusContextMenu = (e) => {
+        e.preventDefault()
         e.stopPropagation()
-        nav(`/search?statusIds=${column.statusId}`)
+        onRecolorStatus && onRecolorStatus(column, e)
+    }
+
+    const handleTitleSave = async (newTitle) => {
+        const trimmed = (newTitle || '').trim()
+        if (!trimmed || trimmed === column.title) return
+        await onEditStatus?.(column, trimmed)
     }
 
     return (
@@ -63,15 +71,20 @@ export default function KanbanColumn({
                         ⋮⋮
                     </span>
                 )}
-                <span
-                    className="kanban-col__title kanban-col__title--clickable"
-                    style={{ color: accentColor }}
-                    onClick={handleStatusClick}
-                    title={t.groupTasks}
+
+                <div
+                    className="kanban-col__title-wrap"
+                    onContextMenu={handleStatusContextMenu}
                 >
-                    {column.icon && <span style={{ marginRight: 4 }}>{column.icon}</span>}
-                    {displayTitle}
-                </span>
+                    <InlineEdit
+                        value={displayTitle}
+                        className="kanban-col__title kanban-col__title--editable"
+                        inputClassName="input kanban-col__title-input"
+                        onSave={handleTitleSave}
+                        title="Двойной клик — переименовать · ПКМ — сменить цвет"
+                    />
+                </div>
+
                 <span className="kanban-col__count">{column.count}</span>
             </div>
 
@@ -81,6 +94,7 @@ export default function KanbanColumn({
                         <SortableTaskCard
                             key={task.id}
                             task={task}
+                            reorderMode={reorderMode}
                             doneStatusId={doneStatusId}
                             activeStatusId={activeStatusId}
                             isDropOver={hoverTaskId === task.id}

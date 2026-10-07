@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { boardsApi, projectsApi } from '../api/api'
 import BoardToolbar from '../components/Board/BoardToolbar'
@@ -13,6 +13,13 @@ export default function BoardDetailPage() {
     const [projects, setProjects] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
+
+    const reloadProjects = useCallback(() => {
+        if (!id) return
+        projectsApi.listByBoard(id)
+            .then(({ data }) => setProjects(data))
+            .catch(() => {})
+    }, [id])
 
     useEffect(() => {
         if (!id) return
@@ -34,6 +41,17 @@ export default function BoardDetailPage() {
             })
             .finally(() => setLoading(false))
     }, [id])
+
+    // Обновляем проекты при изменениях в трее / при перетаскивании
+    useEffect(() => {
+        const onRefresh = () => reloadProjects()
+        window.addEventListener('projects:refresh', onRefresh)
+        window.addEventListener('sidebar:refresh', onRefresh)
+        return () => {
+            window.removeEventListener('projects:refresh', onRefresh)
+            window.removeEventListener('sidebar:refresh', onRefresh)
+        }
+    }, [reloadProjects])
 
     const handleDeleteBoard = async (boardId) => {
         try {

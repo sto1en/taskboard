@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { userApi, attachmentsApi, boardsApi } from '../api/api'
-import { resolveUrl } from '../utils/format'
+import { userApi, boardsApi, shopApi } from '../api/api'
 import useT from '../hooks/useT'
 
 const RUSSIAN_TIMEZONES = [
@@ -43,27 +42,10 @@ const DEFAULT_APPEARANCE = {
     treeEnabled: true,
     treeKind: 'sakura',
 }
-
 const DEFAULT_LOCALE = { language: 'ru', timezone: 'Europe/Moscow' }
-
-const DEFAULT_WORKSPACE = {
-    defaultBoardId: null,
-    tasksPerPage: 50,
-    confirmBeforeDelete: true,
-}
-
-const DEFAULT_DISPLAY = {
-    taskSortMode: 'manual',
-    taskSortDir: 'asc',
-    projectViewMode: 'kanban',
-}
-
-const DEFAULT_NOTIFICATION = {
-    notifyEmail: true,
-    notifyDeadline: true,
-    notifyDigest: 'daily',
-    remindBeforeDays: 1,
-}
+const DEFAULT_WORKSPACE = { defaultBoardId: null, tasksPerPage: 50, confirmBeforeDelete: true }
+const DEFAULT_DISPLAY = { taskSortMode: 'manual', taskSortDir: 'asc', projectViewMode: 'kanban' }
+const DEFAULT_NOTIFICATION = { notifyEmail: true, notifyDeadline: true, notifyDigest: 'daily', remindBeforeDays: 1 }
 
 export default function ProfilePage() {
     const { user, updateUser } = useAuth()
@@ -75,9 +57,7 @@ export default function ProfilePage() {
 
     useEffect(() => {
         const urlTab = searchParams.get('tab')
-        if (urlTab && urlTab !== tab) {
-            setTab(urlTab)
-        }
+        if (urlTab && urlTab !== tab) setTab(urlTab)
     }, [searchParams])
 
     const switchTab = (code) => {
@@ -88,14 +68,7 @@ export default function ProfilePage() {
     const [msg, setMsg] = useState(null)
     const [err, setErr] = useState(null)
 
-    const [profileForm, setProfileForm] = useState({
-        displayName: '',
-        bio: '',
-        avatarAttachmentId: null,
-    })
-    const [avatarPreview, setAvatarPreview] = useState(null)
-    const fileInputRef = useRef(null)
-
+    const [profileForm, setProfileForm] = useState({ displayName: '', bio: '' })
     const [appearanceForm, setAppearanceForm] = useState(DEFAULT_APPEARANCE)
     const [localeForm, setLocaleForm] = useState(DEFAULT_LOCALE)
     const [workspaceForm, setWorkspaceForm] = useState(DEFAULT_WORKSPACE)
@@ -103,16 +76,14 @@ export default function ProfilePage() {
     const [displayForm, setDisplayForm] = useState(DEFAULT_DISPLAY)
     const [notificationForm, setNotificationForm] = useState(DEFAULT_NOTIFICATION)
 
+    const [shop, setShop] = useState(null)
+
     useEffect(() => {
         if (!user) return
-
         setProfileForm({
             displayName: user.profile?.displayName || '',
             bio: user.profile?.bio || '',
-            avatarAttachmentId: user.profile?.avatarAttachmentId || null,
         })
-        setAvatarPreview(resolveUrl(user.profile?.avatarUrl))
-
         setAppearanceForm({
             ...DEFAULT_APPEARANCE,
             ...(user.appearance || {}),
@@ -122,95 +93,99 @@ export default function ProfilePage() {
         setWorkspaceForm({ ...DEFAULT_WORKSPACE, ...(user.workspace || {}) })
         setDisplayForm({ ...DEFAULT_DISPLAY, ...(user.display || {}) })
         setNotificationForm({ ...DEFAULT_NOTIFICATION, ...(user.notification || {}) })
-
         boardsApi.list().then(({ data }) => setBoards(data))
     }, [user])
 
-    const flash = (m) => {
-        setMsg(m); setErr(null)
-        setTimeout(() => setMsg(null), 3000)
+    const loadShop = () => {
+        shopApi.get().then(({ data }) => setShop(data)).catch(() => setShop(null))
     }
-    const flashErr = (e) => {
-        setErr(e.response?.data?.message || e.message || 'Ошибка')
-        setMsg(null)
-    }
+    useEffect(() => { loadShop() }, [])
+
+    const flash = (m) => { setMsg(m); setErr(null); setTimeout(() => setMsg(null), 3000) }
+    const flashErr = (e) => { setErr(e.response?.data?.message || e.message || 'Ошибка'); setMsg(null) }
 
     const saveProfile = async () => {
         try {
             const { data } = await userApi.updateProfile(profileForm)
             updateUser({ profile: data })
-            flash('OK')
+            flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
-
-    const uploadAvatar = async (e) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-        try {
-            const { data: attachment } = await attachmentsApi.upload(file)
-            setAvatarPreview(resolveUrl(attachment.url))
-            const newProfile = { ...profileForm, avatarAttachmentId: attachment.id }
-            setProfileForm(newProfile)
-            const { data } = await userApi.updateProfile(newProfile)
-            updateUser({ profile: data })
-            flash('OK')
-        } catch (e) { flashErr(e) }
-    }
-
     const saveAppearance = async () => {
         try {
             const { data } = await userApi.updateAppearance(appearanceForm)
             updateUser({ appearance: data })
-            flash('OK')
+            flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
-
     const saveLocale = async () => {
         try {
             const { data } = await userApi.updateLocale(localeForm)
             updateUser({ locale: data })
-            flash('OK')
+            flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
-
     const saveWorkspace = async () => {
         try {
             const { data } = await userApi.updateWorkspace(workspaceForm)
             updateUser({ workspace: data })
-            flash('OK')
+            flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
-
     const saveDisplay = async () => {
         try {
             const { data } = await userApi.updateDisplay(displayForm)
             updateUser({ display: data })
-            flash('OK')
+            flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
-
     const saveNotification = async () => {
         try {
             const { data } = await userApi.updateNotification(notificationForm)
             updateUser({ notification: data })
-            flash('OK')
+            flash('Сохранено')
+        } catch (e) { flashErr(e) }
+    }
+
+    // Аватарка/рамка — покупка только если не куплено
+    const applyAvatar = async (avatarId) => {
+        try {
+            const owned = shop?.avatars?.find(a => a.id === avatarId && a.owned)
+            if (!owned) await shopApi.buyAvatar(avatarId)
+            await shopApi.equipAvatar(avatarId)
+            loadShop()
+            window.dispatchEvent(new Event('shop:refresh'))
+            flash('Сохранено')
+        } catch (e) { flashErr(e) }
+    }
+    const applyFrame = async (frameId) => {
+        try {
+            const owned = shop?.frames?.find(f => f.id === frameId && f.owned)
+            if (!owned) await shopApi.buyFrame(frameId)
+            await shopApi.equipFrame(frameId)
+            loadShop()
+            window.dispatchEvent(new Event('shop:refresh'))
+            flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
 
     if (!user) return <div className="loading">Loading...</div>
 
     const TABS = [
-        ['profile', t.tabProfile],
-        ['appearance', t.tabAppearance],
-        ['locale', t.tabLocale],
-        ['workspace', t.tabWorkspace],
-        ['display', t.tabDisplay],
-        ['notification', t.tabNotification],
+        ['profile', t.tabProfile || 'Профиль'],
+        ['appearance', t.tabAppearance || 'Внешний вид'],
+        ['locale', t.tabLocale || 'Язык и время'],
+        ['workspace', t.tabWorkspace || 'Рабочее пространство'],
+        ['display', t.tabDisplay || 'Отображение'],
+        ['notification', t.tabNotification || 'Уведомления'],
     ]
+
+    const activeAvatar = shop?.avatars?.find(a => a.active) || null
+    const activeFrame = shop?.frames?.find(f => f.active) || null
 
     return (
         <div className="profile-page">
-            <h1 className="profile-page__title">{t.userSettings}</h1>
+            <h1 className="profile-page__title">{t.userSettings || 'Настройки пользователя'}</h1>
 
             <div className="profile-tabs">
                 {TABS.map(([code, label]) => (
@@ -229,56 +204,107 @@ export default function ProfilePage() {
 
             {tab === 'profile' && (
                 <div className="profile-section">
-                    <div className="profile-avatar-section">
-                        <div className="profile-avatar">
-                            {avatarPreview
-                                ? <img src={avatarPreview} alt="avatar" />
-                                : <div className="profile-avatar__placeholder">
-                                    {user.username.charAt(0).toUpperCase()}
-                                </div>}
+                    <div className="profile-avatar-preview">
+                        <div className={`avatar-frame ${activeFrame?.cssClass || ''}`}
+                             style={{ width: 96, height: 96 }}>
+                            <div className={`avatar-frame__inner ${activeAvatar?.cssClass || ''}`}>
+                                {activeAvatar?.emoji
+                                    ? <span className="avatar-frame__emoji">{activeAvatar.emoji}</span>
+                                    : <span className="avatar-frame__initial">
+                                        {(user.profile?.displayName || user.username).charAt(0).toUpperCase()}
+                                      </span>}
+                            </div>
                         </div>
-                        <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
-                            {t.avatarUpload}
-                        </button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            style={{ display: 'none' }}
-                            onChange={uploadAvatar}
-                        />
+                        <div className="profile-avatar-preview__hint">
+                            Аватарка и рамка выбираются из магазина 🛒
+                        </div>
+                        <Link to="/shop" className="btn btn-ghost" style={{ marginTop: 6 }}>
+                            Перейти в магазин
+                        </Link>
                     </div>
 
-                    <div className="profile-field">
-                        <label>{t.loginLabel}</label>
+                    {shop && (
+                        <>
+                            <div className="profile-picker-title">
+                                Купленные аватарки
+                            </div>
+                            {shop.avatars.filter(a => a.owned).length === 0 ? (
+                                <div className="profile-picker-empty">
+                                    Пока нет купленных аватарок. Откройте магазин, чтобы выбрать.
+                                </div>
+                            ) : (
+                                <div className="profile-picker">
+                                    {shop.avatars.filter(a => a.owned).map(a => {
+                                        const isActive = a.active
+                                        return (
+                                            <button
+                                                key={a.id}
+                                                className={`profile-picker__item ${isActive ? 'profile-picker__item--active' : ''}`}
+                                                onClick={() => applyAvatar(a.id)}
+                                                title={a.title}
+                                            >
+                                                <span className="profile-picker__emoji">{a.emoji || '👤'}</span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            )}
+
+                            <div className="profile-picker-title" style={{ marginTop: 20 }}>
+                                Купленные рамки
+                            </div>
+                            {shop.frames.filter(f => f.owned).length === 0 ? (
+                                <div className="profile-picker-empty">
+                                    Пока нет купленных рамок. Откройте магазин, чтобы выбрать.
+                                </div>
+                            ) : (
+                                <div className="profile-picker">
+                                    {shop.frames.filter(f => f.owned).map(f => {
+                                        const isActive = f.active
+                                        return (
+                                            <button
+                                                key={f.id}
+                                                className={`profile-picker__item ${isActive ? 'profile-picker__item--active' : ''}`}
+                                                onClick={() => applyFrame(f.id)}
+                                                title={f.title}
+                                            >
+                                                <span className={`profile-picker__frame ${f.cssClass || ''}`}>
+                                                    <span className="profile-picker__frame-inner">Т</span>
+                                                </span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    <div className="profile-field" style={{ marginTop: 24 }}>
+                        <label>{t.loginLabel || 'Логин'}</label>
                         <input className="input" value={user.username} disabled />
                     </div>
-
                     <div className="profile-field">
-                        <label>{t.emailLabel}</label>
+                        <label>{t.emailLabel || 'Email'}</label>
                         <input className="input" value={user.email} disabled />
                     </div>
-
                     <div className="profile-field">
-                        <label>{t.displayNameLabel}</label>
+                        <label>{t.displayNameLabel || 'Отображаемое имя'}</label>
                         <input
                             className="input"
                             value={profileForm.displayName}
                             onChange={(e) => setProfileForm(f => ({ ...f, displayName: e.target.value }))}
                         />
                     </div>
-
                     <div className="profile-field">
-                        <label>{t.bioLabel}</label>
+                        <label>{t.bioLabel || 'О себе'}</label>
                         <textarea
                             className="input"
                             value={profileForm.bio || ''}
                             onChange={(e) => setProfileForm(f => ({ ...f, bio: e.target.value }))}
                         />
                     </div>
-
                     <button className="btn btn-primary" onClick={saveProfile}>
-                        {t.saveProfile}
+                        {t.saveProfile || 'Сохранить профиль'}
                     </button>
                 </div>
             )}
@@ -286,20 +312,20 @@ export default function ProfilePage() {
             {tab === 'appearance' && (
                 <div className="profile-section">
                     <div className="profile-field">
-                        <label>{t.theme}</label>
+                        <label>{t.theme || 'Тема'}</label>
                         <select
                             className="input"
                             value={appearanceForm.theme}
                             onChange={(e) => setAppearanceForm(f => ({ ...f, theme: e.target.value }))}
                         >
-                            <option value="light">{t.themeLight}</option>
-                            <option value="dark">{t.themeDark}</option>
-                            <option value="system">{t.themeSystem}</option>
+                            <option value="light">{t.themeLight || 'Светлая'}</option>
+                            <option value="dark">{t.themeDark || 'Тёмная'}</option>
+                            <option value="system">{t.themeSystem || 'Как в системе'}</option>
                         </select>
                     </div>
 
                     <div className="profile-field">
-                        <label>{t.accentColor}</label>
+                        <label>{t.accentColor || 'Акцентный цвет'}</label>
                         <div className="accent-picker">
                             {['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray'].map(c => (
                                 <button
@@ -314,21 +340,37 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="profile-field">
-                        <label>{t.density}</label>
+                        <label>{t.density || 'Плотность'}</label>
                         <select
                             className="input"
                             value={appearanceForm.density}
                             onChange={(e) => setAppearanceForm(f => ({ ...f, density: e.target.value }))}
                         >
-                            <option value="compact">{t.densityCompact}</option>
-                            <option value="cozy">{t.densityCozy}</option>
-                            <option value="comfortable">{t.densityComfortable}</option>
+                            <option value="compact">{t.densityCompact || 'Компактная'}</option>
+                            <option value="cozy">{t.densityCozy || 'Удобная'}</option>
+                            <option value="comfortable">{t.densityComfortable || 'Просторная'}</option>
+                        </select>
+                    </div>
+
+                    {/* Вид дерева роста */}
+                    <div className="profile-field">
+                        <label>{t.treeKind || 'Вид дерева'}</label>
+                        <select
+                            className="input"
+                            value={appearanceForm.treeKind || 'sakura'}
+                            onChange={(e) => setAppearanceForm(f => ({ ...f, treeKind: e.target.value }))}
+                        >
+                            <option value="apple">{t.treeApple || '🍎 Яблоня'}</option>
+                            <option value="palm">{t.treePalm || '🌴 Пальма'}</option>
+                            <option value="birch">{t.treeBirch || '🌳 Берёза'}</option>
+                            <option value="sakura">{t.treeSakura || '🌸 Сакура'}</option>
+                            <option value="xmas">{t.treeXmas || '🎄 Ёлка'}</option>
                         </select>
                     </div>
 
                     <div className="profile-field">
                         <div className="toggle-row">
-                            <span className="toggle-row__label">{t.showTree}</span>
+                            <span className="toggle-row__label">{t.showTree || 'Показывать дерево роста в сайдбаре'}</span>
                             <button
                                 type="button"
                                 role="switch"
@@ -344,27 +386,8 @@ export default function ProfilePage() {
                         </div>
                     </div>
 
-                    {appearanceForm.treeEnabled !== false && (
-                        <div className="profile-field">
-                            <label>{t.treeKind}</label>
-                            <select
-                                className="input"
-                                value={appearanceForm.treeKind || 'sakura'}
-                                onChange={(e) => setAppearanceForm(f => ({
-                                    ...f,
-                                    treeKind: e.target.value,
-                                }))}
-                            >
-                                <option value="sakura">{t.treeSakura}</option>
-                                <option value="birch">{t.treeBirch}</option>
-                                <option value="palm">{t.treePalm}</option>
-                                <option value="apple">{t.treeApple}</option>
-                            </select>
-                        </div>
-                    )}
-
                     <button className="btn btn-primary" onClick={saveAppearance}>
-                        {t.apply}
+                        {t.apply || 'Применить'}
                     </button>
                 </div>
             )}
@@ -372,19 +395,18 @@ export default function ProfilePage() {
             {tab === 'locale' && (
                 <div className="profile-section">
                     <div className="profile-field">
-                        <label>{t.language}</label>
+                        <label>{t.language || 'Язык'}</label>
                         <select
                             className="input"
                             value={localeForm.language}
                             onChange={(e) => setLocaleForm(f => ({ ...f, language: e.target.value }))}
                         >
-                            <option value="ru">{t.languageRu}</option>
-                            <option value="en">{t.languageEn}</option>
+                            <option value="ru">{t.languageRu || 'Русский'}</option>
+                            <option value="en">{t.languageEn || 'English'}</option>
                         </select>
                     </div>
-
                     <div className="profile-field">
-                        <label>{t.timezone}</label>
+                        <label>{t.timezone || 'Часовой пояс'}</label>
                         <select
                             className="input"
                             value={localeForm.timezone}
@@ -395,9 +417,8 @@ export default function ProfilePage() {
                             ))}
                         </select>
                     </div>
-
                     <button className="btn btn-primary" onClick={saveLocale}>
-                        {t.apply}
+                        {t.apply || 'Применить'}
                     </button>
                 </div>
             )}
@@ -405,7 +426,7 @@ export default function ProfilePage() {
             {tab === 'workspace' && (
                 <div className="profile-section">
                     <div className="profile-field">
-                        <label>{t.defaultBoard}</label>
+                        <label>{t.defaultBoard || 'Доска по умолчанию'}</label>
                         <select
                             className="input"
                             value={workspaceForm.defaultBoardId || ''}
@@ -414,15 +435,14 @@ export default function ProfilePage() {
                                 defaultBoardId: e.target.value ? Number(e.target.value) : null,
                             }))}
                         >
-                            <option value="">{t.notSelected}</option>
+                            <option value="">{t.notSelected || '— Не выбрано —'}</option>
                             {boards.map(b => (
                                 <option key={b.id} value={b.id}>{b.title}</option>
                             ))}
                         </select>
                     </div>
-
                     <div className="profile-field">
-                        <label>{t.tasksPerPage}</label>
+                        <label>{t.tasksPerPage || 'Задач на странице'}</label>
                         <input
                             className="input"
                             type="number"
@@ -432,7 +452,6 @@ export default function ProfilePage() {
                             onChange={(e) => setWorkspaceForm(f => ({ ...f, tasksPerPage: Number(e.target.value) }))}
                         />
                     </div>
-
                     <div className="profile-field profile-field--check">
                         <label>
                             <input
@@ -440,12 +459,11 @@ export default function ProfilePage() {
                                 checked={workspaceForm.confirmBeforeDelete}
                                 onChange={(e) => setWorkspaceForm(f => ({ ...f, confirmBeforeDelete: e.target.checked }))}
                             />
-                            {t.confirmDelete}
+                            {t.confirmDelete || 'Спрашивать подтверждение перед удалением'}
                         </label>
                     </div>
-
                     <button className="btn btn-primary" onClick={saveWorkspace}>
-                        {t.apply}
+                        {t.apply || 'Применить'}
                     </button>
                 </div>
             )}
@@ -453,48 +471,44 @@ export default function ProfilePage() {
             {tab === 'display' && (
                 <div className="profile-section">
                     <div className="profile-field">
-                        <label>{t.taskSort}</label>
+                        <label>{t.taskSort || 'Сортировка задач'}</label>
                         <select
                             className="input"
                             value={displayForm.taskSortMode}
                             onChange={(e) => setDisplayForm(f => ({ ...f, taskSortMode: e.target.value }))}
                         >
-                            <option value="manual">{t.sortManual}</option>
-                            <option value="by_status">{t.sortByStatus}</option>
-                            <option value="by_deadline">{t.sortByDeadline}</option>
-                            <option value="by_priority">{t.sortByPriority}</option>
-                            <option value="by_project">{t.sortByProject}</option>
-                            <option value="by_created">{t.sortByCreated}</option>
+                            <option value="manual">{t.sortManual || 'Ручная'}</option>
+                            <option value="by_status">{t.sortByStatus || 'По статусу'}</option>
+                            <option value="by_deadline">{t.sortByDeadline || 'По дедлайну'}</option>
+                            <option value="by_priority">{t.sortByPriority || 'По приоритету'}</option>
+                            <option value="by_created">{t.sortByCreated || 'По дате создания'}</option>
                         </select>
                     </div>
-
                     <div className="profile-field">
-                        <label>{t.direction}</label>
+                        <label>{t.direction || 'Направление'}</label>
                         <select
                             className="input"
                             value={displayForm.taskSortDir}
                             onChange={(e) => setDisplayForm(f => ({ ...f, taskSortDir: e.target.value }))}
                         >
-                            <option value="asc">{t.asc}</option>
-                            <option value="desc">{t.desc}</option>
+                            <option value="asc">{t.asc || 'По возрастанию'}</option>
+                            <option value="desc">{t.desc || 'По убыванию'}</option>
                         </select>
                     </div>
-
                     <div className="profile-field">
-                        <label>{t.viewProject}</label>
+                        <label>{t.viewProject || 'Вид проекта по умолчанию'}</label>
                         <select
                             className="input"
                             value={displayForm.projectViewMode}
                             onChange={(e) => setDisplayForm(f => ({ ...f, projectViewMode: e.target.value }))}
                         >
-                            <option value="kanban">{t.viewKanban}</option>
-                            <option value="list">{t.viewList}</option>
-                            <option value="compact">{t.viewCompact}</option>
+                            <option value="kanban">{t.viewKanban || 'Таблица'}</option>
+                            <option value="list">{t.viewList || 'Список'}</option>
+                            <option value="compact">{t.viewCompact || 'Компакт'}</option>
                         </select>
                     </div>
-
                     <button className="btn btn-primary" onClick={saveDisplay}>
-                        {t.apply}
+                        {t.apply || 'Применить'}
                     </button>
                 </div>
             )}
@@ -508,10 +522,9 @@ export default function ProfilePage() {
                                 checked={notificationForm.notifyEmail}
                                 onChange={(e) => setNotificationForm(f => ({ ...f, notifyEmail: e.target.checked }))}
                             />
-                            {t.emailNotifications}
+                            {t.emailNotifications || 'Email-уведомления'}
                         </label>
                     </div>
-
                     <div className="profile-field profile-field--check">
                         <label>
                             <input
@@ -519,25 +532,23 @@ export default function ProfilePage() {
                                 checked={notificationForm.notifyDeadline}
                                 onChange={(e) => setNotificationForm(f => ({ ...f, notifyDeadline: e.target.checked }))}
                             />
-                            {t.deadlineNotifications}
+                            {t.deadlineNotifications || 'Уведомления о дедлайнах'}
                         </label>
                     </div>
-
                     <div className="profile-field">
-                        <label>{t.digest}</label>
+                        <label>{t.digest || 'Сводка'}</label>
                         <select
                             className="input"
                             value={notificationForm.notifyDigest}
                             onChange={(e) => setNotificationForm(f => ({ ...f, notifyDigest: e.target.value }))}
                         >
-                            <option value="off">{t.digestOff}</option>
-                            <option value="daily">{t.digestDaily}</option>
-                            <option value="weekly">{t.digestWeekly}</option>
+                            <option value="off">{t.digestOff || 'Не присылать'}</option>
+                            <option value="daily">{t.digestDaily || 'Раз в день'}</option>
+                            <option value="weekly">{t.digestWeekly || 'Раз в неделю'}</option>
                         </select>
                     </div>
-
                     <div className="profile-field">
-                        <label>{t.remindBefore}</label>
+                        <label>{t.remindBefore || 'Напомнить за N дней до дедлайна'}</label>
                         <input
                             className="input"
                             type="number"
@@ -547,9 +558,8 @@ export default function ProfilePage() {
                             onChange={(e) => setNotificationForm(f => ({ ...f, remindBeforeDays: Number(e.target.value) }))}
                         />
                     </div>
-
                     <button className="btn btn-primary" onClick={saveNotification}>
-                        {t.apply}
+                        {t.apply || 'Применить'}
                     </button>
                 </div>
             )}

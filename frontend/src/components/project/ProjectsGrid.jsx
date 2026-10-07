@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
     DndContext,
@@ -49,6 +49,19 @@ export default function ProjectsGrid({
         if (pinA !== pinB) return pinA - pinB
         return (a.position || 0) - (b.position || 0)
     })
+
+    // ============================================================
+    // Горячая клавиша N: на странице доски → новый проект
+    // ============================================================
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.detail === 'project') {
+                setShowCreate(true)
+            }
+        }
+        window.addEventListener('hotkey:new', handler)
+        return () => window.removeEventListener('hotkey:new', handler)
+    }, [])
 
     const openProject = (projectId) => {
         if (!boardId) return
@@ -150,6 +163,7 @@ export default function ProjectsGrid({
             )
             updated.forEach(p => onProjectUpdated && onProjectUpdated(p))
             setLocalOrder(null)
+            window.dispatchEvent(new Event('sidebar:refresh'))
         } catch (err) {
             console.error('Move failed:', err)
             setLocalOrder(null)
@@ -208,7 +222,10 @@ export default function ProjectsGrid({
             <CreateProjectModal
                 open={showCreate}
                 onClose={() => setShowCreate(false)}
-                onCreated={onProjectCreated}
+                onCreated={(newProject) => {
+                    onProjectCreated && onProjectCreated(newProject)
+                    window.dispatchEvent(new Event('sidebar:refresh'))
+                }}
                 boardId={boardId}
             />
 

@@ -1,0 +1,185 @@
+databaseChangeLog:
+
+  # ============================================================
+  # Справочник рамок
+  # ============================================================
+  - changeSet:
+      id: 006-01-frames
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: frames }
+      changes:
+        - createTable:
+            tableName: frames
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: code,        type: VARCHAR(64),  constraints: { nullable: false, unique: true } }
+              - column: { name: title,       type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: description, type: VARCHAR(500), constraints: { nullable: false } }
+              - column: { name: css_class,   type: VARCHAR(64),  constraints: { nullable: false } }
+              - column: { name: price,       type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: sort_order,  type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+
+  # ============================================================
+  # Справочник скинов деревьев
+  # ============================================================
+  - changeSet:
+      id: 006-02-tree-skins
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: tree_skins }
+      changes:
+        - createTable:
+            tableName: tree_skins
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: code,        type: VARCHAR(64),  constraints: { nullable: false, unique: true } }
+              - column: { name: title,       type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: description, type: VARCHAR(500), constraints: { nullable: false } }
+              - column: { name: price,       type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: sort_order,  type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+
+  # ============================================================
+  # Баланс пользователя (листья)
+  # ============================================================
+  - changeSet:
+      id: 006-03-user-currency
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_currency }
+      changes:
+        - createTable:
+            tableName: user_currency
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_currency_user
+              - column: { name: leaves, type: INT, constraints: { nullable: false }, defaultValueNumeric: 0 }
+
+  # ============================================================
+  # Купленные рамки
+  # ============================================================
+  - changeSet:
+      id: 006-04-user-frames
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_frames }
+      changes:
+        - createTable:
+            tableName: user_frames
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_frames_user
+              - column:
+                  name: frame_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: frames(id)
+                    foreignKeyName: fk_user_frames_frame
+              - column: { name: purchased_at, type: TIMESTAMP, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: user_frames
+            columnNames: user_id, frame_id
+            constraintName: uq_user_frames
+
+  # ============================================================
+  # Купленные скины деревьев
+  # ============================================================
+  - changeSet:
+      id: 006-05-user-tree-skins
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_tree_skins }
+      changes:
+        - createTable:
+            tableName: user_tree_skins
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_tree_skins_user
+              - column:
+                  name: tree_skin_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: tree_skins(id)
+                    foreignKeyName: fk_user_tree_skins_skin
+              - column: { name: purchased_at, type: TIMESTAMP, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: user_tree_skins
+            columnNames: user_id, tree_skin_id
+            constraintName: uq_user_tree_skins
+
+  # ============================================================
+  # Активные рамка/скин пользователя (в user_appearance)
+  # ============================================================
+  - changeSet:
+      id: 006-06-user-appearance-shop-fields
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: user_appearance
+                columnName: active_frame_id
+      changes:
+        - addColumn:
+            tableName: user_appearance
+            columns:
+              - column:
+                  name: active_frame_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: frames(id)
+                    foreignKeyName: fk_user_appearance_active_frame
+              - column:
+                  name: active_tree_skin_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: tree_skins(id)
+                    foreignKeyName: fk_user_appearance_active_tree_skin

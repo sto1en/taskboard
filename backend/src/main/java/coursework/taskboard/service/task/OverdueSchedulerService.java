@@ -23,10 +23,13 @@ public class OverdueSchedulerService {
     private final TaskSettingsRepository taskSettingsRepository;
     private final BoardStatusRepository boardStatusRepository;
 
+    // Раз в час, в 00 минут
     @Scheduled(cron = "0 0 * * * *")
     @Transactional
     public void markOverdueTasks() {
-        List<TaskSchedule> overdue = taskScheduleRepository.findOverdue(LocalDateTime.now());
+        LocalDateTime threshold = OverduePolicyService.thresholdNow();
+
+        List<TaskSchedule> overdue = taskScheduleRepository.findOverdue(threshold);
 
         if (overdue.isEmpty()) {
             log.debug("No overdue tasks");
@@ -53,6 +56,7 @@ public class OverdueSchedulerService {
             taskScheduleRepository.save(schedule);
         }
 
-        log.info("Marked {} tasks as overdue", overdue.size());
+        log.info("Marked {} tasks as overdue (grace={}h)",
+                overdue.size(), OverduePolicyService.GRACE_HOURS);
     }
 }

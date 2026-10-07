@@ -15,4 +15,12 @@ public class UserAppearanceDto {
 
     private Boolean treeEnabled;
     private String treeKind;
+
+    // Магазин
+    private Long activeFrameId;
+    private String activeFrameCode;
+    private String activeFrameCssClass;
+
+    private Long activeTreeSkinId;
+    private String activeTreeSkinCode;
 }

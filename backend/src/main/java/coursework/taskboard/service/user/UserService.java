@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserSettingsRepository userSettingsRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserAppearanceRepository userAppearanceRepository;
     private final UserLocaleRepository userLocaleRepository;
@@ -67,7 +68,9 @@ public class UserService {
         if (request.getBio() != null) {
             profile.setBio(request.getBio());
         }
-        if (request.getAvatarAttachmentId() != null) {
+        if (Boolean.TRUE.equals(request.getClearAvatar())) {
+            profile.setAvatar(null);
+        } else if (request.getAvatarAttachmentId() != null) {
             Attachment avatar = attachmentRepository.findById(request.getAvatarAttachmentId())
                     .orElseThrow(() -> new IllegalArgumentException("Attachment not found"));
 
@@ -77,7 +80,6 @@ public class UserService {
             if (!avatar.getMime().getCode().startsWith("image/")) {
                 throw new IllegalArgumentException("Avatar must be an image");
             }
-
             profile.setAvatar(avatar);
         }
 
@@ -91,12 +93,25 @@ public class UserService {
     }
 
     // ============================================================
-    // Внешний вид
+    // Внешний вид (создаёт запись, если её ещё нет)
     // ============================================================
     @Transactional
     public UserAppearanceDto updateAppearance(User user, UpdateAppearanceRequest request) {
         UserAppearance appearance = userAppearanceRepository.findById(user.getId())
-                .orElseThrow(() -> new IllegalStateException("Appearance not found"));
+                .orElseGet(() -> {
+                    UserSettings settings = userSettingsRepository.findById(user.getId())
+                            .orElseThrow(() -> new IllegalStateException("Settings not found"));
+                    UserAppearance fresh = UserAppearance.builder()
+                            .settings(settings)
+                            .theme("light")
+                            .accentCode("blue")
+                            .density("cozy")
+                            .sidebarCollapsed(false)
+                            .treeEnabled(true)
+                            .treeKind("sakura")
+                            .build();
+                    return userAppearanceRepository.save(fresh);
+                });
 
         if (request.getTheme() != null) {
             if (!java.util.Set.of("light", "dark", "system").contains(request.getTheme())) {
@@ -114,13 +129,11 @@ public class UserService {
         if (request.getSidebarCollapsed() != null) {
             appearance.setSidebarCollapsed(request.getSidebarCollapsed());
         }
-
-        // НОВОЕ
         if (request.getTreeEnabled() != null) {
             appearance.setTreeEnabled(request.getTreeEnabled());
         }
         if (request.getTreeKind() != null) {
-            if (!java.util.Set.of("sakura", "birch", "palm", "apple").contains(request.getTreeKind())) {
+            if (!java.util.Set.of("sakura", "birch", "palm", "apple", "xmas").contains(request.getTreeKind())) {
                 throw new IllegalArgumentException("Invalid treeKind");
             }
             appearance.setTreeKind(request.getTreeKind());

@@ -466,10 +466,13 @@ html[data-theme="dark"] .search-filter-check:hover {
     transform: translateY(-1px);
 }
 
-.search-result--kind-board   { border-left: 3px solid #4c9aff; }
-.search-result--kind-project { border-left: 3px solid #8f6ed5; }
-.search-result--kind-task    { border-left: 3px solid #36b37e; }
-.search-result--kind-tag     { border-left: 3px solid #ffab00; }
+/* Левая полоска — серая для всех типов */
+.search-result--kind-board,
+.search-result--kind-project,
+.search-result--kind-task,
+.search-result--kind-tag {
+    border-left: 3px solid var(--border);
+}
 
 .search-result__main {
     display: flex;
@@ -523,6 +526,7 @@ html[data-theme="dark"] .search-filter-check:hover {
     opacity: 0.6;
 }
 
+/* Бейдж типа — серая заливка для всех */
 .search-result__kind {
     font-size: 10px;
     font-weight: 700;
@@ -536,42 +540,7 @@ html[data-theme="dark"] .search-filter-check:hover {
 }
 html[data-theme="dark"] .search-result__kind {
     background: rgba(255, 255, 255, 0.08);
-}
-
-.search-result--kind-board .search-result__kind {
-    background: rgba(76, 154, 255, 0.15);
-    color: #2d6fcc;
-}
-html[data-theme="dark"] .search-result--kind-board .search-result__kind {
-    background: rgba(76, 154, 255, 0.22);
-    color: #85b8ff;
-}
-
-.search-result--kind-project .search-result__kind {
-    background: rgba(143, 110, 213, 0.15);
-    color: #6b4fb8;
-}
-html[data-theme="dark"] .search-result--kind-project .search-result__kind {
-    background: rgba(143, 110, 213, 0.22);
-    color: #b39ddb;
-}
-
-.search-result--kind-task .search-result__kind {
-    background: rgba(54, 179, 126, 0.15);
-    color: #1f8b5c;
-}
-html[data-theme="dark"] .search-result--kind-task .search-result__kind {
-    background: rgba(54, 179, 126, 0.22);
-    color: #6ee7a8;
-}
-
-.search-result--kind-tag .search-result__kind {
-    background: rgba(255, 171, 0, 0.18);
-    color: #b37700;
-}
-html[data-theme="dark"] .search-result--kind-tag .search-result__kind {
-    background: rgba(255, 171, 0, 0.22);
-    color: #ffc94d;
+    color: var(--text-muted);
 }
 
 .search-result__icon {
@@ -591,17 +560,17 @@ html[data-theme="dark"] .search-result--kind-tag .search-result__kind {
     line-height: 1;
 }
 
-/* Правый блок первой строки: теги + статус */
+/* Правый блок первой строки */
 .search-result__meta-right {
     display: inline-flex;
     align-items: center;
-    gap: 16px;                /* расстояние между тегами и статусом */
+    gap: 16px;
     flex-shrink: 0;
     margin-left: auto;
 }
 
 /* ============================================================
-   Мини-теги — просто цветной текст, БЕЗ заливки
+   Мини-теги — цветные, без плашки
    ============================================================ */
 
 .search-result__mini-tags {
@@ -791,4 +760,12 @@ html[data-theme="dark"] .search-result--kind-tag .search-result__kind {
 }
 .topbar__show-all:hover {
     background: color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
+}
+
+/* Инпут поиска прямо в шапке страницы */
+.search-page__head-input {
+    flex: 1;
+    max-width: 480px;
+    font-size: 14px;
+    padding: 8px 14px;
 }

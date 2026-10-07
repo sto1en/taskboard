@@ -20,6 +20,7 @@ public class TaskShortDto {
     private String statusAccentCode;
     private Short priority;
     private LocalDateTime deadline;
+    private Boolean isOverdue;
     private Integer position;
     private List<String> attachmentNames;
     private long subtaskTotal;

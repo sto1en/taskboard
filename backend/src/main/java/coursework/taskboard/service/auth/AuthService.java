@@ -28,7 +28,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
-    private final AuthMapper authMapper;   // ← новый
+    private final AuthMapper authMapper;
 
     @Transactional
     public AuthResponseDto register(RegisterRequestDto request) {
@@ -39,18 +39,18 @@ public class AuthService {
             throw new IllegalArgumentException("Email already registered");
         }
 
-        // 1. User — через mapper
+        // 1. User
         User user = authMapper.toUser(request, passwordEncoder.encode(request.getPassword()));
         userRepository.save(user);
 
-        // 2. UserSettings — через mapper
+        // 2. UserSettings
         UserSettings settings = authMapper.toUserSettings(user);
         userSettingsRepository.save(settings);
 
-        // 3. UserProfile — через mapper
+        // 3. UserProfile
         userProfileRepository.save(authMapper.toUserProfile(user, request.getDisplayName()));
 
-        // 4-8. Остальные — через mapper
+        // 4-8. Внешний вид, локаль, рабочее пространство, отображение, уведомления
         userAppearanceRepository.save(authMapper.toUserAppearance(settings));
         userLocaleRepository.save(authMapper.toUserLocale(settings));
         userWorkspaceRepository.save(authMapper.toUserWorkspace(settings));

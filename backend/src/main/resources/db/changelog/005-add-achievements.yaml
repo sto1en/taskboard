@@ -1,0 +1,65 @@
+databaseChangeLog:
+
+  # ============================================================
+  # Достижения
+  # ============================================================
+  - changeSet:
+      id: 005-01-achievements
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: achievements }
+      changes:
+        - createTable:
+            tableName: achievements
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: code,        type: VARCHAR(64),  constraints: { nullable: false, unique: true } }
+              - column: { name: title,       type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: description, type: VARCHAR(500), constraints: { nullable: false } }
+              - column: { name: icon,        type: VARCHAR(32),  constraints: { nullable: false } }
+              - column: { name: accent_code, type: VARCHAR(30),  constraints: { nullable: false }, defaultValue: blue }
+              - column: { name: condition_type, type: VARCHAR(60), constraints: { nullable: false } }
+              - column: { name: threshold,   type: INT,          constraints: { nullable: false }, defaultValueNumeric: 1 }
+              - column: { name: sort_order,  type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+
+  - changeSet:
+      id: 005-02-user-achievements
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_achievements }
+      changes:
+        - createTable:
+            tableName: user_achievements
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_achievements_user
+              - column:
+                  name: achievement_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: achievements(id)
+                    foreignKeyName: fk_user_achievements_achievement
+              - column: { name: unlocked_at, type: TIMESTAMP, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: user_achievements
+            columnNames: user_id, achievement_id
+            constraintName: uq_user_achievements_user_ach

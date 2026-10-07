@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import api, { statsApi } from '../../api/api'
+import api, { statsApi, projectsApi, boardsApi, shopApi } from '../../api/api'
 import useT from '../../hooks/useT'
 import TreeAvatar from './TreeAvatar'
+import AvatarWithFrame from './AvatarWithFrame'
 import ConfirmModal from '../common/ConfirmModal'
 
 const MAX_PINS = 3
@@ -11,40 +12,48 @@ const MAX_PINS = 3
 export default function Sidebar() {
     const { user, logout } = useAuth()
     const t = useT()
+
     const [boards, setBoards] = useState([])
     const [projectsByBoard, setProjectsByBoard] = useState({})
     const [boardsOpen, setBoardsOpen] = useState(true)
     const [doneTasks, setDoneTasks] = useState(0)
-    const [showLogout, setShowLogout] = useState(false)
     const [collapsed, setCollapsed] = useState(() => {
         return localStorage.getItem('sidebar_collapsed') === 'true'
     })
+    const [showLogout, setShowLogout] = useState(false)
+
+    const [shop, setShop] = useState(null)
 
     const treeEnabledByUser = user?.appearance?.treeEnabled !== false
-    const treeKind = user?.appearance?.treeKind || 'sakura'
+    const treeKind = shop?.treeSkins?.find(s => s.active)?.code
+        || user?.appearance?.treeKind
+        || 'sakura'
 
-    // Локальный toggle (горячая клавиша T)
     const [treeEnabledLocal, setTreeEnabledLocal] = useState(() => {
         const v = localStorage.getItem('tree_enabled')
         return v === null ? true : v === 'true'
     })
 
-    // Панель пользователя (горячая клавиша P)
-    const [userHidden, setUserHidden] = useState(() => {
-        return localStorage.getItem('sidebar_user_hidden') === 'true'
-    })
-
     const treeVisible = treeEnabledByUser && treeEnabledLocal
 
-    // Слушаем события от AppLayout
     useEffect(() => {
         const onTreeToggle = (e) => setTreeEnabledLocal(!!e.detail)
-        const onUserToggle = (e) => setUserHidden(!!e.detail)
         window.addEventListener('tree:toggle', onTreeToggle)
-        window.addEventListener('sidebar:toggle-user', onUserToggle)
+        return () => window.removeEventListener('tree:toggle', onTreeToggle)
+    }, [])
+
+    const loadShop = () => {
+        shopApi.get().then(({ data }) => setShop(data)).catch(() => setShop(null))
+    }
+
+    useEffect(() => {
+        loadShop()
+        const onRefresh = () => loadShop()
+        window.addEventListener('shop:refresh', onRefresh)
+        window.addEventListener('user:refresh', onRefresh)
         return () => {
-            window.removeEventListener('tree:toggle', onTreeToggle)
-            window.removeEventListener('sidebar:toggle-user', onUserToggle)
+            window.removeEventListener('shop:refresh', onRefresh)
+            window.removeEventListener('user:refresh', onRefresh)
         }
     }, [])
 
@@ -53,23 +62,35 @@ export default function Sidebar() {
         const load = async () => {
             try {
                 const { data: allBoards } = await api.get('/boards')
-                const pinnedBoards = allBoards.filter(b => b.isPinned)
-                if (cancelled) return
                 const projectsArrays = await Promise.all(
-                    pinnedBoards.map(b =>
+                    allBoards.map(b =>
                         api.get(`/boards/${b.id}/projects`)
-                            .then(({ data }) => [b.id, data.filter(p => p.isPinned)])
+                            .then(({ data }) => [b.id, data])
                             .catch(() => [b.id, []])
                     )
                 )
                 if (cancelled) return
-                setBoards(pinnedBoards)
-                setProjectsByBoard(Object.fromEntries(projectsArrays))
-            } catch {
-                if (!cancelled) {
-                    setBoards([])
-                    setProjectsByBoard({})
+                const mapProjects = Object.fromEntries(projectsArrays)
+                const visibleBoards = allBoards
+                    .filter(b => {
+                        const projs = mapProjects[b.id] || []
+                        return b.isPinned || projs.some(p => p.isPinned)
+                    })
+                    .sort((a, b) => {
+                        const pa = a.position ?? 0, pb = b.position ?? 0
+                        if (pa !== pb) return pa - pb
+                        return (a.id || 0) - (b.id || 0)
+                    })
+                const visibleProjects = {}
+                for (const b of visibleBoards) {
+                    visibleProjects[b.id] = (mapProjects[b.id] || [])
+                        .filter(p => p.isPinned)
+                        .sort((a, b2) => (a.position ?? 0) - (b2.position ?? 0))
                 }
+                setBoards(visibleBoards)
+                setProjectsByBoard(visibleProjects)
+            } catch {
+                if (!cancelled) { setBoards([]); setProjectsByBoard({}) }
             }
         }
         load()
@@ -82,9 +103,7 @@ export default function Sidebar() {
     }, [])
 
     useEffect(() => {
-        if (!user) return
-        if (!treeVisible) return
-
+        if (!user || !treeVisible) return
         const load = () => {
             statsApi.get('day')
                 .then(({ data }) => setDoneTasks(data.done || 0))
@@ -100,27 +119,45 @@ export default function Sidebar() {
     }, [collapsed])
 
     const displayName = user?.profile?.displayName || user?.username || 'User'
-    const initial = displayName.charAt(0).toUpperCase()
-    const avatarUrl = user?.profile?.avatarUrl
+
+    const activeAvatar = shop?.avatars?.find(a => a.active) || null
+    const activeFrame = shop?.frames?.find(f => f.active) || null
+
     const hasPinned = boards.length > 0
 
-    let pinCount = 0
-    const visibleBoards = []
-    const visibleProjects = {}
-    for (const b of boards) {
-        if (pinCount >= MAX_PINS) break
-        const projs = projectsByBoard[b.id] || []
-        if (projs.length > 0) {
-            const remaining = MAX_PINS - pinCount
-            const slice = projs.slice(0, remaining)
-            visibleProjects[b.id] = slice
-            pinCount += slice.length
-            visibleBoards.push(b)
-        } else {
-            visibleProjects[b.id] = []
-            pinCount += 1
-            visibleBoards.push(b)
+    const { visibleBoards, visibleProjects } = useMemo(() => {
+        let pinCount = 0
+        const vBoards = []
+        const vProjects = {}
+        for (const b of boards) {
+            if (pinCount >= MAX_PINS) break
+            const projs = projectsByBoard[b.id] || []
+            if (projs.length > 0) {
+                const slice = projs.slice(0, MAX_PINS - pinCount)
+                vProjects[b.id] = slice
+                pinCount += slice.length
+                vBoards.push(b)
+            } else {
+                vProjects[b.id] = []
+                pinCount += 1
+                vBoards.push(b)
+            }
         }
+        return { visibleBoards: vBoards, visibleProjects: vProjects }
+    }, [boards, projectsByBoard])
+
+    const handleUnpinBoard = async (board) => {
+        try {
+            await boardsApi.update(board.id, { isPinned: false })
+            window.dispatchEvent(new Event('sidebar:refresh'))
+        } catch {}
+    }
+
+    const handleUnpinProject = async (project) => {
+        try {
+            await projectsApi.update(project.id, { isPinned: false })
+            window.dispatchEvent(new Event('sidebar:refresh'))
+        } catch {}
     }
 
     const handleLogoutConfirm = () => {
@@ -131,35 +168,32 @@ export default function Sidebar() {
     return (
         <>
             <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
-                {!userHidden && (
-                    <div className="sidebar__user">
-                        <Link to="/profile" className="sidebar__avatar" title={t.tabProfile}>
-                            {avatarUrl
-                                ? <img src={avatarUrl} alt={displayName} />
-                                : initial}
-                        </Link>
+                <div className="sidebar__user">
+                    {/* Аватар */}
+                    <Link to="/profile" className="sidebar__user-avatar" title="Настройки профиля">
+                        <AvatarWithFrame
+                            avatar={activeAvatar}
+                            frame={activeFrame}
+                            displayName={displayName}
+                            username={user?.username}
+                            size={56}
+                        />
+                    </Link>
 
-                        {!collapsed && (
-                            <div className="sidebar__name">{displayName}</div>
-                        )}
+                    {/* Ник — крупнее */}
+                    {!collapsed && (
+                        <div className="sidebar__name" title={displayName}>{displayName}</div>
+                    )}
 
-                        {!collapsed && (
-                            <button
-                                className="sidebar__logout"
-                                title={t.logout}
-                                onClick={() => setShowLogout(true)}
-                            >⎋</button>
-                        )}
-
-                        <button
-                            className="sidebar__collapse"
-                            onClick={() => setCollapsed(v => !v)}
-                            title={collapsed ? 'Expand' : 'Collapse'}
-                        >
-                            {collapsed ? '»' : '«'}
-                        </button>
-                    </div>
-                )}
+                    {/* Свернуть */}
+                    <button
+                        className="sidebar__icon-btn"
+                        onClick={() => setCollapsed(v => !v)}
+                        title={collapsed ? 'Развернуть' : 'Свернуть'}
+                    >
+                        {collapsed ? '»' : '«'}
+                    </button>
+                </div>
 
                 <nav className="sidebar__nav">
                     <div className="sidebar__group-row">
@@ -167,11 +201,11 @@ export default function Sidebar() {
                             <span className="sidebar__group-icon">📋</span>
                             {!collapsed && <span>{t.boards}</span>}
                         </Link>
-
                         {!collapsed && hasPinned && (
                             <button
                                 className="sidebar__group-toggle"
                                 onClick={() => setBoardsOpen(v => !v)}
+                                title={boardsOpen ? 'Свернуть' : 'Развернуть'}
                             >
                                 <span className={`sidebar__caret ${boardsOpen ? 'sidebar__caret--open' : ''}`}>
                                     ▸
@@ -184,27 +218,41 @@ export default function Sidebar() {
                         <div className="sidebar__subnav">
                             {visibleBoards.map(b => (
                                 <div key={b.id} className="sidebar__pinned-board">
-                                    <NavLink
-                                        to={`/boards/${b.id}`}
-                                        className={({ isActive }) =>
-                                            `sidebar__sublink ${isActive ? 'active' : ''}`
-                                        }
-                                    >
-                                        {b.title}
-                                    </NavLink>
-
-                                    {visibleProjects[b.id]?.length > 0 && (
+                                    <div className="sidebar__sublink-row">
+                                        <NavLink
+                                            to={`/boards/${b.id}`}
+                                            className={({ isActive }) =>
+                                                `sidebar__sublink ${isActive ? 'active' : ''}`
+                                            }
+                                        >{b.title}</NavLink>
+                                        {b.isPinned && (
+                                            <button
+                                                type="button"
+                                                className="sidebar__unpin"
+                                                onClick={() => handleUnpinBoard(b)}
+                                                title="Открепить доску"
+                                            >📌</button>
+                                        )}
+                                    </div>
+                                    {(visibleProjects[b.id] || []).length > 0 && (
                                         <div className="sidebar__pinned-projects">
-                                            {visibleProjects[b.id].map(p => (
-                                                <NavLink
-                                                    key={p.id}
-                                                    to={`/boards/${b.id}/projects/${p.id}`}
-                                                    className={({ isActive }) =>
-                                                        `sidebar__sublink sidebar__sublink--project ${isActive ? 'active' : ''}`
-                                                    }
-                                                >
-                                                    {p.title}
-                                                </NavLink>
+                                            {(visibleProjects[b.id] || []).map(p => (
+                                                <div key={p.id} className="sidebar__sublink-row">
+                                                    <NavLink
+                                                        to={`/boards/${b.id}/projects/${p.id}`}
+                                                        className={({ isActive }) =>
+                                                            `sidebar__sublink sidebar__sublink--project ${isActive ? 'active' : ''}`
+                                                        }
+                                                    >{p.title}</NavLink>
+                                                    {p.isPinned && (
+                                                        <button
+                                                            type="button"
+                                                            className="sidebar__unpin"
+                                                            onClick={() => handleUnpinProject(p)}
+                                                            title="Открепить проект"
+                                                        >📌</button>
+                                                    )}
+                                                </div>
                                             ))}
                                         </div>
                                     )}
@@ -246,6 +294,16 @@ export default function Sidebar() {
                         <span>⚙</span>
                         {!collapsed && <span>{t.settings}</span>}
                     </Link>
+
+                    {/* Выйти — в самом низу, красная */}
+                    <button
+                        className="sidebar__logout"
+                        onClick={() => setShowLogout(true)}
+                        title={t.logout || 'Выйти из аккаунта'}
+                    >
+                        <span className="sidebar__logout-icon">⎋</span>
+                        {!collapsed && <span className="sidebar__logout-text">Выйти</span>}
+                    </button>
                 </div>
             </aside>
 

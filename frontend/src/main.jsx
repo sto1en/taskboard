@@ -12,6 +12,7 @@ import './styles/board-toolbar.css'
 import './styles/board-settings.css'
 import './styles/calendar.css'
 import './styles/stats.css'
+import './styles/achievements.css'
 import './styles/tasks-list.css'
 import './styles/modal.css'
 import './styles/projects.css'
@@ -20,6 +21,7 @@ import './styles/profile.css'
 import './styles/info-page.css'
 import './styles/hotkeys.css'
 import './styles/search.css'
+import './styles/shop.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
