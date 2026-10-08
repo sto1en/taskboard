@@ -19,13 +19,17 @@ const CODE_MAP = {
     '9': 'Digit9', '0': 'Digit0',
     // спец
     '/': 'Slash',
-    '?': 'Slash',       // с Shift
+    '?': 'Slash',
     'escape': 'Escape',
     'esc': 'Escape',
     'enter': 'Enter',
     'space': 'Space',
     'delete': 'Delete',
     'backspace': 'Backspace',
+    'arrowleft': 'ArrowLeft',
+    'arrowright': 'ArrowRight',
+    'arrowup': 'ArrowUp',
+    'arrowdown': 'ArrowDown',
 }
 
 export default function useHotkeys(keys) {
@@ -73,7 +77,6 @@ function matches(e, combo) {
     // 1) Пытаемся сопоставить по физической клавише (e.code)
     const mappedCode = CODE_MAP[key]
     if (mappedCode && e.code === mappedCode) {
-        // для '?' дополнительно проверим, что это с Shift
         if (key === '?') return e.shiftKey
         return true
     }
@@ -82,9 +85,13 @@ function matches(e, combo) {
     const eventKey = (e.key || '').toLowerCase()
     if (key === 'esc') return eventKey === 'escape'
     if (key === 'enter') return eventKey === 'enter'
-    if (key === 'space') return eventKey === ' '
+    if (key === 'space') return eventKey === ' ' || eventKey === 'spacebar'
     if (key === 'delete') return eventKey === 'delete'
     if (key === 'backspace') return eventKey === 'backspace'
+    if (key === 'arrowleft') return eventKey === 'arrowleft'
+    if (key === 'arrowright') return eventKey === 'arrowright'
+    if (key === 'arrowup') return eventKey === 'arrowup'
+    if (key === 'arrowdown') return eventKey === 'arrowdown'
     if (key === '?') return eventKey === '?' || (e.shiftKey && eventKey === '/')
 
     return eventKey === key

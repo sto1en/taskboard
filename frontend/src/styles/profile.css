@@ -38,12 +38,35 @@
     transition: color .15s, border-color .15s;
     font-family: inherit;
     flex-shrink: 0;
+    position: relative;
 }
 .profile-tab:hover { color: var(--text); }
+
+/* Активный таб — градиентный текст + градиентное подчёркивание */
 .profile-tab.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
+    background-color: var(--primary);
+    background-image: var(--accent-gradient, none);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    border-bottom-color: transparent;
     font-weight: 600;
+}
+
+.profile-tab.active::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--primary);
+    background-image: var(--accent-gradient, none);
+    background-size: 100% 100%;
 }
 
 .profile-section {
@@ -123,31 +146,20 @@
     font-weight: 700;
 }
 
+/* ============================================================
+   Accent picker — только кружки
+   ============================================================ */
+
 .accent-picker {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
-.accent-picker__item {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 3px solid transparent;
-    cursor: pointer;
-    transition: transform .15s, border-color .15s;
-    padding: 0;
-}
-.accent-picker__item:hover { transform: scale(1.1); }
-.accent-picker__item.active { border-color: var(--text); }
-
-.accent-picker__item[data-accent="blue"]   { background: #4c9aff; }
-.accent-picker__item[data-accent="purple"] { background: #a45cd6; }
-.accent-picker__item[data-accent="green"]  { background: #36b37e; }
-.accent-picker__item[data-accent="orange"] { background: #ffab00; }
-.accent-picker__item[data-accent="red"]    { background: #ff5630; }
-.accent-picker__item[data-accent="pink"]   { background: #ff78c4; }
-.accent-picker__item[data-accent="gray"]   { background: #97a0af; }
+/* ============================================================
+   Toggle
+   ============================================================ */
 
 .toggle-row {
     display: flex;
@@ -195,6 +207,10 @@ html[data-theme="dark"] .toggle {
 .toggle--on { background: #36b37e !important; }
 .toggle--on:hover { background: #2f9e6c !important; }
 .toggle--on .toggle__thumb { transform: translateX(20px); }
+
+/* ============================================================
+   Buttons
+   ============================================================ */
 
 .btn-danger {
     background: var(--danger);

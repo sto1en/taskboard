@@ -16,6 +16,8 @@ import {
 } from '@dnd-kit/sortable'
 import { projectsApi, boardsApi } from '../../api/api'
 import useT from '../../hooks/useT'
+import useConfirmDelete from '../../hooks/useConfirmDelete'
+import { useAuth } from '../../context/AuthContext'
 import SortableProjectCard from './SortableProjectCard'
 import CreateProjectModal from './CreateProjectModal'
 import EditProjectModal from './EditProjectModal'
@@ -30,12 +32,18 @@ export default function ProjectsGrid({
                                      }) {
     const nav = useNavigate()
     const t = useT()
+    const { user, updateUser } = useAuth()
+
     const [showCreate, setShowCreate] = useState(false)
     const [editProject, setEditProject] = useState(null)
     const [activeProject, setActiveProject] = useState(null)
     const [localOrder, setLocalOrder] = useState(null)
-    const [projectToDelete, setProjectToDelete] = useState(null)
-    const [deleting, setDeleting] = useState(false)
+
+    const confirmBeforeDelete = user?.workspace?.confirmBeforeDelete !== false
+    const { requestDelete, modalProps } = useConfirmDelete({
+        confirmBeforeDelete,
+        updateUser,
+    })
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -50,9 +58,6 @@ export default function ProjectsGrid({
         return (a.position || 0) - (b.position || 0)
     })
 
-    // ============================================================
-    // Горячая клавиша N: на странице доски → новый проект
-    // ============================================================
     useEffect(() => {
         const handler = (e) => {
             if (e.detail === 'project') {
@@ -108,18 +113,13 @@ export default function ProjectsGrid({
             alert(t.mainProjectCantDelete)
             return
         }
-        setProjectToDelete(project)
-    }
-
-    const handleDeleteConfirm = async () => {
-        if (!projectToDelete) return
-        setDeleting(true)
-        try {
-            await onProjectDeleted(projectToDelete.id)
-            setProjectToDelete(null)
-        } finally {
-            setDeleting(false)
-        }
+        requestDelete({
+            kind: 'project',
+            title: project.title,
+            onConfirm: async () => {
+                await onProjectDeleted(project.id)
+            },
+        })
     }
 
     const handleDragStart = (event) => {
@@ -240,17 +240,7 @@ export default function ProjectsGrid({
                 }}
             />
 
-            <ConfirmModal
-                open={!!projectToDelete}
-                title={t.yesDelete}
-                text={projectToDelete ? t.deleteProjectConfirm(projectToDelete.title) : ''}
-                confirmLabel={t.yesDelete}
-                cancelLabel={t.cancel}
-                danger
-                loading={deleting}
-                onConfirm={handleDeleteConfirm}
-                onClose={() => setProjectToDelete(null)}
-            />
+            <ConfirmModal {...modalProps} />
         </>
     )
 }

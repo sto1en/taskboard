@@ -153,6 +153,9 @@ export const shopApi = {
     buyTreeSkin: (id) => api.post(`/shop/tree-skins/${id}/buy`),
     equipTreeSkin: (id) => api.post(`/shop/tree-skins/${id}/equip`),
     unequipTreeSkin: () => api.post('/shop/tree-skins/unequip'),
+    buyAccent: (id) => api.post(`/shop/accents/${id}/buy`),
+    equipAccent: (id) => api.post(`/shop/accents/${id}/equip`),
+    unequipAccent: () => api.post('/shop/accents/unequip'),
 }
 
 export default api

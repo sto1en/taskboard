@@ -32,8 +32,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class RecurrenceService {
 
-    public static final int GENERATE_HORIZON_DAYS = 14;
-    public static final int MAX_INSTANCES_PER_CALL = 500;
+    /** Жёсткий лимит на количество создаваемых копий. */
+    public static final int MAX_INSTANCES = 100;
 
     private final TaskRepository taskRepository;
     private final TaskRecurrenceRepository recurrenceRepository;
@@ -43,19 +43,38 @@ public class RecurrenceService {
     private final BoardStatusRepository boardStatusRepository;
 
     // ============================================================
-    // Сохранить правило
+    // Сохранить правило — сразу создаём все копии
     // ============================================================
     @Transactional
     public RecurrenceDto saveRule(Task template, RecurrenceRequestDto req, User user) {
         validateRule(req.getRule());
 
-        TaskRecurrence rec = recurrenceRepository.findByTaskId(template.getId())
-                .orElseGet(() -> TaskRecurrence.builder().task(template).build());
+        // Всегда требуем endCount — иначе непонятно, сколько копий создавать
+        if (!"count".equals(req.getEndMode()) || req.getEndCount() == null) {
+            throw new IllegalArgumentException(
+                    "Для повторения нужно указать конечное количество копий");
+        }
 
-        boolean isNew = rec.getStartAt() == null;
+        int count = req.getEndCount();
+        if (count < 1) {
+            throw new IllegalArgumentException("Количество копий должно быть не меньше 1");
+        }
+        if (count > MAX_INSTANCES) {
+            throw new IllegalArgumentException(
+                    "Максимум " + MAX_INSTANCES + " копий за раз");
+        }
+
+        // Если правило уже существует — удаляем старые вхождения
+        TaskRecurrence existing = recurrenceRepository.findByTaskId(template.getId()).orElse(null);
+        if (existing != null) {
+            deleteInstancesForTemplate(template.getId());
+        }
+
+        TaskRecurrence rec = existing != null
+                ? existing
+                : TaskRecurrence.builder().task(template).build();
 
         rec.setRule(req.getRule());
-        rec.setTimeOfDay(req.getTimeOfDay());
 
         LocalDateTime startAt = req.getStartAt();
         if (startAt == null) {
@@ -64,57 +83,44 @@ public class RecurrenceService {
                     ? schedule.getDeadline()
                     : LocalDateTime.now().withSecond(0).withNano(0);
         }
-
         if (req.getTimeOfDay() != null) {
             startAt = startAt.with(req.getTimeOfDay());
         }
 
         rec.setStartAt(startAt);
-
-        rec.setEndMode(req.getEndMode() != null ? req.getEndMode() : "never");
-        rec.setEndUntil(req.getEndUntil());
-        rec.setEndCount(req.getEndCount());
-
-        if (isNew) {
-            rec.setGeneratedUntil(null);
-        }
+        rec.setEndMode("count");
+        rec.setEndUntil(null);
+        rec.setEndCount(count);
+        rec.setTimeOfDay(req.getTimeOfDay());
+        rec.setGeneratedUntil(null);
 
         recurrenceRepository.save(rec);
 
-        // Генерируем начиная с СЕГОДНЯ. Всё, что раньше — не создаём.
-        LocalDate today = LocalDate.now();
-        LocalDate startFrom = startAt.toLocalDate().isAfter(today) ? startAt.toLocalDate() : today;
+        // Создаём ровно `count` копий
+        createInstances(template, rec, count);
 
-        generateInstances(template, rec,
-                startFrom,
-                today.plusDays(GENERATE_HORIZON_DAYS));
-
-        return toDto(rec, 10);
+        return toDto(rec, count);
     }
 
     // ============================================================
-    // Удалить правило — удаляем будущие вхождения, прошлые оставляем
+    // Удалить правило — сносим ВСЕ вхождения
     // ============================================================
     @Transactional
     public void deleteRule(Task template) {
-        LocalDate today = LocalDate.now();
+        deleteInstancesForTemplate(template.getId());
+        recurrenceRepository.findByTaskId(template.getId())
+                .ifPresent(recurrenceRepository::delete);
+    }
 
-        List<Task> future = taskRepository.findByRecurrenceParentId(template.getId())
-                .stream()
-                .filter(t -> t.getOccurrenceDate() != null
-                        && t.getOccurrenceDate().isAfter(today))
-                .toList();
-
-        for (Task inst : future) {
+    private void deleteInstancesForTemplate(Long templateId) {
+        List<Task> instances = taskRepository.findByRecurrenceParentId(templateId);
+        for (Task inst : instances) {
             taskScheduleRepository.findById(inst.getId())
                     .ifPresent(taskScheduleRepository::delete);
             taskSettingsRepository.findById(inst.getId())
                     .ifPresent(taskSettingsRepository::delete);
             taskRepository.delete(inst);
         }
-
-        recurrenceRepository.findByTaskId(template.getId())
-                .ifPresent(recurrenceRepository::delete);
     }
 
     // ============================================================
@@ -123,12 +129,12 @@ public class RecurrenceService {
     @Transactional(readOnly = true)
     public RecurrenceDto getRule(Task template) {
         return recurrenceRepository.findByTaskId(template.getId())
-                .map(r -> toDto(r, 10))
+                .map(r -> toDto(r, r.getEndCount() != null ? r.getEndCount() : 10))
                 .orElse(null);
     }
 
     // ============================================================
-    // Превью (для модалки)
+    // Превью — просто N ближайших моментов
     // ============================================================
     @Transactional(readOnly = true)
     public List<LocalDateTime> preview(RecurrenceRequestDto req, int limit) {
@@ -142,27 +148,14 @@ public class RecurrenceService {
             start = start.with(req.getTimeOfDay());
         }
 
-        // Если start в прошлом — двигаем вперёд до ближайшего будущего
-        LocalDateTime now = LocalDateTime.now();
-        if (start.isBefore(now)) {
-            start = alignTo(start, req.getRule(), now);
-        }
-
-        LocalDateTime endUntil = "until".equals(req.getEndMode())
-                ? req.getEndUntil()
-                : null;
-        Integer endCount = "count".equals(req.getEndMode())
-                ? req.getEndCount()
-                : null;
+        int count = req.getEndCount() != null ? req.getEndCount() : limit;
+        int effectiveLimit = Math.min(count, Math.max(limit, 5));
 
         List<LocalDateTime> result = new ArrayList<>();
         LocalDateTime cursor = start;
         int guard = 0;
 
-        while (result.size() < limit && guard++ < 5000) {
-            if (endUntil != null && cursor.isAfter(endUntil)) break;
-            if (endCount != null && result.size() >= endCount) break;
-
+        while (result.size() < effectiveLimit && guard++ < 5000) {
             result.add(cursor);
             cursor = nextOccurrence(cursor, req.getRule());
         }
@@ -170,86 +163,19 @@ public class RecurrenceService {
     }
 
     // ============================================================
-    // Материализация вхождений в диапазоне (используется календарём)
+    // Создание N копий
     // ============================================================
-    @Transactional
-    public void ensureInstancesInRange(Task template, LocalDate from, LocalDate to) {
-        TaskRecurrence rec = recurrenceRepository.findByTaskId(template.getId()).orElse(null);
-        if (rec == null) return;
-
-        // Не заглядываем в прошлое дальше сегодняшнего дня
-        LocalDate today = LocalDate.now();
-        LocalDate effectiveFrom = from.isBefore(today) ? today : from;
-
-        generateInstances(template, rec, effectiveFrom, to);
-    }
-
-    // ============================================================
-    // Генерация вхождений
-    // ============================================================
-    @Transactional
-    protected void generateInstances(Task template, TaskRecurrence rec,
-                                     LocalDate from, LocalDate to) {
+    private void createInstances(Task template, TaskRecurrence rec, int count) {
         LocalDateTime cursor = rec.getStartAt();
-        LocalDateTime horizonEnd = to.plusDays(1).atStartOfDay();
+        LocalTime timeOfDay = cursor.toLocalTime();
 
-        // Продолжаем от того места, где остановились
-        LocalDateTime alreadyUntil = rec.getGeneratedUntil();
-        if (alreadyUntil != null && alreadyUntil.isAfter(cursor)) {
-            cursor = alreadyUntil;
-        }
-
-        // Никогда не генерируем раньше СЕГОДНЯ (00:00)
-        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
-        if (cursor.isBefore(todayStart)) {
-            cursor = alignTo(cursor, rec.getRule(), todayStart);
-        }
-
-        // И не раньше `from`
-        LocalDateTime fromStart = from.atStartOfDay();
-        if (cursor.isBefore(fromStart)) {
-            cursor = alignTo(cursor, rec.getRule(), fromStart);
-        }
-
-        Set<LocalDate> existing = new HashSet<>();
-        taskRepository.findByRecurrenceParentIdInPeriod(template.getId(), from, to)
-                .forEach(t -> existing.add(t.getOccurrenceDate()));
-
-        int created = 0;
-        int guard = 0;
-        LocalDateTime endCap = "until".equals(rec.getEndMode())
-                ? rec.getEndUntil()
-                : null;
-
-        while (cursor.isBefore(horizonEnd)
-                && created < MAX_INSTANCES_PER_CALL
-                && guard++ < 20000) {
-
-            if (endCap != null && cursor.isAfter(endCap)) break;
-
+        for (int i = 0; i < count; i++) {
             LocalDate date = cursor.toLocalDate();
-
-            if (!existing.contains(date)
-                    && !date.isBefore(from)
-                    && !date.isAfter(to)) {
-
-                if ("count".equals(rec.getEndMode()) && rec.getEndCount() != null) {
-                    long done = taskRepository.countByRecurrenceParentId(template.getId());
-                    if (done >= rec.getEndCount()) break;
-                }
-
-                createInstance(template, date, cursor.toLocalTime());
-                created++;
-            }
-
+            createInstance(template, date, timeOfDay);
             cursor = nextOccurrence(cursor, rec.getRule());
         }
 
-        rec.setGeneratedUntil(cursor);
-        recurrenceRepository.save(rec);
-
-        log.debug("Generated {} instances for task {} in [{}, {}]",
-                created, template.getId(), from, to);
+        log.debug("Created {} instances for task {}", count, template.getId());
     }
 
     private void createInstance(Task template, LocalDate date, LocalTime timeOfDay) {
@@ -265,22 +191,37 @@ public class RecurrenceService {
                 .build();
         taskRepository.save(instance);
 
+        // Копируем статус/приоритет — без дедлайна
         TaskSettings settings = taskSettingsRepository.findById(template.getId()).orElse(null);
         if (settings != null) {
-            BoardStatus status = settings.getStatus();
-
             TaskSettings s = TaskSettings.builder()
                     .task(instance)
-                    .status(status)
+                    .status(settings.getStatus())
                     .priority(settings.getPriority())
                     .isPinned(false)
                     .build();
             taskSettingsRepository.save(s);
+        } else {
+            // fallback — создаём минимальный settings (без него приложение может упасть)
+            BoardStatus active = boardStatusRepository
+                    .findByBoardIdAndScopeAndIsDefaultTrue(
+                            template.getProject().getBoard().getId(), "task")
+                    .orElse(null);
+            if (active != null) {
+                TaskSettings s = TaskSettings.builder()
+                        .task(instance)
+                        .status(active)
+                        .priority((short) 0)
+                        .isPinned(false)
+                        .build();
+                taskSettingsRepository.save(s);
+            }
         }
 
+        // task_schedule создаём ПУСТОЙ (без deadline)
         TaskSchedule sh = TaskSchedule.builder()
                 .task(instance)
-                .deadline(date.atTime(timeOfDay))
+                .deadline(null)
                 .build();
         taskScheduleRepository.save(sh);
     }
@@ -319,14 +260,6 @@ public class RecurrenceService {
         };
     }
 
-    private LocalDateTime alignTo(LocalDateTime cursor, String rule, LocalDateTime from) {
-        int guard = 0;
-        while (cursor.isBefore(from) && guard++ < 20000) {
-            cursor = nextOccurrence(cursor, rule);
-        }
-        return cursor;
-    }
-
     private int parseIntOr(String s, int fallback) {
         try {
             return Integer.parseInt(s);
@@ -349,16 +282,9 @@ public class RecurrenceService {
     private RecurrenceDto toDto(TaskRecurrence rec, int previewLimit) {
         List<LocalDateTime> preview = new ArrayList<>();
         if (previewLimit > 0) {
-            LocalDateTime now = LocalDateTime.now();
             LocalDateTime cursor = rec.getStartAt();
-            if (cursor.isBefore(now)) {
-                cursor = alignTo(cursor, rec.getRule(), now);
-            }
             int guard = 0;
             while (preview.size() < previewLimit && guard++ < 1000) {
-                if ("until".equals(rec.getEndMode())
-                        && rec.getEndUntil() != null
-                        && cursor.isAfter(rec.getEndUntil())) break;
                 preview.add(cursor);
                 cursor = nextOccurrence(cursor, rec.getRule());
             }

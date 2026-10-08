@@ -1,0 +1,181 @@
+databaseChangeLog:
+
+  # ============================================================
+  # Магазин — акценты (цветовые схемы)
+  # ============================================================
+
+  - changeSet:
+      id: 010-01-accent-skins
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: accent_skins }
+      changes:
+        - createTable:
+            tableName: accent_skins
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: code,        type: VARCHAR(64),  constraints: { nullable: false, unique: true } }
+              - column: { name: title,       type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: description, type: VARCHAR(500), constraints: { nullable: false } }
+              - column: { name: price,       type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+              - column: { name: sort_order,  type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+
+  - changeSet:
+      id: 010-02-user-accents
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_accents }
+      changes:
+        - createTable:
+            tableName: user_accents
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_accents_user
+              - column:
+                  name: accent_skin_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: accent_skins(id)
+                    foreignKeyName: fk_user_accents_skin
+              - column: { name: purchased_at, type: TIMESTAMP, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: user_accents
+            columnNames: user_id, accent_skin_id
+            constraintName: uq_user_accents
+
+  # ============================================================
+  # Удалить рамку "Радуга"
+  # ============================================================
+  - changeSet:
+      id: 010-03-remove-rainbow-frame
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: frames }
+      changes:
+        - sql:
+            sql: "DELETE FROM user_frames WHERE frame_id IN (SELECT id FROM frames WHERE code = 'rainbow')"
+        - sql:
+            sql: "UPDATE user_appearance SET active_frame_id = NULL WHERE active_frame_id IN (SELECT id FROM frames WHERE code = 'rainbow')"
+        - sql:
+            sql: "DELETE FROM frames WHERE code = 'rainbow'"
+
+  # ============================================================
+  # Добавить 10 новых рамок
+  # ============================================================
+  - changeSet:
+      id: 010-04-add-new-frames
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: frames }
+      changes:
+        - insert:
+            tableName: frames
+            columns:
+              - column: { name: code, value: 'paper' }
+              - column: { name: title, value: 'Бумага' }
+              - column: { name: description, value: 'Тёплая бежевая рамка' }
+              - column: { name: css_class, value: 'frame--paper' }
+              - column: { name: price, valueNumeric: 15 }
+              - column: { name: sort_order, valueNumeric: 110 }
+        - insert:
+            tableName: frames
+            columns:
+              - column: { name: code, value: 'carbon' }
+              - column: { name: title, value: 'Карбон' }
+              - column: { name: description, value: 'Чёрная текстура с блеском' }
+              - column: { name: css_class, value: 'frame--carbon' }
+              - column: { name: price, valueNumeric: 100 }
+              - column: { name: sort_order, valueNumeric: 120 }
+        - insert:
+            tableName: frames
+            columns:
+              - column: { name: code, value: 'ice' }
+              - column: { name: title, value: 'Лёд' }
+              - column: { name: description, value: 'Голубоватая холодная рамка' }
+              - column: { name: css_class, value: 'frame--ice' }
+              - column: { name: price, valueNumeric: 150 }
+              - column: { name: sort_order, valueNumeric: 130 }
+        - insert:
+            tableName: frames
+            columns:
+              - column: { name: code, value: 'lava' }
+              - column: { name: title, value: 'Лава' }
+              - column: { name: description, value: 'Раскалённое красно-оранжевое свечение' }
+              - column: { name: css_class, value: 'frame--lava' }
+              - column: { name: price, valueNumeric: 250 }
+              - column: { name: sort_order, valueNumeric: 140 }
+        - insert:
+            tableName: frames
+            columns:
+              - column: { name: code, value: 'galaxy' }
+              - column: { name: title, value: 'Галактика' }
+              - column: { name: description, value: 'Космос с мерцанием' }
+              - column: { name: css_class, value: 'frame--galaxy' }
+              - column: { name: price, valueNumeric: 400 }
+              - column: { name: sort_order, valueNumeric: 150 }
+        - insert:
+            tableName: frames
+            columns:
+              - column: { name: code, value: 'honey' }
+              - column: { name: title, value: 'Мёд' }
+              - column: { name: description, value: 'Янтарная медовая рамка' }
+              - column: { name: css_class, value: 'frame--honey' }
+              - column: { name: price, valueNumeric: 200 }
+              - column: { name: sort_order, valueNumeric: 160 }
+        - insert:
+            tableName: frames
+            columns:
+              - column: { name: code, value: 'candy' }
+              - column: { name: title, value: 'Карамель' }
+              - column: { name: description, value: 'Полосатая яркая рамка' }
+              - column: { name: css_class, value: 'frame--candy' }
+              - column: { name: price, valueNumeric: 300 }
+              - column: { name: sort_order, valueNumeric: 170 }
+        - insert:
+            tableName: frames
+            columns:
+              - column: { name: code, value: 'steel' }
+              - column: { name: title, value: 'Сталь' }
+              - column: { name: description, value: 'Металлическая серая рамка' }
+              - column: { name: css_class, value: 'frame--steel' }
+              - column: { name: price, valueNumeric: 75 }
+              - column: { name: sort_order, valueNumeric: 180 }
+        - insert:
+            tableName: frames
+            columns:
+              - column: { name: code, value: 'venom' }
+              - column: { name: title, value: 'Веном' }
+              - column: { name: description, value: 'Ядовитая зелёно-фиолетовая рамка' }
+              - column: { name: css_class, value: 'frame--venom' }
+              - column: { name: price, valueNumeric: 350 }
+              - column: { name: sort_order, valueNumeric: 190 }
+        - insert:
+            tableName: frames
+            columns:
+              - column: { name: code, value: 'royal-blue' }
+              - column: { name: title, value: 'Сапфир' }
+              - column: { name: description, value: 'Синяя с золотом, королевская' }
+              - column: { name: css_class, value: 'frame--royal-blue' }
+              - column: { name: price, valueNumeric: 500 }
+              - column: { name: sort_order, valueNumeric: 200 }

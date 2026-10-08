@@ -4,6 +4,7 @@ import useT from '../hooks/useT'
 import AvatarCard from '../components/Shop/AvatarCard'
 import FrameCard from '../components/Shop/FrameCard'
 import TreeSkinCard from '../components/Shop/TreeSkinCard'
+import AccentCard from '../components/Shop/AccentCard'
 
 export default function ShopPage() {
     const t = useT()
@@ -51,6 +52,8 @@ export default function ShopPage() {
                         onClick={() => setTab('frames')}>Рамки</button>
                 <button className={`shop__tab ${tab === 'trees' ? 'shop__tab--active' : ''}`}
                         onClick={() => setTab('trees')}>Деревья</button>
+                <button className={`shop__tab ${tab === 'accents' ? 'shop__tab--active' : ''}`}
+                        onClick={() => setTab('accents')}>Акценты</button>
             </div>
 
             {loading && <div className="loading">{t.loading}</div>}
@@ -92,6 +95,20 @@ export default function ShopPage() {
                             onBuy={() => wrap(() => shopApi.buyTreeSkin(s.id))}
                             onEquip={() => wrap(() => shopApi.equipTreeSkin(s.id))}
                             onUnequip={() => wrap(() => shopApi.unequipTreeSkin())}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {!loading && data && tab === 'accents' && (
+                <div className="shop__grid">
+                    {(data.accents || []).map(a => (
+                        <AccentCard
+                            key={a.id}
+                            item={a}
+                            onBuy={() => wrap(() => shopApi.buyAccent(a.id))}
+                            onEquip={() => wrap(() => shopApi.equipAccent(a.id))}
+                            onUnequip={() => wrap(() => shopApi.unequipAccent())}
                         />
                     ))}
                 </div>

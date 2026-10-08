@@ -151,3 +151,9 @@
     user-select: none;
     cursor: help;
 }
+
+.recurrence-editor__preview-item--more {
+    background: transparent;
+    color: var(--text-muted);
+    font-style: italic;
+}

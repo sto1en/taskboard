@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { userApi, boardsApi, shopApi } from '../api/api'
 import useT from '../hooks/useT'
+import AccentDot from '../components/shop/AccentDot'
 
 const RUSSIAN_TIMEZONES = [
     { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
@@ -76,6 +77,7 @@ export default function ProfilePage() {
     const [displayForm, setDisplayForm] = useState(DEFAULT_DISPLAY)
     const [notificationForm, setNotificationForm] = useState(DEFAULT_NOTIFICATION)
 
+    const [pendingAccentId, setPendingAccentId] = useState(null)
     const [shop, setShop] = useState(null)
 
     useEffect(() => {
@@ -111,13 +113,26 @@ export default function ProfilePage() {
             flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
+
     const saveAppearance = async () => {
         try {
-            const { data } = await userApi.updateAppearance(appearanceForm)
-            updateUser({ appearance: data })
+            if (pendingAccentId) {
+                const owned = shop?.accents?.find(a => a.id === pendingAccentId && a.owned)
+                if (!owned) await shopApi.buyAccent(pendingAccentId)
+                await shopApi.equipAccent(pendingAccentId)
+                setPendingAccentId(null)
+                loadShop()
+                window.dispatchEvent(new Event('shop:refresh'))
+                window.dispatchEvent(new Event('user:refresh'))
+            }
+
+            const { accentCode, ...rest } = appearanceForm
+            const { data } = await userApi.updateAppearance(rest)
+            updateUser({ appearance: { ...data, accentCode } })
             flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
+
     const saveLocale = async () => {
         try {
             const { data } = await userApi.updateLocale(localeForm)
@@ -147,7 +162,6 @@ export default function ProfilePage() {
         } catch (e) { flashErr(e) }
     }
 
-    // Аватарка/рамка — покупка только если не куплено
     const applyAvatar = async (avatarId) => {
         try {
             const owned = shop?.avatars?.find(a => a.id === avatarId && a.owned)
@@ -155,9 +169,11 @@ export default function ProfilePage() {
             await shopApi.equipAvatar(avatarId)
             loadShop()
             window.dispatchEvent(new Event('shop:refresh'))
+            window.dispatchEvent(new Event('user:refresh'))
             flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
+
     const applyFrame = async (frameId) => {
         try {
             const owned = shop?.frames?.find(f => f.id === frameId && f.owned)
@@ -165,8 +181,14 @@ export default function ProfilePage() {
             await shopApi.equipFrame(frameId)
             loadShop()
             window.dispatchEvent(new Event('shop:refresh'))
+            window.dispatchEvent(new Event('user:refresh'))
             flash('Сохранено')
         } catch (e) { flashErr(e) }
+    }
+
+    const pickAccent = (accent) => {
+        setAppearanceForm(f => ({ ...f, accentCode: accent.code }))
+        setPendingAccentId(accent.id)
     }
 
     if (!user) return <div className="loading">Loading...</div>
@@ -182,6 +204,10 @@ export default function ProfilePage() {
 
     const activeAvatar = shop?.avatars?.find(a => a.active) || null
     const activeFrame = shop?.frames?.find(f => f.active) || null
+
+    const activeAccentId = pendingAccentId
+        || shop?.accents?.find(a => a.active)?.id
+        || null
 
     return (
         <div className="profile-page">
@@ -326,17 +352,32 @@ export default function ProfilePage() {
 
                     <div className="profile-field">
                         <label>{t.accentColor || 'Акцентный цвет'}</label>
-                        <div className="accent-picker">
-                            {['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray'].map(c => (
-                                <button
-                                    key={c}
-                                    type="button"
-                                    className={`accent-picker__item ${appearanceForm.accentCode === c ? 'active' : ''}`}
-                                    data-accent={c}
-                                    onClick={() => setAppearanceForm(f => ({ ...f, accentCode: c }))}
-                                />
-                            ))}
-                        </div>
+
+                        {!shop ? (
+                            <div className="profile-picker-empty">Загрузка…</div>
+                        ) : (shop.accents || []).filter(a => a.owned).length === 0 ? (
+                            <div className="profile-picker-empty">
+                                Пока нет купленных акцентов. Откройте магазин, чтобы выбрать.
+                                <div style={{ marginTop: 8 }}>
+                                    <Link to="/shop" className="btn btn-ghost">Перейти в магазин</Link>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="accent-picker">
+                                {(shop.accents || [])
+                                    .filter(a => a.owned)
+                                    .map(a => (
+                                        <AccentDot
+                                            key={a.id}
+                                            code={a.code}
+                                            title={a.title}
+                                            size={40}
+                                            active={activeAccentId === a.id}
+                                            onClick={() => pickAccent(a)}
+                                        />
+                                    ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="profile-field">
@@ -352,7 +393,6 @@ export default function ProfilePage() {
                         </select>
                     </div>
 
-                    {/* Вид дерева роста */}
                     <div className="profile-field">
                         <label>{t.treeKind || 'Вид дерева'}</label>
                         <select

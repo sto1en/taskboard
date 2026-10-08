@@ -7,7 +7,6 @@ export default function ThemeApplier({ children }) {
     useEffect(() => {
         const root = document.documentElement
 
-        // ===== Тема =====
         const theme = user?.appearance?.theme || 'light'
         let effective = theme
         if (theme === 'system') {
@@ -17,17 +16,13 @@ export default function ThemeApplier({ children }) {
         }
         root.setAttribute('data-theme', effective)
 
-        // ===== Акцент =====
-        // CSS сам подставит значение по html[data-accent="..."]
         const accent = user?.appearance?.accentCode || 'blue'
         root.setAttribute('data-accent', accent)
 
-        // ===== Плотность =====
         const density = user?.appearance?.density || 'cozy'
         root.setAttribute('data-density', density)
     }, [user?.appearance])
 
-    // ===== Слежение за системной темой =====
     useEffect(() => {
         if (user?.appearance?.theme !== 'system') return
         const media = window.matchMedia('(prefers-color-scheme: dark)')

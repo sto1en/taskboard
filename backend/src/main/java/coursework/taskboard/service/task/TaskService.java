@@ -199,13 +199,7 @@ public class TaskService {
     public List<TaskShortDto> getProjectTasks(Long projectId, User user) {
         getProjectWithAccess(projectId, user);
 
-        LocalDate today = LocalDate.now();
-        List<Task> tasks = taskRepository.findByProjectIdAndParentIsNullOrderByPositionAsc(projectId)
-                .stream()
-                .filter(t -> !Boolean.TRUE.equals(t.getIsRecurrenceInstance())
-                        || t.getOccurrenceDate() == null
-                        || !t.getOccurrenceDate().isAfter(today))
-                .toList();
+        List<Task> tasks = taskRepository.findByProjectIdAndParentIsNullOrderByPositionAsc(projectId);
         return toShortDtos(tasks);
     }
 
@@ -217,7 +211,6 @@ public class TaskService {
         List<BoardStatus> statuses = boardStatusRepository
                 .findByBoardIdAndScopeOrderByPositionAsc(board.getId(), "task");
 
-        LocalDate today = LocalDate.now();
         List<KanbanColumnDto> columns = new ArrayList<>();
 
         for (BoardStatus status : statuses) {
@@ -225,9 +218,6 @@ public class TaskService {
                     .stream()
                     .filter(t -> t.getProject().getId().equals(projectId))
                     .filter(t -> t.getParent() == null)
-                    .filter(t -> !Boolean.TRUE.equals(t.getIsRecurrenceInstance())
-                            || t.getOccurrenceDate() == null
-                            || !t.getOccurrenceDate().isAfter(today))
                     .toList();
 
             List<TaskShortDto> taskDtos = toShortDtos(tasks);

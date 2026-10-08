@@ -192,7 +192,7 @@ html[data-theme="dark"] .calendar__cell--weekend {
     gap: 10px;
 }
 
-/* ---------- Число дня — уменьшенный круг ---------- */
+/* ---------- Число дня ---------- */
 
 .calendar__daynum {
     display: inline-flex;
@@ -300,6 +300,22 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
     background: color-mix(in srgb, var(--danger) 26%, transparent);
 }
 
+/* ---------- Завершённые задачи в календаре ---------- */
+
+.calendar__task--done {
+    background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+.calendar__task--done .calendar__task-dot {
+    background: var(--success);
+}
+.calendar__task--done .calendar__task-title {
+    text-decoration: line-through;
+    opacity: 0.75;
+}
+.calendar__task--done:hover {
+    background: color-mix(in srgb, var(--success) 24%, transparent);
+}
+
 .calendar__more {
     padding: 2px 8px;
     font-size: 11px;
@@ -323,9 +339,20 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
 .calendar__load-bars {
     display: inline-flex;
     align-items: flex-end;
+    justify-content: center;
     gap: 2px;
     height: 12px;
     flex-shrink: 0;
+    padding: 6px 10px;
+    margin: -6px -10px;
+    box-sizing: content-box;
+    border-radius: 6px;
+    cursor: help;
+    transition: background .15s;
+}
+
+.calendar__load-bars:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
 }
 
 .calendar__load-bar {
@@ -356,14 +383,7 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
     cursor: grabbing;
 }
 
-/* ---------- Модалки на странице календаря ---------- */
-
-.create-task__hint-inline {
-    margin-top: -6px;
-    font-size: 12px;
-    color: var(--text-muted);
-    padding-left: 4px;
-}
+/* ---------- Модалка дня (DayTasksModal) ---------- */
 
 .day-tasks-modal__list {
     display: flex;
@@ -376,6 +396,19 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
     text-align: center;
     color: var(--text-muted);
     font-size: 14px;
+}
+
+.day-tasks-modal__item {
+    display: block;
+}
+
+/* ---------- Hint и кликабельный дедлайн в task-card ---------- */
+
+.create-task__hint-inline {
+    margin-top: -6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding-left: 4px;
 }
 
 .task-card__deadline-inline--clickable {

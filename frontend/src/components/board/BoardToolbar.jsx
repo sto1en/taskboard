@@ -5,31 +5,34 @@ import InlineEdit from '../common/InlineEdit'
 import ConfirmModal from '../common/ConfirmModal'
 import EditBoardModal from './EditBoardModal'
 import useT from '../../hooks/useT'
+import useConfirmDelete from '../../hooks/useConfirmDelete'
+import { useAuth } from '../../context/AuthContext'
 
 export default function BoardToolbar({ board, onUpdate, onDelete }) {
     const nav = useNavigate()
     const t = useT()
+    const { user, updateUser } = useAuth()
     const [showEdit, setShowEdit] = useState(false)
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-    const [deleting, setDeleting] = useState(false)
     const [localBoard, setLocalBoard] = useState(board)
 
     if (board !== localBoard && board?.id === localBoard?.id) {
         setLocalBoard(board)
     }
 
-    const handleDeleteClick = () => {
-        setShowDeleteConfirm(true)
-    }
+    const confirmBeforeDelete = user?.workspace?.confirmBeforeDelete !== false
+    const { requestDelete, modalProps } = useConfirmDelete({
+        confirmBeforeDelete,
+        updateUser,
+    })
 
-    const handleDeleteConfirm = async () => {
-        setDeleting(true)
-        try {
-            if (onDelete) await onDelete(localBoard.id)
-            setShowDeleteConfirm(false)
-        } finally {
-            setDeleting(false)
-        }
+    const handleDeleteClick = () => {
+        requestDelete({
+            kind: 'board',
+            title: localBoard.title,
+            onConfirm: async () => {
+                if (onDelete) await onDelete(localBoard.id)
+            },
+        })
     }
 
     const saveTitle = async (newTitle) => {
@@ -104,17 +107,7 @@ export default function BoardToolbar({ board, onUpdate, onDelete }) {
                 }}
             />
 
-            <ConfirmModal
-                open={showDeleteConfirm}
-                title={t.confirmDeleteBoardTitle}
-                text={t.confirmDeleteBoardText(localBoard.title)}
-                confirmLabel={t.yesDelete}
-                cancelLabel={t.cancel}
-                danger
-                loading={deleting}
-                onConfirm={handleDeleteConfirm}
-                onClose={() => setShowDeleteConfirm(false)}
-            />
+            <ConfirmModal {...modalProps} />
         </>
     )
 }

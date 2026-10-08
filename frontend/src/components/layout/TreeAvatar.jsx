@@ -215,6 +215,34 @@ export default function TreeAvatar({ done = 0, kind = 'sakura', maxHeight = 400 
 
     return (
         <div className="tree-avatar-wrap">
+
+            {/* ====== Кнопка «?» — ВНЕ дерева, справа от него ====== */}
+            <div
+                className="tree-help"
+                onClick={(e) => { e.stopPropagation(); setTipOpen(v => !v) }}
+                onMouseEnter={() => setTipOpen(true)}
+                onMouseLeave={() => setTipOpen(false)}
+                onBlur={() => setTipOpen(false)}
+                role="button"
+                tabIndex={0}
+                aria-label="Что такое дерево прогресса"
+            >
+                ?
+                {tipOpen && (
+                    <div className="tree-help__tip" role="tooltip">
+                        <div className="tree-help__tip-title">Дерево прогресса 🌱</div>
+                        <div className="tree-help__tip-text">
+                            Оно растёт, пока ты закрываешь задачи. Каждая выполненная
+                            сегодня — новый росток.
+                        </div>
+                        <div className="tree-help__tip-text">
+                            Выполни 10 — и дерево станет взрослым. Тогда можно{' '}
+                            <b>кликнуть</b> по нему, и с него посыпятся листья ✨
+                        </div>
+                    </div>
+                )}
+            </div>
+
             <div
                 className={`tree-avatar tree-avatar--${stage} ${bounce ? 'tree-avatar--bounce' : ''}`}
                 style={{
@@ -227,11 +255,6 @@ export default function TreeAvatar({ done = 0, kind = 'sakura', maxHeight = 400 
                     cursor: stage === 'mature' ? 'pointer' : 'default',
                 }}
                 onClick={handleTreeClick}
-                title={
-                    stage === 'mature'
-                        ? `Выполнено: ${done} (${STAGES[stage].label}) — нажми, чтобы осыпать листья`
-                        : `${STAGES[stage].label} · ещё ${stage === 'sprout' ? 3 - done : 10 - done} до следующей стадии`
-                }
             >
                 <Comp />
 
@@ -251,33 +274,6 @@ export default function TreeAvatar({ done = 0, kind = 'sakura', maxHeight = 400 
                         {l.leaf}
                     </span>
                 ))}
-
-                {/* ? — в правом верхнем углу самого дерева */}
-                <div
-                    className="tree-help"
-                    onClick={(e) => { e.stopPropagation(); setTipOpen(v => !v) }}
-                    onMouseEnter={() => setTipOpen(true)}
-                    onMouseLeave={() => setTipOpen(false)}
-                    onBlur={() => setTipOpen(false)}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Что такое дерево прогресса"
-                >
-                    ?
-                    {tipOpen && (
-                        <div className="tree-help__tip" role="tooltip">
-                            <div className="tree-help__tip-title">Дерево прогресса 🌱</div>
-                            <div className="tree-help__tip-text">
-                                Оно растёт, пока ты закрываешь задачи. Каждая выполненная
-                                сегодня — новый росток.
-                            </div>
-                            <div className="tree-help__tip-text">
-                                Выполни 10 — и дерево станет взрослым. Тогда можно{' '}
-                                <b>кликнуть</b> по нему, и с него посыпятся листья ✨
-                            </div>
-                        </div>
-                    )}
-                </div>
             </div>
 
             <ProgressBar done={done} target={10} label={t.progressTree} />

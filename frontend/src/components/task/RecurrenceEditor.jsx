@@ -10,6 +10,8 @@ const UNITS = [
     { code: 'y', label: 'лет' },
 ]
 
+const MAX_COPIES = 100
+
 function parseRule(rule) {
     if (!rule) return { n: 1, unit: 'd' }
     if (rule.startsWith('every:')) {
@@ -67,9 +69,8 @@ export default function RecurrenceEditor({ taskId, initial, onChange, disabled =
             : `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
     )
 
-    const [endMode, setEndMode] = useState(initial?.endMode || 'never')
-    const [endUntil, setEndUntil] = useState(initial?.endUntil?.slice(0, 10) || '')
-    const [endCount, setEndCount] = useState(initial?.endCount || 10)
+    const [count, setCount] = useState(initial?.endCount || 10)
+    const [error, setError] = useState(null)
 
     const [preview, setPreview] = useState([])
     const [loadingPreview, setLoadingPreview] = useState(false)
@@ -85,18 +86,30 @@ export default function RecurrenceEditor({ taskId, initial, onChange, disabled =
     useEffect(() => {
         if (!enabled) {
             onChange(null)
+            setError(null)
             return
         }
+        if (!count || count < 1) {
+            setError('Укажите количество копий')
+            onChange(null)
+            return
+        }
+        if (count > MAX_COPIES) {
+            setError(`Максимум ${MAX_COPIES} копий`)
+            onChange(null)
+            return
+        }
+        setError(null)
         onChange({
             rule: finalRule,
             timeOfDay: null,
             startAt: startAtIso,
-            endMode,
-            endUntil: endMode === 'until' && endUntil ? `${endUntil}T23:59:59` : null,
-            endCount: endMode === 'count' ? Number(endCount) || 1 : null,
+            endMode: 'count',
+            endUntil: null,
+            endCount: Number(count),
         })
         // eslint-disable-next-line
-    }, [enabled, finalRule, startAtIso, endMode, endUntil, endCount])
+    }, [enabled, finalRule, startAtIso, count])
 
     useEffect(() => {
         if (!enabled || !startAtIso) {
@@ -108,9 +121,8 @@ export default function RecurrenceEditor({ taskId, initial, onChange, disabled =
             recurrenceApi.preview({
                 rule: finalRule,
                 startAt: startAtIso,
-                endMode,
-                endUntil: endMode === 'until' && endUntil ? `${endUntil}T23:59:59` : null,
-                endCount: endMode === 'count' ? Number(endCount) || 1 : null,
+                endMode: 'count',
+                endCount: Number(count) || 1,
             })
                 .then(({ data }) => setPreview(data || []))
                 .catch(() => setPreview([]))
@@ -118,7 +130,7 @@ export default function RecurrenceEditor({ taskId, initial, onChange, disabled =
         }, 250)
         return () => clearTimeout(timer)
         // eslint-disable-next-line
-    }, [enabled, finalRule, startAtIso, endMode, endUntil, endCount])
+    }, [enabled, finalRule, startAtIso, count])
 
     return (
         <div className="recurrence-editor">
@@ -191,68 +203,27 @@ export default function RecurrenceEditor({ taskId, initial, onChange, disabled =
                     </div>
 
                     <div className="modal__field">
-                        <label className="modal__label">Конец повторений</label>
-                        <div className="recurrence-editor__radios">
-                            <label className="recurrence-editor__radio">
-                                <input
-                                    type="radio"
-                                    name="endMode"
-                                    checked={endMode === 'never'}
-                                    onChange={() => setEndMode('never')}
-                                    disabled={disabled}
-                                />
-                                <span>Никогда</span>
-                            </label>
-                            <label className="recurrence-editor__radio">
-                                <input
-                                    type="radio"
-                                    name="endMode"
-                                    checked={endMode === 'until'}
-                                    onChange={() => setEndMode('until')}
-                                    disabled={disabled}
-                                />
-                                <span>До даты</span>
-                            </label>
-                            <label className="recurrence-editor__radio">
-                                <input
-                                    type="radio"
-                                    name="endMode"
-                                    checked={endMode === 'count'}
-                                    onChange={() => setEndMode('count')}
-                                    disabled={disabled}
-                                />
-                                <span>После N раз</span>
-                            </label>
-                        </div>
-
-                        {endMode === 'until' && (
-                            <input
-                                className="input"
-                                type="date"
-                                value={endUntil}
-                                onChange={(e) => setEndUntil(e.target.value)}
-                                disabled={disabled}
-                                style={{ marginTop: 8 }}
-                            />
-                        )}
-
-                        {endMode === 'count' && (
-                            <input
-                                className="input"
-                                type="number"
-                                min="1"
-                                max="9999"
-                                value={endCount}
-                                onChange={(e) => setEndCount(Math.max(1, Number(e.target.value) || 1))}
-                                disabled={disabled}
-                                style={{ marginTop: 8 }}
-                            />
-                        )}
+                        <label className="modal__label">
+                            Сколько копий создать (макс. {MAX_COPIES})
+                        </label>
+                        <input
+                            className="input"
+                            type="number"
+                            min="1"
+                            max={MAX_COPIES}
+                            value={count}
+                            onChange={(e) => setCount(Number(e.target.value) || 1)}
+                            disabled={disabled}
+                        />
                     </div>
+
+                    {error && (
+                        <div className="modal__error">{error}</div>
+                    )}
 
                     <div className="recurrence-editor__preview">
                         <div className="recurrence-editor__preview-title">
-                            Ближайшие вхождения:
+                            Будет создано {Math.min(Number(count) || 0, MAX_COPIES)} копий:
                         </div>
                         {loadingPreview && <div className="recurrence-editor__preview-empty">…</div>}
                         {!loadingPreview && preview.length === 0 && (
@@ -260,23 +231,19 @@ export default function RecurrenceEditor({ taskId, initial, onChange, disabled =
                         )}
                         {!loadingPreview && preview.length > 0 && (
                             <div className="recurrence-editor__preview-list">
-                                {preview.map((iso, i) => (
+                                {preview.slice(0, 10).map((iso, i) => (
                                     <span key={i} className="recurrence-editor__preview-item">
                                         {fmtPreview(iso)}
                                     </span>
                                 ))}
+                                {preview.length > 10 && (
+                                    <span className="recurrence-editor__preview-item recurrence-editor__preview-item--more">
+                                        + ещё {preview.length - 10}
+                                    </span>
+                                )}
                             </div>
                         )}
                     </div>
-
-                    <button
-                        type="button"
-                        className="recurrence-editor__danger"
-                        onClick={() => setEnabled(false)}
-                        disabled={disabled}
-                    >
-                        Убрать повторение
-                    </button>
                 </div>
             )}
         </div>

@@ -12,6 +12,8 @@ import {
     resolveUrl,
 } from '../../utils/format'
 import useT from '../../hooks/useT'
+import useConfirmDelete from '../../hooks/useConfirmDelete'
+import { useAuth } from '../../context/AuthContext'
 
 const TAG_ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray', 'teal', 'navy', 'olive']
 const TAG_ICONS = [
@@ -29,13 +31,17 @@ export default function TaskDetailModal({
                                             columns: columnsProp,
                                         }) {
     const t = useT()
+    const { user, updateUser } = useAuth()
+    const confirmBeforeDelete = user?.workspace?.confirmBeforeDelete !== false
+    const { requestDelete, modalProps } = useConfirmDelete({
+        confirmBeforeDelete,
+        updateUser,
+    })
+
     const [task, setTask] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [saving, setSaving] = useState(false)
-
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-    const [deleting, setDeleting] = useState(false)
 
     const [boardId, setBoardId] = useState(boardIdProp || null)
     const [columns, setColumns] = useState(columnsProp || [])
@@ -163,8 +169,6 @@ export default function TaskDetailModal({
             setColumns(columnsProp || [])
             setRecurrence(null)
             setRecurrenceDirty(false)
-            setShowDeleteConfirm(false)
-            setDeleting(false)
         }
     }, [open, boardIdProp, columnsProp])
 
@@ -235,21 +239,22 @@ export default function TaskDetailModal({
         }
     }
 
-    const handleDeleteConfirm = async () => {
-        if (!taskId) return
-        setDeleting(true)
-        try {
-            await tasksApi.delete(taskId)
-            window.dispatchEvent(new Event('tasks:refresh'))
-            onUpdated && onUpdated()
-            setShowDeleteConfirm(false)
-            onClose && onClose()
-        } catch (err) {
-            setError(err.response?.data?.message || 'Error')
-            setShowDeleteConfirm(false)
-        } finally {
-            setDeleting(false)
-        }
+    const handleDeleteClick = () => {
+        if (!task) return
+        requestDelete({
+            kind: 'task',
+            title: task.title,
+            onConfirm: async () => {
+                try {
+                    await tasksApi.delete(taskId)
+                    window.dispatchEvent(new Event('tasks:refresh'))
+                    onUpdated && onUpdated()
+                    onClose && onClose()
+                } catch (err) {
+                    setError(err.response?.data?.message || 'Error')
+                }
+            },
+        })
     }
 
     const uploadAttachment = async (e) => {
@@ -447,7 +452,7 @@ export default function TaskDetailModal({
                         <button
                             type="button"
                             className="btn btn-icon btn-icon--danger"
-                            onClick={() => setShowDeleteConfirm(true)}
+                            onClick={handleDeleteClick}
                             title="Удалить задачу"
                         >
                             🗑
@@ -932,17 +937,7 @@ export default function TaskDetailModal({
                 onClose={() => setPreviewAttachment(null)}
             />
 
-            <ConfirmModal
-                open={showDeleteConfirm}
-                title="Удалить задачу?"
-                text={task ? `Удалить «${task.title}»? Это действие нельзя отменить.` : ''}
-                confirmLabel="Удалить"
-                cancelLabel="Отмена"
-                danger
-                loading={deleting}
-                onConfirm={handleDeleteConfirm}
-                onClose={() => setShowDeleteConfirm(false)}
-            />
+            <ConfirmModal {...modalProps} />
         </>
     )
 }

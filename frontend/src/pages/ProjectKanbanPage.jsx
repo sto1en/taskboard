@@ -11,8 +11,11 @@ import CreateTaskModal from '../components/Task/CreateTaskModal'
 import CreateStatusModal from '../components/Task/CreateStatusModal'
 import TaskDetailModal from '../components/Task/TaskDetailModal'
 import AttachmentsModal from '../components/Task/AttachmentsModal'
+import ConfirmModal from '../components/common/ConfirmModal'
 import InlineEdit from '../components/common/InlineEdit'
 import useHotkeys from '../hooks/useHotkeys'
+import useConfirmDelete from '../hooks/useConfirmDelete'
+import { useAuth } from '../context/AuthContext'
 
 const ACCENTS = [
     'blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray', 'teal',
@@ -24,6 +27,13 @@ export default function ProjectKanbanPage() {
     const { boardId, projectId } = useParams()
     const [searchParams] = useSearchParams()
     const nav = useNavigate()
+    const { user, updateUser } = useAuth()
+
+    const confirmBeforeDelete = user?.workspace?.confirmBeforeDelete !== false
+    const { requestDelete, modalProps } = useConfirmDelete({
+        confirmBeforeDelete,
+        updateUser,
+    })
 
     const [project, setProject] = useState(null)
     const [kanban, setKanban] = useState(null)
@@ -45,7 +55,7 @@ export default function ProjectKanbanPage() {
     const [attachmentsTaskId, setAttachmentsTaskId] = useState(null)
 
     const [hoveredTaskId, setHoveredTaskId] = useState(null)
-    const [colorMenu, setColorMenu] = useState(null)  // { column, x, y }
+    const [colorMenu, setColorMenu] = useState(null)
 
     useEffect(() => {
         if (!projectId) return
@@ -84,7 +94,6 @@ export default function ProjectKanbanPage() {
             .finally(() => setLoading(false))
     }, [projectId])
 
-    // Закрытие палитры цветов по клику вне
     useEffect(() => {
         if (!colorMenu) return
         const close = () => setColorMenu(null)
@@ -109,7 +118,6 @@ export default function ProjectKanbanPage() {
         setShowCreateTask(true)
     }
 
-    // hotkey:new — новая задача
     useEffect(() => {
         const handler = (e) => {
             if (e.detail === 'task') handleAddTask(null)
@@ -145,31 +153,6 @@ export default function ProjectKanbanPage() {
         }
     }
 
-    const handleToggleCancel = async (taskId) => {
-        if (!kanban) return
-        const task = kanban.columns
-            .flatMap(c => c.tasks)
-            .find(t => t.id === taskId)
-        if (!task) return
-
-        const isCancelled = task.statusCategoryCode === 'CANCELLED'
-        const cancelledId = kanban.columns
-            .find(c => c.categoryCode === 'CANCELLED')?.statusId
-        const activeId = kanban.columns
-            .find(c => c.categoryCode === 'ACTIVE')?.statusId
-
-        const targetStatusId = isCancelled ? activeId : cancelledId
-        if (!targetStatusId) return
-
-        try {
-            await tasksApi.update(taskId, { statusId: targetStatusId })
-            reloadKanban()
-            refreshTree()
-        } catch (err) {
-            console.error('Toggle cancel failed:', err)
-        }
-    }
-
     const handleDuplicateTask = async (taskId) => {
         try {
             const { data: t } = await tasksApi.get(taskId)
@@ -190,6 +173,61 @@ export default function ProjectKanbanPage() {
             refreshTree()
         } catch (err) {
             alert(err.response?.data?.message || 'Не удалось дублировать')
+        }
+    }
+
+    const findHoveredTask = () => {
+        if (!hoveredTaskId || !kanban) return null
+        return kanban.columns
+            .flatMap(c => c.tasks)
+            .find(x => x.id === hoveredTaskId) || null
+    }
+
+    const doDelete = async (taskId) => {
+        try {
+            await tasksApi.delete(taskId)
+            reloadKanban()
+            refreshTree()
+            setHoveredTaskId(null)
+        } catch (err) {
+            alert(err.response?.data?.message || 'Не удалось удалить')
+        }
+    }
+
+    const handleDeleteWithConfirm = () => {
+        const t = findHoveredTask()
+        if (!t) return
+        requestDelete({
+            kind: 'task',
+            title: t.title,
+            onConfirm: () => doDelete(t.id),
+        })
+    }
+
+    const handleToggleCancel = async () => {
+        if (!hoveredTaskId || !kanban) return
+        const task = findHoveredTask()
+        if (!task) return
+
+        const isCancelled = task.statusCategoryCode === 'CANCELLED'
+        const cancelledCol = kanban.columns.find(c => c.categoryCode === 'CANCELLED')
+        const activeCol = kanban.columns.find(c => c.categoryCode === 'ACTIVE')
+
+        const targetStatusId = isCancelled
+            ? activeCol?.statusId
+            : cancelledCol?.statusId
+
+        if (!targetStatusId) {
+            alert('Нет подходящего статуса (Отменено или В процессе)')
+            return
+        }
+
+        try {
+            await tasksApi.update(hoveredTaskId, { statusId: targetStatusId })
+            reloadKanban()
+            refreshTree()
+        } catch (err) {
+            console.error('Toggle cancel failed:', err)
         }
     }
 
@@ -227,9 +265,6 @@ export default function ProjectKanbanPage() {
         }
     }
 
-    // ============================================================
-    // Редактирование статуса — вызывается из InlineEdit
-    // ============================================================
     const handleEditStatus = async (column, newTitle) => {
         try {
             await statusesApi.update(boardId, column.statusId, { title: newTitle })
@@ -239,9 +274,6 @@ export default function ProjectKanbanPage() {
         }
     }
 
-    // ============================================================
-    // Смена цвета статуса — ПКМ открывает мини-палитру
-    // ============================================================
     const handleRecolorStatus = (column, e) => {
         setColorMenu({
             column,
@@ -273,9 +305,10 @@ export default function ProjectKanbanPage() {
         },
 
         { combo: 'e', handler: () => { if (hoveredTaskId) setOpenTaskId(hoveredTaskId) } },
+
         {
             combo: 'space',
-            allowInInput: false,   // ← вот это ключевое: не реагируем на space в input/textarea
+            allowInInput: false,
             handler: () => {
                 if (!hoveredTaskId || !kanban) return
                 const t = kanban.columns
@@ -291,7 +324,20 @@ export default function ProjectKanbanPage() {
                 handleToggleDone(hoveredTaskId, isDone)
             },
         },
-        { combo: 'delete', handler: () => { if (hoveredTaskId) handleToggleCancel(hoveredTaskId) } },
+
+        // Delete — удалить
+        {
+            combo: 'delete',
+            allowInInput: false,
+            handler: handleDeleteWithConfirm,
+        },
+        // Backspace — перенести в отменённые
+        {
+            combo: 'backspace',
+            allowInInput: false,
+            handler: handleToggleCancel,
+        },
+
         { combo: 'c', handler: () => { if (hoveredTaskId) handleDuplicateTask(hoveredTaskId) } },
 
         { combo: '1', handler: () => setViewMode('kanban') },
@@ -493,7 +539,8 @@ export default function ProjectKanbanPage() {
                 onUpdated={reloadKanban}
             />
 
-            {/* Мини-палитра цветов для ПКМ по статусу */}
+            <ConfirmModal {...modalProps} />
+
             {colorMenu && (
                 <div
                     className="color-menu"

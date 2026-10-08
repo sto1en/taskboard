@@ -17,3 +17,5 @@ databaseChangeLog:
       file: db/changelog/008-add-avatar-image-url.yaml
   - include:
       file: db/changelog/009-add-task-recurrences.yaml
+  - include:
+      file: db/changelog/010-add-shop-accents.yaml

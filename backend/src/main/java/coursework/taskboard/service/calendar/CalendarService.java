@@ -1,20 +1,23 @@
 package coursework.taskboard.service.calendar;
 
 import coursework.taskboard.dto.calendar.*;
+import coursework.taskboard.model.attachment.Attachment;
+import coursework.taskboard.model.attachment.AttachmentMeta;
 import coursework.taskboard.model.board.Board;
 import coursework.taskboard.model.board.BoardStatusAppearance;
 import coursework.taskboard.model.task.Task;
+import coursework.taskboard.model.task.TaskAttachment;
 import coursework.taskboard.model.task.TaskSchedule;
 import coursework.taskboard.model.task.TaskSettings;
 import coursework.taskboard.model.user.User;
+import coursework.taskboard.repository.attachment.AttachmentMetaRepository;
 import coursework.taskboard.repository.board.BoardRepository;
 import coursework.taskboard.repository.board.BoardStatusAppearanceRepository;
 import coursework.taskboard.repository.project.ProjectRepository;
-import coursework.taskboard.repository.task.TaskRepository;
+import coursework.taskboard.repository.task.TaskAttachmentRepository;
 import coursework.taskboard.repository.task.TaskScheduleRepository;
 import coursework.taskboard.repository.task.TaskSettingsRepository;
 import coursework.taskboard.service.task.OverduePolicyService;
-import coursework.taskboard.service.task.RecurrenceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,10 +36,10 @@ public class CalendarService {
     private final BoardStatusAppearanceRepository boardStatusAppearanceRepository;
     private final BoardRepository boardRepository;
     private final ProjectRepository projectRepository;
-    private final TaskRepository taskRepository;
-    private final RecurrenceService recurrenceService;
+    private final TaskAttachmentRepository taskAttachmentRepository;
+    private final AttachmentMetaRepository attachmentMetaRepository;
 
-    @Transactional
+    @Transactional(readOnly = true)
     public CalendarDto getCalendar(LocalDate from, LocalDate to, User user) {
 
         List<Board> boards = boardRepository.findByOwnerIdOrderByPositionAsc(user.getId());
@@ -44,18 +47,6 @@ public class CalendarService {
         for (Board board : boards) {
             projectRepository.findByBoardIdOrderByPositionAsc(board.getId())
                     .forEach(p -> projectIds.add(p.getId()));
-        }
-
-        // === Материализуем вхождения повторений в диапазоне ===
-        List<Task> templates = taskRepository.findRecurrenceTemplatesByOwner(user.getId());
-        for (Task template : templates) {
-            try {
-                recurrenceService.ensureInstancesInRange(template, from, to);
-            } catch (Exception e) {
-                // Логируем, но не роняем календарь
-                org.slf4j.LoggerFactory.getLogger(CalendarService.class)
-                        .warn("Failed to materialize recurrences for task {}", template.getId(), e);
-            }
         }
 
         LocalDateTime fromDt = from.atStartOfDay();
@@ -86,6 +77,16 @@ public class CalendarService {
                     schedule.getCompletedAt()
             );
 
+            // Имена вложений
+            List<String> attachmentNames = new ArrayList<>();
+            for (TaskAttachment att : taskAttachmentRepository.findByTaskIdOrderByPositionAsc(task.getId())) {
+                Attachment a = att.getAttachment();
+                AttachmentMeta meta = attachmentMetaRepository.findById(a.getId()).orElse(null);
+                if (meta != null && meta.getOriginalName() != null) {
+                    attachmentNames.add(meta.getOriginalName());
+                }
+            }
+
             CalendarTaskDto dto = CalendarTaskDto.builder()
                     .id(task.getId())
                     .title(task.getTitle())
@@ -93,8 +94,13 @@ public class CalendarService {
                     .projectTitle(task.getProject().getTitle())
                     .statusCode(settings != null && settings.getStatus() != null
                             ? settings.getStatus().getCode() : null)
+                    .statusTitle(settings != null && settings.getStatus() != null
+                            ? settings.getStatus().getTitle() : null)
+                    .statusCategoryCode(settings != null && settings.getStatus() != null
+                            ? settings.getStatus().getCategoryCode() : null)
                     .statusAccentCode(appearance != null ? appearance.getAccentCode() : null)
                     .isOverdue(isOverdue)
+                    .attachmentNames(attachmentNames)
                     .isRecurrenceInstance(task.getIsRecurrenceInstance())
                     .recurrenceParentId(task.getRecurrenceParent() != null
                             ? task.getRecurrenceParent().getId() : null)

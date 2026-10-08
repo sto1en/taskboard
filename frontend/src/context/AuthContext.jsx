@@ -25,6 +25,18 @@ export function AuthProvider({ children }) {
             .finally(() => setLoading(false))
     }, [token])
 
+    // Слушаем событие user:refresh — перезапрашиваем /users/me
+    useEffect(() => {
+        if (!token) return
+        const reload = () => {
+            userApi.me()
+                .then(({ data }) => setUser(data))
+                .catch(() => {})
+        }
+        window.addEventListener('user:refresh', reload)
+        return () => window.removeEventListener('user:refresh', reload)
+    }, [token])
+
     const login = async (username, password) => {
         const { data } = await authApi.login({ username, password })
         localStorage.setItem('token', data.token)

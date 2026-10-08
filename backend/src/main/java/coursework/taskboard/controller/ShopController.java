@@ -64,4 +64,20 @@ public class ShopController {
     public ResponseEntity<UserShopDto> unequipTreeSkin() {
         return ResponseEntity.ok(shopService.unequipTreeSkin(currentUserService.getCurrentUser()));
     }
+
+    // Акценты
+    @PostMapping("/accents/{id}/buy")
+    public ResponseEntity<UserShopDto> buyAccent(@PathVariable Long id) {
+        return ResponseEntity.ok(shopService.buyAccent(currentUserService.getCurrentUser(), id));
+    }
+
+    @PostMapping("/accents/{id}/equip")
+    public ResponseEntity<UserShopDto> equipAccent(@PathVariable Long id) {
+        return ResponseEntity.ok(shopService.equipAccent(currentUserService.getCurrentUser(), id));
+    }
+
+    @PostMapping("/accents/unequip")
+    public ResponseEntity<UserShopDto> unequipAccent() {
+        return ResponseEntity.ok(shopService.unequipAccent(currentUserService.getCurrentUser()));
+    }
 }

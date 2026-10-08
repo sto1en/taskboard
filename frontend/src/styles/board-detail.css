@@ -921,6 +921,20 @@ html[data-theme="dark"] .subtask-mini__deadline {
 }
 
 /* ============================================================
+   TaskCard — зачёркнутая задача, если DONE
+   ============================================================ */
+
+.task-card--done .task-card__title {
+    text-decoration: line-through;
+    opacity: 0.65;
+}
+
+.task-card--done .task-tag,
+.task-card--done .task-card__deadline-inline {
+    opacity: 0.7;
+}
+
+/* ============================================================
    Drag & Drop
    ============================================================ */
 

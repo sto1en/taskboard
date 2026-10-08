@@ -10,6 +10,8 @@
   --success:       #36b37e;
 
   --accent:        #4c9aff;
+  --accent-gradient: none;
+  --accent-gradient-round: none;
 
   --radius:        6px;
   --shadow-sm:     0 1px 2px rgba(9, 30, 66, 0.08);
@@ -44,32 +46,68 @@
 }
 
 /* ============================================================
-   Акцент по data-accent на <html>
+   Акценты — без html, работают и на <html>, и на .accent-dot
    ============================================================ */
 
-html[data-accent="blue"]    { --accent: #4c9aff; }
-html[data-accent="indigo"]  { --accent: #5e6cff; }
-html[data-accent="violet"]  { --accent: #8f6ed5; }
-html[data-accent="purple"]  { --accent: #a45cd6; }
-html[data-accent="pink"]    { --accent: #ff78c4; }
-html[data-accent="magenta"] { --accent: #d16bdd; }
-html[data-accent="red"]     { --accent: #ff5630; }
-html[data-accent="coral"]   { --accent: #ff8f73; }
-html[data-accent="orange"]  { --accent: #ffab00; }
-html[data-accent="amber"]   { --accent: #ffc400; }
-html[data-accent="yellow"]  { --accent: #ffd600; }
-html[data-accent="lime"]    { --accent: #b3d400; }
-html[data-accent="green"]   { --accent: #36b37e; }
-html[data-accent="mint"]    { --accent: #57d9a3; }
-html[data-accent="teal"]    { --accent: #00b8d9; }
-html[data-accent="cyan"]    { --accent: #00b8d9; }
-html[data-accent="sky"]     { --accent: #4c9aff; }
-html[data-accent="navy"]    { --accent: #0052cc; }
-html[data-accent="maroon"]  { --accent: #ae2e24; }
-html[data-accent="olive"]   { --accent: #877700; }
-html[data-accent="brown"]   { --accent: #9e7c5a; }
-html[data-accent="gray"]    { --accent: #97a0af; }
-html[data-accent="slate"]   { --accent: #6b778c; }
+[data-accent="blue"]    { --accent: #4c9aff; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="indigo"]  { --accent: #5e6cff; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="violet"]  { --accent: #8f6ed5; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="purple"]  { --accent: #a45cd6; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="pink"]    { --accent: #ff78c4; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="magenta"] { --accent: #d16bdd; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="red"]     { --accent: #ff5630; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="coral"]   { --accent: #ff8f73; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="orange"]  { --accent: #ffab00; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="amber"]   { --accent: #ffc400; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="yellow"]  { --accent: #ffd600; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="lime"]    { --accent: #b3d400; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="green"]   { --accent: #36b37e; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="mint"]    { --accent: #57d9a3; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="teal"]    { --accent: #00b8d9; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="cyan"]    { --accent: #00b8d9; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="sky"]     { --accent: #4c9aff; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="navy"]    { --accent: #0052cc; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="maroon"]  { --accent: #ae2e24; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="olive"]   { --accent: #877700; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="brown"]   { --accent: #9e7c5a; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="gray"]    { --accent: #97a0af; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="slate"]   { --accent: #6b778c; --accent-gradient: none; --accent-gradient-round: none; }
+
+/* Градиентные акценты — linear 135° и для кнопок, и для кружков */
+
+[data-accent="sunset"] {
+  --accent: #ff8fae;
+  --accent-gradient: linear-gradient(135deg, #ff8f73 0%, #ffb347 50%, #ff78c4 100%);
+  --accent-gradient-round: linear-gradient(135deg, #ff8f73 0%, #ffb347 50%, #ff78c4 100%);
+}
+[data-accent="ocean"] {
+  --accent: #0081d6;
+  --accent-gradient: linear-gradient(135deg, #0047b3 0%, #00a0e0 50%, #00f0ff 100%);
+  --accent-gradient-round: linear-gradient(135deg, #0047b3 0%, #00a0e0 50%, #00f0ff 100%);
+}
+[data-accent="forest"] {
+  --accent: #5a9f3a;
+  --accent-gradient: linear-gradient(135deg, #2a5c14 0%, #4f9d20 50%, #a8c93c 100%);
+  --accent-gradient-round: linear-gradient(135deg, #2a5c14 0%, #4f9d20 50%, #a8c93c 100%);
+}
+[data-accent="neon"] {
+  --accent: #b100ff;
+  --accent-gradient: linear-gradient(135deg,
+  #ff00e5 0%, #b100ff 25%, #6a00ff 50%, #00c8ff 75%, #00f5ff 100%);
+  --accent-gradient-round: linear-gradient(135deg,
+  #ff00e5 0%, #b100ff 25%, #6a00ff 50%, #00c8ff 75%, #00f5ff 100%);
+}
+[data-accent="gold"] {
+  --accent: #d4a017;
+  --accent-gradient: linear-gradient(135deg,
+  #fff3b0 0%, #ffe066 25%, #ffcc00 50%, #d4a017 75%, #8b5a00 100%);
+  --accent-gradient-round: linear-gradient(135deg,
+  #fff3b0 0%, #ffe066 25%, #ffcc00 50%, #d4a017 75%, #8b5a00 100%);
+}
+
+/* ============================================================
+   Тёмная тема
+   ============================================================ */
 
 html[data-theme="dark"] {
   --bg:            #1d2125;
@@ -135,6 +173,10 @@ html[data-theme="dark"] .btn-ghost:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* ============================================================
+   Плотность
+   ============================================================ */
+
 html[data-density="compact"] {
   --density-gap: 6px;
   --density-padding: 8px;
@@ -147,6 +189,10 @@ html[data-density="comfortable"] {
   --density-gap: 12px;
   --density-padding: 16px;
 }
+
+/* ============================================================
+   Base
+   ============================================================ */
 
 * { box-sizing: border-box; }
 
@@ -208,6 +254,10 @@ textarea.input {
   font-family: inherit;
 }
 
+/* ============================================================
+   Кнопки — с поддержкой градиента
+   ============================================================ */
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -217,8 +267,9 @@ textarea.input {
   border-radius: var(--radius);
   font-size: 14px;
   font-weight: 600;
-  transition: background 0.15s;
+  transition: filter 0.15s;
   font-family: inherit;
+  position: relative;
 }
 .btn:disabled {
   opacity: 0.5;
@@ -226,10 +277,16 @@ textarea.input {
 }
 
 .btn-primary {
-  background: var(--primary);
+  background-color: var(--primary);
+  background-image: var(--accent-gradient, none);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
 }
-.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
 
 .btn-secondary {
   background: rgba(9, 30, 66, 0.06);
@@ -270,6 +327,35 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
   border-radius: var(--radius);
   font-size: 13px;
   margin-bottom: 16px;
+}
+
+/* ============================================================
+   Градиентный текст для активных элементов
+   ============================================================ */
+
+.text-accent-gradient {
+  background-color: var(--accent);
+  background-image: var(--accent-gradient, none);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Универсальное градиентное подчёркивание */
+.accent-underline::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 1px;
+  background-color: var(--primary);
+  background-image: var(--accent-gradient, none);
+  background-size: 100% 100%;
 }
 
 /* ============================================================
@@ -437,13 +523,11 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
    Скроллы — под тему
    ============================================================ */
 
-/* Firefox */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 
-/* WebKit (Chrome, Safari, Edge) */
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -462,7 +546,6 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
   background-clip: content-box;
 }
 
-/* Тёмная тема — более тёмный скролл */
 html[data-theme="dark"] * {
   scrollbar-color: #4a5560 transparent;
 }
@@ -476,8 +559,7 @@ html[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
 }
 
 /* ============================================================
-   RescheduleBanner — ненавязчивое предложение перенести
-   просроченную задачу
+   RescheduleBanner
    ============================================================ */
 
 .reschedule-banner {
@@ -547,4 +629,64 @@ html[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
 }
 html[data-theme="dark"] .reschedule-banner__close:hover {
   background: rgba(255, 255, 255, 0.06);
+}
+
+/* ============================================================
+   AccentDot — кружок-превью акцента
+   ============================================================ */
+
+.accent-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--accent-dot-size, 40px);
+  height: var(--accent-dot-size, 40px);
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  background-color: var(--accent);
+  background-image: var(--accent-gradient-round, var(--accent-gradient, none));
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  transition: transform .15s, filter .15s;
+  position: relative;
+  isolation: isolate;
+}
+
+.accent-dot:hover {
+  transform: scale(1.08);
+  filter: brightness(1.1);
+}
+
+/* Активный — с градиентной окантовкой через три слоя фона */
+
+.accent-dot--active {
+  background-color: transparent;
+  background-image:
+          var(--accent-gradient-round, var(--accent-gradient, none)),
+          linear-gradient(var(--surface), var(--surface)),
+          var(--accent-gradient-round, var(--accent-gradient, none));
+  background-clip: content-box, padding-box, border-box;
+  background-origin: content-box, padding-box, border-box;
+  background-size: 100% 100%;
+  padding: 3px;
+  border: 4px solid transparent;
+  box-shadow: 0 0 0 1px var(--surface);
+}
+
+.accent-dot--active::after {
+  content: '';
+  display: block;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+          0 0 0 2px rgba(0, 0, 0, 0.3),
+          0 0 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 2;
+  position: relative;
 }

@@ -2,19 +2,46 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { calendarApi, boardsApi, statsApi, tasksApi } from '../api/api'
 import useT from '../hooks/useT'
+import useHotkeys from '../hooks/useHotkeys'
+import useConfirmDelete from '../hooks/useConfirmDelete'
+import { useAuth } from '../context/AuthContext'
 import DayTasksModal from '../components/Calendar/DayTasksModal'
 import CreateTaskModal from '../components/Task/CreateTaskModal'
 import TaskDetailModal from '../components/Task/TaskDetailModal'
 import AttachmentsModal from '../components/Task/AttachmentsModal'
+import ConfirmModal from '../components/common/ConfirmModal'
 import DayLoadBar from '../components/Calendar/DayLoadBar'
 
 const MAX_VISIBLE_TASKS = 3
+
+function isDoneCategory(cat) {
+    return cat === 'DONE' || cat === 'ARCHIVED' || cat === 'CANCELLED'
+}
+
+function categoryColor(cat) {
+    switch (cat) {
+        case 'ACTIVE':    return 'var(--accent-blue, #4c9aff)'
+        case 'DONE':      return 'var(--accent-green, #36b37e)'
+        case 'ARCHIVED':  return 'var(--accent-green, #36b37e)'
+        case 'CANCELLED': return 'var(--accent-gray, #97a0af)'
+        case 'EXPIRED':   return 'var(--accent-red, #ff5630)'
+        case 'FROZEN':    return 'var(--accent-amber, #ffc400)'
+        default:          return 'var(--accent-gray, #97a0af)'
+    }
+}
 
 export default function CalendarPage() {
     const t = useT()
     const nav = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
+    const { user, updateUser } = useAuth()
     const today = new Date()
+
+    const confirmBeforeDelete = user?.workspace?.confirmBeforeDelete !== false
+    const { requestDelete, modalProps } = useConfirmDelete({
+        confirmBeforeDelete,
+        updateUser,
+    })
 
     const [year, setYear] = useState(today.getFullYear())
     const [month, setMonth] = useState(today.getMonth())
@@ -30,12 +57,15 @@ export default function CalendarPage() {
     const [attachmentsToView, setAttachmentsToView] = useState(null)
     const [attachmentsTaskId, setAttachmentsTaskId] = useState(null)
 
-    // Для drag&drop
     const [draggingTaskId, setDraggingTaskId] = useState(null)
     const [hoverDay, setHoverDay] = useState(null)
 
-    // Текущий день под курсором (для хоткея N)
     const hoveredDayRef = useRef(null)
+    const [hoveredTaskId, setHoveredTaskId] = useState(null)
+
+    const doneStatusIdRef = useRef(null)
+    const activeStatusIdRef = useRef(null)
+    const cancelledStatusIdRef = useRef(null)
 
     const MONTHS = [
         t.monthJanuary || 'January', t.monthFebruary || 'February',
@@ -72,10 +102,12 @@ export default function CalendarPage() {
         // eslint-disable-next-line
     }, [])
 
-    const reloadCalendar = () => {
+    const reloadCalendar = ({ silent = false } = {}) => {
         const from = new Date(year, month, 1).toISOString().slice(0, 10)
         const to = new Date(year, month + 1, 0).toISOString().slice(0, 10)
-        setLoading(true)
+
+        if (!silent) setLoading(true)
+
         Promise.all([
             calendarApi.get(from, to),
             statsApi.dailyLoad(from, to),
@@ -94,30 +126,30 @@ export default function CalendarPage() {
                     loadMap[day] = l.level
                 })
                 setLoadByDay(loadMap)
+
+                window.dispatchEvent(new Event('tree:refresh'))
             })
             .catch(err => console.error('Calendar load error:', err))
-            .finally(() => setLoading(false))
+            .finally(() => {
+                if (!silent) setLoading(false)
+            })
     }
 
     // eslint-disable-next-line
-    useEffect(reloadCalendar, [year, month])
+    useEffect(() => reloadCalendar(), [year, month])
 
     useEffect(() => {
-        const onRefresh = () => reloadCalendar()
+        const onRefresh = () => reloadCalendar({ silent: true })
         window.addEventListener('tasks:refresh', onRefresh)
         return () => window.removeEventListener('tasks:refresh', onRefresh)
         // eslint-disable-next-line
     }, [year, month])
 
-    // ============================================================
-    // Хоткей N в календаре — создать задачу на день под курсором
-    // ============================================================
     useEffect(() => {
         const handler = (e) => {
             if (e.detail !== 'calendar-day') return
             const hovered = hoveredDayRef.current
             if (!hovered) return
-            // Если уже что-то открыто — не открываем
             if (document.querySelector('.modal-overlay')) return
             setCreateDate(dateToIso(hovered))
         }
@@ -156,7 +188,7 @@ export default function CalendarPage() {
     const handleDayClick = (day) => setOpenDay(dateToIso(day))
     const handleTaskClick = (e, task) => { e.stopPropagation(); setOpenTaskId(task.id) }
     const handleAddTask = (dateIso) => setCreateDate(dateIso)
-    const handleCreated = () => { setCreateDate(null); reloadCalendar() }
+    const handleCreated = () => { setCreateDate(null); reloadCalendar({ silent: true }) }
 
     const handleOpenAttachments = (taskId, attachments) => {
         setAttachmentsTaskId(taskId)
@@ -178,7 +210,6 @@ export default function CalendarPage() {
         if (from) nav(from)
     }
 
-    // === Drag&drop задач ===
     const onDragStartTask = (e, task) => {
         setDraggingTaskId(task.id)
         e.dataTransfer.effectAllowed = 'move'
@@ -206,12 +237,197 @@ export default function CalendarPage() {
         try {
             const iso = dateToIso(day)
             await tasksApi.moveDate(taskId, iso)
-            reloadCalendar()
+            reloadCalendar({ silent: true })
         } catch (err) {
             console.error('Move date failed:', err)
             alert(err.response?.data?.message || 'Не удалось перенести задачу')
         }
     }
+
+    const markDoneLocally = (taskId) => {
+        setTasksByDay(prev => {
+            const next = {}
+            for (const [day, list] of Object.entries(prev)) {
+                next[day] = list.map(x =>
+                    x.id === taskId
+                        ? { ...x, statusCode: 'DONE', statusCategoryCode: 'DONE' }
+                        : x
+                )
+            }
+            return next
+        })
+    }
+
+    const markCancelledLocally = (taskId) => {
+        setTasksByDay(prev => {
+            const next = {}
+            for (const [day, list] of Object.entries(prev)) {
+                next[day] = list.map(x =>
+                    x.id === taskId
+                        ? { ...x, statusCode: 'CANCELLED', statusCategoryCode: 'CANCELLED' }
+                        : x
+                )
+            }
+            return next
+        })
+    }
+
+    const findTaskInCalendar = (taskId) => {
+        for (const list of Object.values(tasksByDay)) {
+            const found = list.find(x => x.id === taskId)
+            if (found) return found
+        }
+        return null
+    }
+
+    const loadStatusIdsForProject = async (projectId) => {
+        try {
+            const { data: k } = await tasksApi.kanban(projectId)
+            const cols = k.columns || []
+            if (!doneStatusIdRef.current) {
+                doneStatusIdRef.current = cols.find(c => c.categoryCode === 'DONE')?.statusId || null
+            }
+            if (!activeStatusIdRef.current) {
+                activeStatusIdRef.current = cols.find(c => c.categoryCode === 'ACTIVE')?.statusId || null
+            }
+            if (!cancelledStatusIdRef.current) {
+                cancelledStatusIdRef.current = cols.find(c => c.categoryCode === 'CANCELLED')?.statusId || null
+            }
+        } catch {}
+    }
+
+    const handleCalendarToggleDone = async () => {
+        if (!hoveredTaskId) return
+        const task = findTaskInCalendar(hoveredTaskId)
+        if (!task) return
+        if (isDoneCategory(task.statusCategoryCode)) return
+
+        if (!doneStatusIdRef.current && task.projectId) {
+            await loadStatusIdsForProject(task.projectId)
+        }
+        const targetStatusId = doneStatusIdRef.current
+        if (!targetStatusId) return
+
+        markDoneLocally(task.id)
+        try {
+            await tasksApi.update(task.id, { statusId: targetStatusId })
+            window.dispatchEvent(new Event('tree:refresh'))
+        } catch (err) {
+            console.error('Toggle done failed:', err)
+            reloadCalendar({ silent: true })
+        }
+    }
+
+    const handleCalendarToggleCancel = async () => {
+        if (!hoveredTaskId) return
+        const task = findTaskInCalendar(hoveredTaskId)
+        if (!task) return
+
+        const isCancelled = task.statusCategoryCode === 'CANCELLED'
+        const targetCategory = isCancelled ? 'ACTIVE' : 'CANCELLED'
+
+        if (!task.projectId) return
+        await loadStatusIdsForProject(task.projectId)
+
+        const targetStatusId = targetCategory === 'CANCELLED'
+            ? cancelledStatusIdRef.current
+            : activeStatusIdRef.current
+
+        if (!targetStatusId) {
+            alert('Нет подходящего статуса (Отменено или В процессе)')
+            return
+        }
+
+        if (targetCategory === 'CANCELLED') {
+            markCancelledLocally(task.id)
+        } else {
+            reloadCalendar({ silent: true })
+        }
+
+        try {
+            await tasksApi.update(task.id, { statusId: targetStatusId })
+            window.dispatchEvent(new Event('tree:refresh'))
+        } catch (err) {
+            console.error('Toggle cancel failed:', err)
+            reloadCalendar({ silent: true })
+        }
+    }
+
+    const doDeleteTask = async (task) => {
+        if (!task) return
+        setTasksByDay(prev => {
+            const next = {}
+            for (const [day, list] of Object.entries(prev)) {
+                next[day] = list.filter(x => x.id !== task.id)
+            }
+            return next
+        })
+        setHoveredTaskId(null)
+
+        try {
+            await tasksApi.delete(task.id)
+            window.dispatchEvent(new Event('tree:refresh'))
+        } catch (err) {
+            alert(err.response?.data?.message || 'Не удалось удалить')
+            reloadCalendar({ silent: true })
+        }
+    }
+
+    const handleCalendarDeleteWithConfirm = () => {
+        if (!hoveredTaskId) return
+        const task = findTaskInCalendar(hoveredTaskId)
+        if (!task) return
+        requestDelete({
+            kind: 'task',
+            title: task.title,
+            onConfirm: () => doDeleteTask(task),
+        })
+    }
+
+    const handleCalendarOpen = () => {
+        if (hoveredTaskId) setOpenTaskId(hoveredTaskId)
+    }
+
+    useHotkeys([
+        {
+            combo: 'arrowright',
+            allowInInput: false,
+            when: () => !openDay && !openTaskId && !createDate && !modalProps.open,
+            handler: nextMonth,
+        },
+        {
+            combo: 'arrowleft',
+            allowInInput: false,
+            when: () => !openDay && !openTaskId && !createDate && !modalProps.open,
+            handler: prevMonth,
+        },
+        {
+            combo: 'space',
+            allowInInput: false,
+            when: () => !openDay && !openTaskId && !createDate && !!hoveredTaskId && !modalProps.open,
+            handler: (e) => { e.preventDefault(); handleCalendarToggleDone() },
+        },
+        {
+            combo: 'e',
+            allowInInput: false,
+            when: () => !openDay && !openTaskId && !createDate && !!hoveredTaskId && !modalProps.open,
+            handler: handleCalendarOpen,
+        },
+        // Delete — удалить
+        {
+            combo: 'delete',
+            allowInInput: false,
+            when: () => !openDay && !openTaskId && !createDate && !!hoveredTaskId && !modalProps.open,
+            handler: handleCalendarDeleteWithConfirm,
+        },
+        // Backspace — перенести в отменённые
+        {
+            combo: 'backspace',
+            allowInInput: false,
+            when: () => !openDay && !openTaskId && !createDate && !!hoveredTaskId && !modalProps.open,
+            handler: handleCalendarToggleCancel,
+        },
+    ])
 
     const dayTasksForModal = openDay
         ? (tasksByDay[Number(openDay.split('-')[2])] || [])
@@ -268,7 +484,12 @@ export default function CalendarPage() {
                             && month === today.getMonth()
                             && year === today.getFullYear()
                         const isWeekend = (i % 7) >= 5
-                        const dayTasks = day ? (tasksByDay[day] || []) : []
+                        const dayTasksRaw = day ? (tasksByDay[day] || []) : []
+
+                        const active = dayTasksRaw.filter(x => !isDoneCategory(x.statusCategoryCode))
+                        const done = dayTasksRaw.filter(x => isDoneCategory(x.statusCategoryCode))
+                        const dayTasks = [...active, ...done]
+
                         const visible = dayTasks.slice(0, MAX_VISIBLE_TASKS)
                         const rest = dayTasks.length - visible.length
                         const isHover = hoverDay === day && draggingTaskId
@@ -301,9 +522,8 @@ export default function CalendarPage() {
                                         </div>
                                         <div className="calendar__tasks">
                                             {visible.map(task => {
-                                                const color = task.statusAccentCode
-                                                    ? `var(--accent-${task.statusAccentCode})`
-                                                    : 'var(--accent, var(--primary))'
+                                                const isDone = isDoneCategory(task.statusCategoryCode)
+                                                const color = categoryColor(task.statusCategoryCode)
                                                 return (
                                                     <button
                                                         key={task.id}
@@ -311,7 +531,17 @@ export default function CalendarPage() {
                                                         draggable
                                                         onDragStart={(e) => onDragStartTask(e, task)}
                                                         onDragEnd={onDragEndTask}
-                                                        className={`calendar__task ${task.isOverdue ? 'calendar__task--overdue' : ''} ${draggingTaskId === task.id ? 'calendar__task--dragging' : ''}`}
+                                                        onMouseEnter={(e) => {
+                                                            e.stopPropagation()
+                                                            setHoveredTaskId(task.id)
+                                                        }}
+                                                        onMouseLeave={() => setHoveredTaskId(null)}
+                                                        className={[
+                                                            'calendar__task',
+                                                            task.isOverdue && !isDone ? 'calendar__task--overdue' : '',
+                                                            draggingTaskId === task.id ? 'calendar__task--dragging' : '',
+                                                            isDone ? 'calendar__task--done' : '',
+                                                        ].filter(Boolean).join(' ')}
                                                         style={{ '--task-accent': color }}
                                                         title={`${task.title}${task.projectTitle ? ' · ' + task.projectTitle : ''}`}
                                                         onClick={(e) => handleTaskClick(e, task)}
@@ -341,7 +571,7 @@ export default function CalendarPage() {
                 tasks={dayTasksForModal}
                 onClose={closeDayModal}
                 onBack={backFromDayModal}
-                onTaskMoved={reloadCalendar}
+                onTaskMoved={() => reloadCalendar({ silent: true })}
                 onOpenTask={(id) => { setOpenDay(null); setOpenTaskId(id) }}
                 onOpenAttachments={handleOpenAttachments}
                 onAddTask={handleAddTask}
@@ -360,7 +590,7 @@ export default function CalendarPage() {
                 onClose={() => setOpenTaskId(null)}
                 taskId={openTaskId}
                 onOpenTask={setOpenTaskId}
-                onUpdated={reloadCalendar}
+                onUpdated={() => reloadCalendar({ silent: true })}
             />
 
             <AttachmentsModal
@@ -368,8 +598,10 @@ export default function CalendarPage() {
                 attachments={attachmentsToView || []}
                 taskId={attachmentsTaskId}
                 onClose={() => { setAttachmentsToView(null); setAttachmentsTaskId(null) }}
-                onUpdated={reloadCalendar}
+                onUpdated={() => reloadCalendar({ silent: true })}
             />
+
+            <ConfirmModal {...modalProps} />
         </div>
     )
 }

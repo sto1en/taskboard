@@ -23,10 +23,12 @@ public class ShopService {
     private final AvatarRepository avatarRepository;
     private final FrameRepository frameRepository;
     private final TreeSkinRepository treeSkinRepository;
+    private final AccentSkinRepository accentSkinRepository;
     private final UserCurrencyRepository userCurrencyRepository;
     private final UserAvatarRepository userAvatarRepository;
     private final UserFrameRepository userFrameRepository;
     private final UserTreeSkinRepository userTreeSkinRepository;
+    private final UserAccentRepository userAccentRepository;
     private final UserAppearanceRepository userAppearanceRepository;
 
     @Transactional(readOnly = true)
@@ -40,12 +42,13 @@ public class ShopService {
                 ? appearance.getActiveFrame().getId() : null;
         Long activeSkinId = appearance != null && appearance.getActiveTreeSkin() != null
                 ? appearance.getActiveTreeSkin().getId() : null;
+        String activeAccentCode = appearance != null ? appearance.getAccentCode() : null;
 
+        // Avatars
         Set<Long> ownedAvatars = new HashSet<>();
         for (UserAvatar ua : userAvatarRepository.findByUserId(user.getId())) {
             ownedAvatars.add(ua.getAvatar().getId());
         }
-
         List<ShopItemDto> avatarDtos = new ArrayList<>();
         for (Avatar a : avatarRepository.findAllByOrderBySortOrderAsc()) {
             avatarDtos.add(ShopItemDto.builder()
@@ -54,7 +57,7 @@ public class ShopService {
                     .title(a.getTitle())
                     .description(a.getDescription())
                     .emoji(a.getEmoji())
-                    .imageUrl(a.getImageUrl())   // ← добавили
+                    .imageUrl(a.getImageUrl())
                     .cssClass(a.getCssClass())
                     .price(a.getPrice())
                     .owned(ownedAvatars.contains(a.getId()))
@@ -62,11 +65,11 @@ public class ShopService {
                     .build());
         }
 
+        // Frames
         Set<Long> ownedFrames = new HashSet<>();
         for (UserFrame uf : userFrameRepository.findByUserId(user.getId())) {
             ownedFrames.add(uf.getFrame().getId());
         }
-
         List<ShopItemDto> frameDtos = new ArrayList<>();
         for (Frame f : frameRepository.findAllByOrderBySortOrderAsc()) {
             frameDtos.add(ShopItemDto.builder()
@@ -78,11 +81,11 @@ public class ShopService {
                     .build());
         }
 
+        // Tree skins
         Set<Long> ownedSkins = new HashSet<>();
         for (UserTreeSkin us : userTreeSkinRepository.findByUserId(user.getId())) {
             ownedSkins.add(us.getTreeSkin().getId());
         }
-
         List<ShopItemDto> skinDtos = new ArrayList<>();
         for (TreeSkin s : treeSkinRepository.findAllByOrderBySortOrderAsc()) {
             skinDtos.add(ShopItemDto.builder()
@@ -93,11 +96,31 @@ public class ShopService {
                     .build());
         }
 
+        // Accents
+        Set<Long> ownedAccents = new HashSet<>();
+        for (UserAccent ua : userAccentRepository.findByUserId(user.getId())) {
+            ownedAccents.add(ua.getAccentSkin().getId());
+        }
+        List<ShopItemDto> accentDtos = new ArrayList<>();
+        for (AccentSkin a : accentSkinRepository.findAllByOrderBySortOrderAsc()) {
+            accentDtos.add(ShopItemDto.builder()
+                    .id(a.getId())
+                    .code(a.getCode())
+                    .title(a.getTitle())
+                    .description(a.getDescription())
+                    .price(a.getPrice())
+                    .cssClass(a.getCode())
+                    .owned(ownedAccents.contains(a.getId()))
+                    .active(a.getCode().equals(activeAccentCode))
+                    .build());
+        }
+
         return UserShopDto.builder()
                 .leaves(leaves)
                 .avatars(avatarDtos)
                 .frames(frameDtos)
                 .treeSkins(skinDtos)
+                .accents(accentDtos)
                 .build();
     }
 
@@ -199,6 +222,41 @@ public class ShopService {
     }
 
     // ============================================================
+    // Акценты
+    // ============================================================
+    @Transactional
+    public UserShopDto buyAccent(User user, Long accentId) {
+        AccentSkin skin = accentSkinRepository.findById(accentId)
+                .orElseThrow(() -> new IllegalArgumentException("Accent not found"));
+        if (userAccentRepository.existsByUserIdAndAccentSkinId(user.getId(), accentId)) {
+            throw new IllegalArgumentException("Уже куплено");
+        }
+        deductLeaves(user, skin.getPrice());
+        userAccentRepository.save(UserAccent.builder().user(user).accentSkin(skin).build());
+        return getShop(user);
+    }
+
+    @Transactional
+    public UserShopDto equipAccent(User user, Long accentId) {
+        if (!userAccentRepository.existsByUserIdAndAccentSkinId(user.getId(), accentId)) {
+            throw new IllegalArgumentException("Акцент не куплен");
+        }
+        AccentSkin skin = accentSkinRepository.findById(accentId).orElseThrow();
+        UserAppearance appearance = userAppearanceRepository.findById(user.getId()).orElseThrow();
+        appearance.setAccentCode(skin.getCode());
+        userAppearanceRepository.save(appearance);
+        return getShop(user);
+    }
+
+    @Transactional
+    public UserShopDto unequipAccent(User user) {
+        UserAppearance appearance = userAppearanceRepository.findById(user.getId()).orElseThrow();
+        appearance.setAccentCode("blue");
+        userAppearanceRepository.save(appearance);
+        return getShop(user);
+    }
+
+    // ============================================================
     // Листья
     // ============================================================
     @Transactional
@@ -222,10 +280,6 @@ public class ShopService {
                 .orElse(0);
     }
 
-    /**
-     * Списывает листья. Если у пользователя ещё нет записи — создаёт с 0,
-     * затем выбрасывает корректную ошибку «Недостаточно листьев».
-     */
     private void deductLeaves(User user, int amount) {
         UserCurrency cur = userCurrencyRepository.findById(user.getId())
                 .orElseGet(() -> userCurrencyRepository.save(

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import Modal from '../Modal/Modal'
 
 export default function ConfirmModal({
@@ -8,9 +9,21 @@ export default function ConfirmModal({
                                          cancelLabel = 'Отмена',
                                          danger = false,
                                          loading = false,
+                                         showDontAsk = false,
+                                         dontAskLabel = 'Больше не спрашивать',
                                          onConfirm,
                                          onClose,
                                      }) {
+    const [dontAsk, setDontAsk] = useState(false)
+
+    useEffect(() => {
+        if (open) setDontAsk(false)
+    }, [open])
+
+    const handleConfirm = () => {
+        onConfirm && onConfirm({ dontAsk: showDontAsk && dontAsk })
+    }
+
     return (
         <Modal
             open={open}
@@ -29,7 +42,7 @@ export default function ConfirmModal({
                     <button
                         type="button"
                         className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`}
-                        onClick={onConfirm}
+                        onClick={handleConfirm}
                         disabled={loading}
                     >
                         {loading ? '...' : confirmLabel}
@@ -38,6 +51,17 @@ export default function ConfirmModal({
             }
         >
             <div className="confirm-modal__text">{text}</div>
+
+            {showDontAsk && (
+                <label className="confirm-modal__dont-ask">
+                    <input
+                        type="checkbox"
+                        checked={dontAsk}
+                        onChange={(e) => setDontAsk(e.target.checked)}
+                    />
+                    <span>{dontAskLabel}</span>
+                </label>
+            )}
         </Modal>
     )
 }
