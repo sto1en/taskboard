@@ -23,7 +23,8 @@ public class TaskMapper {
     @Value("${app.upload.base-url}")
     private String baseUrl;
 
-    public Task toTask(Project project, Stage stage, Task parent, CreateTaskRequest request, int position) {
+    public Task toTask(Project project, Stage stage, Task parent,
+                       CreateTaskRequest request, int position) {
         return Task.builder()
                 .project(project)
                 .stage(stage)
@@ -93,6 +94,10 @@ public class TaskMapper {
                 .subtaskDone(subtaskDone)
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
+                .isRecurrenceInstance(task.getIsRecurrenceInstance())
+                .recurrenceParentId(task.getRecurrenceParent() != null
+                        ? task.getRecurrenceParent().getId() : null)
+                .occurrenceDate(task.getOccurrenceDate())
                 .build();
     }
 
@@ -130,6 +135,10 @@ public class TaskMapper {
                 .subtaskDone(subtaskDone)
                 .subtasks(subtasks)
                 .tags(tags)
+                .isRecurrenceInstance(task.getIsRecurrenceInstance())
+                .recurrenceParentId(task.getRecurrenceParent() != null
+                        ? task.getRecurrenceParent().getId() : null)
+                .occurrenceDate(task.getOccurrenceDate())
                 .build();
     }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { calendarApi, boardsApi, statsApi, tasksApi } from '../api/api'
 import useT from '../hooks/useT'
@@ -33,6 +33,9 @@ export default function CalendarPage() {
     // Для drag&drop
     const [draggingTaskId, setDraggingTaskId] = useState(null)
     const [hoverDay, setHoverDay] = useState(null)
+
+    // Текущий день под курсором (для хоткея N)
+    const hoveredDayRef = useRef(null)
 
     const MONTHS = [
         t.monthJanuary || 'January', t.monthFebruary || 'February',
@@ -103,6 +106,23 @@ export default function CalendarPage() {
         const onRefresh = () => reloadCalendar()
         window.addEventListener('tasks:refresh', onRefresh)
         return () => window.removeEventListener('tasks:refresh', onRefresh)
+        // eslint-disable-next-line
+    }, [year, month])
+
+    // ============================================================
+    // Хоткей N в календаре — создать задачу на день под курсором
+    // ============================================================
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.detail !== 'calendar-day') return
+            const hovered = hoveredDayRef.current
+            if (!hovered) return
+            // Если уже что-то открыто — не открываем
+            if (document.querySelector('.modal-overlay')) return
+            setCreateDate(dateToIso(hovered))
+        }
+        window.addEventListener('hotkey:new', handler)
+        return () => window.removeEventListener('hotkey:new', handler)
         // eslint-disable-next-line
     }, [year, month])
 
@@ -264,6 +284,10 @@ export default function CalendarPage() {
                                     isHover ? 'calendar__cell--drop-over' : '',
                                 ].filter(Boolean).join(' ')}
                                 onClick={day ? () => handleDayClick(day) : undefined}
+                                onMouseEnter={day ? () => { hoveredDayRef.current = day } : undefined}
+                                onMouseLeave={day ? () => {
+                                    if (hoveredDayRef.current === day) hoveredDayRef.current = null
+                                } : undefined}
                                 onDragOver={day ? (e) => onDragOverDay(e, day) : undefined}
                                 onDragLeave={day ? (e) => onDragLeaveDay(e, day) : undefined}
                                 onDrop={day ? (e) => onDropDay(e, day) : undefined}

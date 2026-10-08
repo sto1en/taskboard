@@ -134,6 +134,37 @@ export default function AppLayout() {
         return false
     }
 
+    // ============================================================
+    // N — создать новое в зависимости от страницы
+    // ============================================================
+    const handleNew = () => {
+        if (document.querySelector('.modal-overlay')) return
+
+        const path = location.pathname
+
+        // /calendar → новая задача на день под курсором
+        if (path === '/calendar' || path.startsWith('/calendar?')) {
+            window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'calendar-day' }))
+            return
+        }
+
+        // /boards/:boardId/projects/:projectId → новая задача
+        if (/^\/boards\/\d+\/projects\/\d+/.test(path)) {
+            window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'task' }))
+            return
+        }
+        // /boards/:boardId → новый проект
+        if (/^\/boards\/\d+\/?$/.test(path)) {
+            window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'project' }))
+            return
+        }
+        // /boards → новая доска
+        if (/^\/boards\/?$/.test(path)) {
+            window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'board' }))
+            return
+        }
+    }
+
     useHotkeys([
         {
             combo: 'escape',
@@ -145,6 +176,7 @@ export default function AppLayout() {
         { combo: 'h', handler: () => openHelp() },
         { combo: '/', handler: focusSearch },
         { combo: 'ctrl+k', handler: focusSearch, allowInInput: true },
+        { combo: 'n', handler: handleNew, allowInInput: false },
 
         { combo: 't', handler: toggleTree },
 

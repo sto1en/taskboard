@@ -192,16 +192,16 @@ html[data-theme="dark"] .calendar__cell--weekend {
     gap: 10px;
 }
 
-/* ---------- Число дня ---------- */
+/* ---------- Число дня — уменьшенный круг ---------- */
 
 .calendar__daynum {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 26px;
+    height: 26px;
     padding: 0;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 800;
     color: var(--text);
     border-radius: 50%;
@@ -318,19 +318,23 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
     font-size: 15px;
 }
 
-/* ---------- Нагрузка дня ---------- */
+/* ---------- Нагрузка дня: 1/2/3 палочки ---------- */
+
+.calendar__load-bars {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+    flex-shrink: 0;
+}
 
 .calendar__load-bar {
     display: inline-block;
-    width: 32px;
-    height: 4px;
-    border-radius: 2px;
+    width: 3px;
+    border-radius: 1.5px;
+    background: var(--load-color, var(--text-muted));
     transition: background .15s;
-    flex-shrink: 0;
 }
-.calendar__load-bar--low    { background: var(--success); }
-.calendar__load-bar--medium { background: #ffab00; }
-.calendar__load-bar--high   { background: var(--danger); }
 
 /* ---------- Drag&drop задач между днями ---------- */
 
@@ -397,9 +401,9 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
         font-size: 11px;
     }
     .calendar__daynum {
-        width: 26px;
-        height: 26px;
-        font-size: 13px;
+        width: 22px;
+        height: 22px;
+        font-size: 12px;
     }
     .calendar__nav-btn {
         width: 44px;

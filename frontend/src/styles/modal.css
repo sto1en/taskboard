@@ -117,12 +117,62 @@
 
 .modal__foot {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     gap: 10px;
     padding: 16px 24px 20px;
     border-top: 1px solid var(--border);
     flex-shrink: 0;
     background: var(--surface);
+}
+
+/* Растяжка между левой (мусорка) и правой (Закрыть / Сохранить) группами */
+.modal__foot-spacer {
+    flex: 1;
+}
+
+/* ============================================================
+   Кнопки-иконки (например, 🗑 в футере)
+   ============================================================ */
+
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    padding: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s, transform .12s;
+    flex-shrink: 0;
+}
+
+.btn-icon:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.btn-icon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-icon--danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.btn-icon--danger:hover:not(:disabled) {
+    background: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
 }
 
 /* ============================================================
@@ -359,6 +409,9 @@
     cursor: pointer;
     transition: all .15s;
     font-family: inherit;
+    display: grid;
+    place-items: center;
+    user-select: none;
 }
 .task-detail__attachment-add:hover {
     border-color: var(--primary);
@@ -844,26 +897,6 @@ html[data-theme="dark"] .task-detail__subtask-ac-status {
     padding-left: 24px;
 }
 
-.task-detail__attachment-add {
-    width: 100px;
-    height: 100px;
-    border: 2px dashed var(--border);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 12px;
-    cursor: pointer;
-    transition: all .15s;
-    font-family: inherit;
-    display: grid;
-    place-items: center;
-    user-select: none;
-}
-.task-detail__attachment-add:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-}
-
 /* ============================================================
    AttachmentsModal — галерея вложений
    ============================================================ */
@@ -1059,8 +1092,6 @@ html[data-theme="dark"] .task-detail__subtask-ac-status {
 
 /* ============================================================
    Просмотр изображения — рендерится через портал в .layout__content.
-   Позиционируется абсолютно внутри этого контейнера.
-   Сайдбар и topbar остаются видны и НЕ размываются.
    ============================================================ */
 
 .attachments-modal__preview {

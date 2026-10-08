@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { tasksApi, tagsApi, attachmentsApi, projectsApi, boardsApi } from '../../api/api'
+import { tasksApi, tagsApi, attachmentsApi, projectsApi, boardsApi, recurrenceApi } from '../../api/api'
 import Modal from '../Modal/Modal'
 import useT from '../../hooks/useT'
 import { resolveUrl } from '../../utils/format'
 import { useAuth } from '../../context/AuthContext'
+import RecurrenceEditor from './RecurrenceEditor'
 
 export default function CreateTaskModal({
                                             open,
@@ -27,6 +28,9 @@ export default function CreateTaskModal({
     const [deadlineTime, setDeadlineTime] = useState('')
     const [hasTime, setHasTime] = useState(false)
     const [showMore, setShowMore] = useState(false)
+
+    // Повторение
+    const [recurrence, setRecurrence] = useState(null)
 
     const [boards, setBoards] = useState(boardsProp || [])
     const [selectedBoardId, setSelectedBoardId] = useState(null)
@@ -87,6 +91,7 @@ export default function CreateTaskModal({
         setSubtasks([])
         setSubtaskInput('')
         setAttachments([])
+        setRecurrence(null)
         setError(null)
 
         if (isProjectFixed) {
@@ -280,6 +285,22 @@ export default function CreateTaskModal({
                 tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
             })
 
+            // Повторение — сохраняем сразу после создания задачи
+            if (recurrence && recurrence.rule) {
+                try {
+                    await recurrenceApi.save(created.id, {
+                        rule: recurrence.rule,
+                        timeOfDay: recurrence.timeOfDay || null,
+                        startAt: recurrence.startAt || null,
+                        endMode: recurrence.endMode || 'never',
+                        endUntil: recurrence.endUntil || null,
+                        endCount: recurrence.endCount || null,
+                    })
+                } catch (err) {
+                    console.error('Recurrence save failed:', err)
+                }
+            }
+
             for (const a of attachments) {
                 try { await tasksApi.attach(created.id, a.id) } catch (err) { console.error(err) }
             }
@@ -462,6 +483,14 @@ export default function CreateTaskModal({
                                 />
                             </div>
                         )}
+
+                        {/* === Блок повторения === */}
+                        <div className="task-detail__group" style={{ paddingBottom: 0, borderBottom: 'none', gap: 12 }}>
+                            <RecurrenceEditor
+                                initial={recurrence}
+                                onChange={(val) => setRecurrence(val)}
+                            />
+                        </div>
 
                         <div className="task-detail__group" style={{ paddingBottom: 0, borderBottom: 'none', gap: 12 }}>
                             <div className="task-detail__label-row">

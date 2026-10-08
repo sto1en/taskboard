@@ -2,7 +2,7 @@ package coursework.taskboard.dto.shop;
 
 import lombok.*;
 
- @Data
+@Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

@@ -15,3 +15,5 @@ databaseChangeLog:
       file: db/changelog/007-add-avatars-and-tree-skins-v2.yaml
   - include:
       file: db/changelog/008-add-avatar-image-url.yaml
+  - include:
+      file: db/changelog/009-add-task-recurrences.yaml

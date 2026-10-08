@@ -44,6 +44,7 @@ public class TaskService {
     private final TaskScheduleRepository taskScheduleRepository;
     private final TaskTagRepository taskTagRepository;
     private final TaskAttachmentRepository taskAttachmentRepository;
+    private final TaskRecurrenceRepository taskRecurrenceRepository;
     private final ProjectRepository projectRepository;
     private final StageRepository stageRepository;
     private final BoardStatusRepository boardStatusRepository;
@@ -58,6 +59,7 @@ public class TaskService {
     private final TaskMapper taskMapper;
     private final AchievementService achievementService;
     private final ShopService shopService;
+    private final RecurrenceService recurrenceService;
 
     // ============================================================
     // Создать задачу
@@ -184,15 +186,26 @@ public class TaskService {
                 .filter(s -> isDoneCategory(s.getStatusCategoryCode()))
                 .count();
 
-        return taskMapper.toTaskDto(task, settings, schedule, status, statusAppearance,
+        TaskDto dto = taskMapper.toTaskDto(task, settings, schedule, status, statusAppearance,
                 tags, attachments, subtasks, subtaskTotal, subtaskDone);
+
+        RecurrenceDto rec = recurrenceService.getRule(task);
+        dto.setRecurrence(rec);
+
+        return dto;
     }
 
     @Transactional(readOnly = true)
     public List<TaskShortDto> getProjectTasks(Long projectId, User user) {
         getProjectWithAccess(projectId, user);
 
-        List<Task> tasks = taskRepository.findByProjectIdAndParentIsNullOrderByPositionAsc(projectId);
+        LocalDate today = LocalDate.now();
+        List<Task> tasks = taskRepository.findByProjectIdAndParentIsNullOrderByPositionAsc(projectId)
+                .stream()
+                .filter(t -> !Boolean.TRUE.equals(t.getIsRecurrenceInstance())
+                        || t.getOccurrenceDate() == null
+                        || !t.getOccurrenceDate().isAfter(today))
+                .toList();
         return toShortDtos(tasks);
     }
 
@@ -204,6 +217,7 @@ public class TaskService {
         List<BoardStatus> statuses = boardStatusRepository
                 .findByBoardIdAndScopeOrderByPositionAsc(board.getId(), "task");
 
+        LocalDate today = LocalDate.now();
         List<KanbanColumnDto> columns = new ArrayList<>();
 
         for (BoardStatus status : statuses) {
@@ -211,6 +225,9 @@ public class TaskService {
                     .stream()
                     .filter(t -> t.getProject().getId().equals(projectId))
                     .filter(t -> t.getParent() == null)
+                    .filter(t -> !Boolean.TRUE.equals(t.getIsRecurrenceInstance())
+                            || t.getOccurrenceDate() == null
+                            || !t.getOccurrenceDate().isAfter(today))
                     .toList();
 
             List<TaskShortDto> taskDtos = toShortDtos(tasks);
@@ -345,9 +362,6 @@ public class TaskService {
                 syncParentStatus(task);
             }
 
-            // ============================================================
-            // Триггеры ачивок и начисления листьев
-            // ============================================================
             if (!wasFinal && willBeFinal) {
                 onTaskCompleted(user, task, schedule, oldCategory, newCategory);
             } else if ("EXPIRED".equals(newCategory) && !"EXPIRED".equals(oldCategory)) {
@@ -416,13 +430,15 @@ public class TaskService {
 
         long subtaskTotal = taskRepository.countByParentId(taskId);
 
-        return taskMapper.toTaskDto(task, settings, schedule, status, statusAppearance,
+        TaskDto dto = taskMapper.toTaskDto(task, settings, schedule, status, statusAppearance,
                 tagDtos, new ArrayList<>(), new ArrayList<>(), subtaskTotal, 0);
+
+        RecurrenceDto rec = recurrenceService.getRule(task);
+        dto.setRecurrence(rec);
+
+        return dto;
     }
 
-    // ============================================================
-    // Ачивки и награда при завершении задачи
-    // ============================================================
     private void onTaskCompleted(User user, Task task, TaskSchedule schedule,
                                  String oldCategory, String newCategory) {
 
@@ -430,7 +446,6 @@ public class TaskService {
             return;
         }
 
-        // 🍃 Начисляем по 1 листу за каждую закрытую задачу
         shopService.addLeaves(user, 1);
 
         achievementService.firstTask(user);
@@ -583,10 +598,6 @@ public class TaskService {
         Task task = getTaskWithAccess(taskId, user);
         taskRepository.delete(task);
     }
-
-    // ============================================================
-    // Reschedule
-    // ============================================================
 
     @Transactional(readOnly = true)
     public List<TaskShortDto> getRescheduleCandidates(User user) {
@@ -786,7 +797,6 @@ public class TaskService {
         TaskSchedule schedule = taskScheduleRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Schedule not found"));
 
-        // Сохраняем время если было, иначе 00:00
         LocalDateTime newDeadline;
         if (schedule.getDeadline() != null
                 && (schedule.getDeadline().getHour() != 0 || schedule.getDeadline().getMinute() != 0)) {
@@ -796,5 +806,28 @@ public class TaskService {
         }
         schedule.setDeadline(newDeadline);
         taskScheduleRepository.save(schedule);
+    }
+
+    @Transactional
+    public RecurrenceDto saveRecurrence(Long taskId, RecurrenceRequestDto req, User user) {
+        Task task = getTaskWithAccess(taskId, user);
+        return recurrenceService.saveRule(task, req, user);
+    }
+
+    @Transactional(readOnly = true)
+    public RecurrenceDto getRecurrence(Long taskId, User user) {
+        Task task = getTaskWithAccess(taskId, user);
+        return recurrenceService.getRule(task);
+    }
+
+    @Transactional
+    public void deleteRecurrence(Long taskId, User user) {
+        Task task = getTaskWithAccess(taskId, user);
+        recurrenceService.deleteRule(task);
+    }
+
+    @Transactional(readOnly = true)
+    public List<LocalDateTime> previewRecurrence(RecurrenceRequestDto req) {
+        return recurrenceService.preview(req, 10);
     }
 }

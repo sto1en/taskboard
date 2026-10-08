@@ -4,6 +4,8 @@ import coursework.taskboard.model.project.Project;
 import coursework.taskboard.model.stage.Stage;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +55,21 @@ public class Task {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // ============================================================
+    // Повторения
+    // ============================================================
+
+    @Column(name = "is_recurrence_instance", nullable = false)
+    @Builder.Default
+    private Boolean isRecurrenceInstance = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recurrence_parent_id")
+    private Task recurrenceParent;
+
+    @Column(name = "occurrence_date")
+    private LocalDate occurrenceDate;
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -70,6 +87,9 @@ public class Task {
 
     @OneToOne(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
     private TaskSchedule schedule;
+
+    @OneToOne(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    private TaskRecurrence recurrence;
 
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TaskTag> tags = new ArrayList<>();

@@ -74,6 +74,13 @@ export const tasksApi = {
     moveDate: (id, date) => api.patch(`/tasks/${id}/move-date`, null, { params: { date } }),
 }
 
+export const recurrenceApi = {
+    get:     (taskId) => api.get(`/tasks/${taskId}/recurrence`),
+    save:    (taskId, data) => api.post(`/tasks/${taskId}/recurrence`, data),
+    delete:  (taskId) => api.delete(`/tasks/${taskId}/recurrence`),
+    preview: (data) => api.post('/tasks/recurrence/preview', data),
+}
+
 export const tagsApi = {
     listByBoard: (boardId) => api.get(`/boards/${boardId}/tags`),
     search: (boardId, q) => api.get(`/boards/${boardId}/tags/search`, { params: { q } }),

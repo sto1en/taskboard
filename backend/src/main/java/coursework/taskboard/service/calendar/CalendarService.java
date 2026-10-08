@@ -10,9 +10,11 @@ import coursework.taskboard.model.user.User;
 import coursework.taskboard.repository.board.BoardRepository;
 import coursework.taskboard.repository.board.BoardStatusAppearanceRepository;
 import coursework.taskboard.repository.project.ProjectRepository;
+import coursework.taskboard.repository.task.TaskRepository;
 import coursework.taskboard.repository.task.TaskScheduleRepository;
 import coursework.taskboard.repository.task.TaskSettingsRepository;
 import coursework.taskboard.service.task.OverduePolicyService;
+import coursework.taskboard.service.task.RecurrenceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,8 +33,10 @@ public class CalendarService {
     private final BoardStatusAppearanceRepository boardStatusAppearanceRepository;
     private final BoardRepository boardRepository;
     private final ProjectRepository projectRepository;
+    private final TaskRepository taskRepository;
+    private final RecurrenceService recurrenceService;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CalendarDto getCalendar(LocalDate from, LocalDate to, User user) {
 
         List<Board> boards = boardRepository.findByOwnerIdOrderByPositionAsc(user.getId());
@@ -40,6 +44,18 @@ public class CalendarService {
         for (Board board : boards) {
             projectRepository.findByBoardIdOrderByPositionAsc(board.getId())
                     .forEach(p -> projectIds.add(p.getId()));
+        }
+
+        // === Материализуем вхождения повторений в диапазоне ===
+        List<Task> templates = taskRepository.findRecurrenceTemplatesByOwner(user.getId());
+        for (Task template : templates) {
+            try {
+                recurrenceService.ensureInstancesInRange(template, from, to);
+            } catch (Exception e) {
+                // Логируем, но не роняем календарь
+                org.slf4j.LoggerFactory.getLogger(CalendarService.class)
+                        .warn("Failed to materialize recurrences for task {}", template.getId(), e);
+            }
         }
 
         LocalDateTime fromDt = from.atStartOfDay();
@@ -79,6 +95,10 @@ public class CalendarService {
                             ? settings.getStatus().getCode() : null)
                     .statusAccentCode(appearance != null ? appearance.getAccentCode() : null)
                     .isOverdue(isOverdue)
+                    .isRecurrenceInstance(task.getIsRecurrenceInstance())
+                    .recurrenceParentId(task.getRecurrenceParent() != null
+                            ? task.getRecurrenceParent().getId() : null)
+                    .occurrenceDate(task.getOccurrenceDate())
                     .build();
 
             byDate.computeIfAbsent(date, k -> new ArrayList<>()).add(dto);

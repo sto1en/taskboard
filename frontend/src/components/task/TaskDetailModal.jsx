@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { tasksApi, tagsApi, attachmentsApi, projectsApi } from '../../api/api'
+import { tasksApi, tagsApi, attachmentsApi, projectsApi, recurrenceApi } from '../../api/api'
 import Modal from '../Modal/Modal'
+import ConfirmModal from '../common/ConfirmModal'
 import AttachmentPreview from './AttachmentPreview'
 import DetailTextEditor from './DetailTextEditor'
+import RecurrenceEditor from './RecurrenceEditor'
 import {
     formatDeadline,
     splitDeadline,
@@ -31,6 +33,9 @@ export default function TaskDetailModal({
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [saving, setSaving] = useState(false)
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [deleting, setDeleting] = useState(false)
 
     const [boardId, setBoardId] = useState(boardIdProp || null)
     const [columns, setColumns] = useState(columnsProp || [])
@@ -62,7 +67,9 @@ export default function TaskDetailModal({
     const [allProjectTasks, setAllProjectTasks] = useState([])
     const [subtaskError, setSubtaskError] = useState(null)
 
-    // ============== Загрузка задачи + boardId/columns ==============
+    const [recurrence, setRecurrence] = useState(null)
+    const [recurrenceDirty, setRecurrenceDirty] = useState(false)
+
     const load = async () => {
         if (!taskId) return
         setLoading(true)
@@ -86,8 +93,9 @@ export default function TaskDetailModal({
             setExistingSubtasks(taskData.subtasks || [])
             setPendingSubtasks([])
             setDirty(false)
+            setRecurrence(taskData.recurrence || null)
+            setRecurrenceDirty(false)
 
-            // === Автономное получение boardId и columns ===
             let bid = boardIdProp
             let cols = columnsProp || []
 
@@ -111,7 +119,6 @@ export default function TaskDetailModal({
                 setColumns(cols)
             }
 
-            // Теги доски
             if (bid) {
                 try {
                     const { data: tagsData } = await tagsApi.listByBoard(bid)
@@ -154,6 +161,10 @@ export default function TaskDetailModal({
             setSubtaskError(null)
             setBoardId(boardIdProp || null)
             setColumns(columnsProp || [])
+            setRecurrence(null)
+            setRecurrenceDirty(false)
+            setShowDeleteConfirm(false)
+            setDeleting(false)
         }
     }, [open, boardIdProp, columnsProp])
 
@@ -178,6 +189,14 @@ export default function TaskDetailModal({
                 tagIds,
             })
 
+            if (recurrenceDirty) {
+                if (recurrence && recurrence.rule) {
+                    await recurrenceApi.save(taskId, recurrence)
+                } else if (!recurrence) {
+                    try { await recurrenceApi.delete(taskId) } catch {}
+                }
+            }
+
             for (const ps of pendingSubtasks) {
                 try {
                     await tasksApi.create(task.projectId, {
@@ -193,6 +212,8 @@ export default function TaskDetailModal({
             setTask(refreshed)
             setExistingSubtasks(refreshed.subtasks || [])
             setPendingSubtasks([])
+            setRecurrence(refreshed.recurrence || null)
+            setRecurrenceDirty(false)
 
             const { date, time, hasTime } = splitDeadline(refreshed.deadline)
             setForm({
@@ -211,6 +232,23 @@ export default function TaskDetailModal({
             setError(err.response?.data?.message || 'Error')
         } finally {
             setSaving(false)
+        }
+    }
+
+    const handleDeleteConfirm = async () => {
+        if (!taskId) return
+        setDeleting(true)
+        try {
+            await tasksApi.delete(taskId)
+            window.dispatchEvent(new Event('tasks:refresh'))
+            onUpdated && onUpdated()
+            setShowDeleteConfirm(false)
+            onClose && onClose()
+        } catch (err) {
+            setError(err.response?.data?.message || 'Error')
+            setShowDeleteConfirm(false)
+        } finally {
+            setDeleting(false)
         }
     }
 
@@ -396,6 +434,7 @@ export default function TaskDetailModal({
     if (!open) return null
 
     const isSubtask = !!task?.parentId
+    const isRecurrenceInstance = !!task?.isRecurrenceInstance
 
     return (
         <>
@@ -405,6 +444,15 @@ export default function TaskDetailModal({
                 title={loading ? t.loading : t.taskLabel}
                 footer={
                     <>
+                        <button
+                            type="button"
+                            className="btn btn-icon btn-icon--danger"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            title="Удалить задачу"
+                        >
+                            🗑
+                        </button>
+                        <div className="modal__foot-spacer" />
                         <button type="button" className="btn btn-ghost" onClick={onClose}>
                             {t.close}
                         </button>
@@ -424,6 +472,22 @@ export default function TaskDetailModal({
 
                 {task && (
                     <div className="task-detail">
+
+                        {isRecurrenceInstance && (
+                            <div className="recurrence-banner">
+                                <span className="recurrence-banner__icon">🔁</span>
+                                <div className="recurrence-banner__text">
+                                    Это повторение от{' '}
+                                    <b>
+                                        {task.occurrenceDate
+                                            ? new Date(task.occurrenceDate).toLocaleDateString()
+                                            : '—'}
+                                    </b>
+                                    . Изменения применятся ко всем вхождениям.
+                                </div>
+                            </div>
+                        )}
+
                         <div className="task-detail__group">
                             <div className="modal__field">
                                 <label className="modal__label">{t.nameLabel}</label>
@@ -507,6 +571,19 @@ export default function TaskDetailModal({
                                 </div>
                             )}
                         </div>
+
+                        {!isSubtask && !isRecurrenceInstance && (
+                            <div className="task-detail__group">
+                                <RecurrenceEditor
+                                    taskId={taskId}
+                                    initial={recurrence}
+                                    onChange={(val) => {
+                                        setRecurrence(val)
+                                        setRecurrenceDirty(true)
+                                    }}
+                                />
+                            </div>
+                        )}
 
                         <div className="task-detail__group">
                             <div className="task-detail__label-row">
@@ -853,6 +930,18 @@ export default function TaskDetailModal({
             <AttachmentPreview
                 attachment={previewAttachment}
                 onClose={() => setPreviewAttachment(null)}
+            />
+
+            <ConfirmModal
+                open={showDeleteConfirm}
+                title="Удалить задачу?"
+                text={task ? `Удалить «${task.title}»? Это действие нельзя отменить.` : ''}
+                confirmLabel="Удалить"
+                cancelLabel="Отмена"
+                danger
+                loading={deleting}
+                onConfirm={handleDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
             />
         </>
     )

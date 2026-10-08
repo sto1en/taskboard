@@ -1,0 +1,183 @@
+/* ============================================================
+   CreateTaskModal — дополнительные элементы формы
+   ============================================================ */
+
+/* ---------- Строка добавления подзадачи ---------- */
+
+.create-task__subtask-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.create-task__subtask-row .input {
+    flex: 1;
+    min-width: 0;
+}
+
+.create-task__subtask-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 18px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, opacity .15s;
+    flex-shrink: 0;
+}
+
+.create-task__subtask-add:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.create-task__subtask-add:disabled {
+    background: color-mix(in srgb, var(--primary) 45%, transparent);
+    color: color-mix(in srgb, #fff 75%, transparent);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* ---------- Список уже добавленных подзадач ---------- */
+
+.create-task__subtasks {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.create-task__subtask {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--bg);
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.create-task__subtask-title {
+    flex: 1;
+    min-width: 0;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.create-task__subtask-remove {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    flex-shrink: 0;
+}
+
+.create-task__subtask-remove:hover {
+    background: rgba(255, 86, 48, 0.1);
+    color: var(--danger);
+}
+
+/* ---------- Вложения ---------- */
+
+.create-task__attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.create-task__attachment {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--bg);
+}
+
+.create-task__attachment img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.create-task__attachment-file {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 11px;
+    text-align: center;
+    padding: 6px;
+    color: var(--text-muted);
+    word-break: break-word;
+}
+
+.create-task__attachment-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border: none;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    padding: 0;
+}
+
+.create-task__attachment-remove:hover {
+    background: rgba(0, 0, 0, 0.85);
+}
+
+/* ---------- Кнопка «+ Добавить» для вложений ---------- */
+
+.create-task__attachment-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100px;
+    height: 100px;
+    padding: 0;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    line-height: 1.2;
+    transition: background .15s, transform .12s;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.create-task__attachment-add:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.create-task__attachment-add:active {
+    transform: translateY(0);
+}

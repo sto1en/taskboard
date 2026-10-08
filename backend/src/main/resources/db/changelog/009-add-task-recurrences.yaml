@@ -1,0 +1,187 @@
+databaseChangeLog:
+
+  # ============================================================
+  # Повторяющиеся задачи (вариант C: шаблон + материализация вхождений)
+  # ============================================================
+
+  # ------------------------------------------------------------
+  # 1. Поля в tasks
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 009-01-tasks-recurrence-fields
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: tasks
+                columnName: is_recurrence_instance
+      changes:
+        - addColumn:
+            tableName: tasks
+            columns:
+              - column:
+                  name: is_recurrence_instance
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: recurrence_parent_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: occurrence_date
+                  type: DATE
+                  constraints:
+                    nullable: true
+
+  - changeSet:
+      id: 009-02-tasks-recurrence-parent-fk
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - foreignKeyConstraintExists:
+                foreignKeyName: fk_tasks_recurrence_parent
+      changes:
+        - addForeignKeyConstraint:
+            baseTableName: tasks
+            baseColumnNames: recurrence_parent_id
+            referencedTableName: tasks
+            referencedColumnNames: id
+            constraintName: fk_tasks_recurrence_parent
+            onDelete: SET NULL
+
+  - changeSet:
+      id: 009-03-tasks-recurrence-index
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - indexExists:
+                indexName: idx_tasks_recurrence_parent
+      changes:
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_recurrence_parent
+            columns:
+              - column: { name: recurrence_parent_id }
+              - column: { name: occurrence_date }
+
+  # ------------------------------------------------------------
+  # 2. task_recurrences — правило повторения
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 009-04-task-recurrences
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: task_recurrences }
+      changes:
+        - createTable:
+            tableName: task_recurrences
+            columns:
+              - column:
+                  name: task_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    references: tasks(id)
+                    foreignKeyName: fk_task_recurrences_task
+              - column: { name: rule,             type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: time_of_day,      type: TIME,         constraints: { nullable: true } }
+              - column: { name: start_at,         type: TIMESTAMP,    constraints: { nullable: false } }
+              - column: { name: end_mode,         type: VARCHAR(20),  constraints: { nullable: false }, defaultValue: never }
+              - column: { name: end_until,        type: TIMESTAMP,    constraints: { nullable: true } }
+              - column: { name: end_count,        type: INT,          constraints: { nullable: true } }
+              - column: { name: generated_until,  type: TIMESTAMP,    constraints: { nullable: true } }
+              - column: { name: updated_at,       type: TIMESTAMP,    constraints: { nullable: false }, defaultValueComputed: NOW() }
+
+  - changeSet:
+      id: 009-04b-check-end-mode
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - sqlCheck:
+                expectedResult: 0
+                sql: "SELECT count(*) FROM pg_constraint WHERE conname = 'chk_task_recurrences_end_mode'"
+      changes:
+        - sql:
+            sql: "ALTER TABLE task_recurrences ADD CONSTRAINT chk_task_recurrences_end_mode CHECK (end_mode IN ('never','until','count'))"
+
+  # ------------------------------------------------------------
+  # 3. task_recurrence_overrides — исключения для конкретных вхождений
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 009-05-task-recurrence-overrides
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: task_recurrence_overrides }
+      changes:
+        - createTable:
+            tableName: task_recurrence_overrides
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: task_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: tasks(id)
+                    foreignKeyName: fk_task_rec_overrides_task
+              - column: { name: occurrence_date,    type: DATE,         constraints: { nullable: false } }
+              - column: { name: mode,               type: VARCHAR(20),  constraints: { nullable: false } }
+              - column: { name: override_title,     type: VARCHAR(255), constraints: { nullable: true } }
+              - column: { name: override_deadline,  type: TIMESTAMP,    constraints: { nullable: true } }
+              - column:
+                  name: override_status_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: board_statuses(id)
+                    foreignKeyName: fk_task_rec_overrides_status
+              - column: { name: created_at,         type: TIMESTAMP,    constraints: { nullable: false }, defaultValueComputed: NOW() }
+        - addUniqueConstraint:
+            tableName: task_recurrence_overrides
+            columnNames: task_id, occurrence_date
+            constraintName: uq_task_rec_overrides_task_date
+
+  - changeSet:
+      id: 009-05b-check-mode
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - sqlCheck:
+                expectedResult: 0
+                sql: "SELECT count(*) FROM pg_constraint WHERE conname = 'chk_task_rec_overrides_mode'"
+      changes:
+        - sql:
+            sql: "ALTER TABLE task_recurrence_overrides ADD CONSTRAINT chk_task_rec_overrides_mode CHECK (mode IN ('skip','complete','override'))"
+
+  - changeSet:
+      id: 009-06-task-recurrence-overrides-index
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - indexExists:
+                indexName: idx_task_rec_overrides_task
+      changes:
+        - createIndex:
+            tableName: task_recurrence_overrides
+            indexName: idx_task_rec_overrides_task
+            columns:
+              - column: { name: task_id }
+              - column: { name: occurrence_date }

@@ -5,11 +5,33 @@ import {
 } from 'recharts'
 import { statsApi, achievementsApi } from '../api/api'
 import useT from '../hooks/useT'
+import { useAuth } from '../context/AuthContext'
 import AchievementCard from '../components/Achievement/AchievementCard'
 import AchievementToast from '../components/Achievement/AchievementToast'
 
+const RU_MONTHS_GEN = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+]
+
+const EN_MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+function formatDayLabel(iso, lang) {
+    if (!iso) return ''
+    const [, m, d] = iso.split('-').map(Number)
+    if (!m || !d) return iso
+    if (lang === 'en') return `${EN_MONTHS[m - 1]} ${d}`
+    return `${d} ${RU_MONTHS_GEN[m - 1]}`
+}
+
 export default function StatsPage() {
     const t = useT()
+    const { user } = useAuth()
+    const lang = user?.locale?.language || 'ru'
+
     const [tab, setTab] = useState('overview')
     const [period, setPeriod] = useState('month')
 
@@ -49,7 +71,7 @@ export default function StatsPage() {
     const unlockedCount = achievements.filter(a => a.unlocked).length
 
     const dailyData = data?.daily?.map(d => ({
-        date: d.date.slice(5),
+        date: formatDayLabel(d.date, lang),
         Создано: d.created,
         Закрыто: d.done,
     })) || []
@@ -163,7 +185,13 @@ export default function StatsPage() {
                                     <ResponsiveContainer width="100%" height={260}>
                                         <LineChart data={dailyData}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                                            <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} />
+                                            <XAxis
+                                                dataKey="date"
+                                                stroke="var(--text-muted)"
+                                                fontSize={11}
+                                                interval="preserveStartEnd"
+                                                minTickGap={24}
+                                            />
                                             <YAxis stroke="var(--text-muted)" fontSize={11} allowDecimals={false} />
                                             <Tooltip
                                                 contentStyle={{

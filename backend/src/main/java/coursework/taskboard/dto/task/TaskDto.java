@@ -42,4 +42,12 @@ public class TaskDto {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    // ============================================================
+    // Повторения
+    // ============================================================
+
+    private Boolean isRecurrenceInstance;
+    private Long recurrenceParentId;
+    private java.time.LocalDate occurrenceDate;
+    private RecurrenceDto recurrence;
 }

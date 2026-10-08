@@ -115,6 +115,9 @@ export default function TaskCard({
         ? `var(--accent-${task.statusAccentCode}, var(--primary))`
         : 'var(--primary)'
 
+    const isRecurring = !!task.isRecurrenceInstance
+    const isRecurrenceTemplate = !!task.recurrenceParentId === false && !!task.recurrence
+
     return (
         <div
             className="task-card"
@@ -134,6 +137,10 @@ export default function TaskCard({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={handleCheck}
                 />
+
+                {isRecurring && (
+                    <span className="task-card__recurrence-icon" title="Повторяющаяся задача">🔁</span>
+                )}
 
                 <InlineEdit
                     value={task.title}

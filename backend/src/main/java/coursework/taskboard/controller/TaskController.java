@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -102,5 +103,39 @@ public class TaskController {
         User user = currentUserService.getCurrentUser();
         taskService.moveDeadline(id, date, user);
         return ResponseEntity.noContent().build();
+    }
+
+    // ============================================================
+    // Повторения
+    // ============================================================
+
+    @PostMapping("/tasks/{id}/recurrence")
+    public ResponseEntity<RecurrenceDto> saveRecurrence(
+            @PathVariable Long id,
+            @Valid @RequestBody RecurrenceRequestDto req) {
+        User user = currentUserService.getCurrentUser();
+        return ResponseEntity.ok(taskService.saveRecurrence(id, req, user));
+    }
+
+    @GetMapping("/tasks/{id}/recurrence")
+    public ResponseEntity<RecurrenceDto> getRecurrence(@PathVariable Long id) {
+        User user = currentUserService.getCurrentUser();
+        RecurrenceDto dto = taskService.getRecurrence(id, user);
+        return dto != null
+                ? ResponseEntity.ok(dto)
+                : ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/tasks/{id}/recurrence")
+    public ResponseEntity<Void> deleteRecurrence(@PathVariable Long id) {
+        User user = currentUserService.getCurrentUser();
+        taskService.deleteRecurrence(id, user);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/tasks/recurrence/preview")
+    public ResponseEntity<List<LocalDateTime>> previewRecurrence(
+            @Valid @RequestBody RecurrenceRequestDto req) {
+        return ResponseEntity.ok(taskService.previewRecurrence(req));
     }
 }

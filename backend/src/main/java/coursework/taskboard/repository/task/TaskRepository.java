@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -124,7 +125,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     // Агрегаты для диаграмм
     // ============================================================
 
-    /** Количество задач, созданных по дням за период. */
     @Query(value = """
         SELECT to_char(t.created_at, 'YYYY-MM-DD') AS d, count(*)
         FROM tasks t
@@ -140,7 +140,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                                      @Param("from") LocalDateTime from,
                                      @Param("to") LocalDateTime to);
 
-    /** Количество закрытых задач по дням за период. */
     @Query(value = """
         SELECT to_char(sch.completed_at, 'YYYY-MM-DD') AS d, count(*)
         FROM task_schedule sch
@@ -157,7 +156,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                                   @Param("from") LocalDateTime from,
                                   @Param("to") LocalDateTime to);
 
-    /** Распределение по статусам (задачи пользователя). */
     @Query("""
         SELECT s.status.id, s.status.code, s.status.title, s.status.categoryCode, count(t)
         FROM Task t
@@ -170,7 +168,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     """)
     List<Object[]> countByStatus(@Param("userId") Long userId);
 
-    /** Топ тегов по количеству задач. */
     @Query("""
         SELECT tg.id, tg.title, count(tt)
         FROM TaskTag tt
@@ -183,4 +180,47 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         ORDER BY count(tt) DESC
     """)
     List<Object[]> topTags(@Param("userId") Long userId, Pageable pageable);
+
+    // ============================================================
+    // Повторения
+    // ============================================================
+
+    @Query("""
+        SELECT t FROM Task t
+        WHERE t.recurrenceParent.id = :parentId
+        ORDER BY t.occurrenceDate ASC
+    """)
+    List<Task> findByRecurrenceParentId(@Param("parentId") Long parentId);
+
+    @Query("""
+        SELECT t FROM Task t
+        WHERE t.recurrenceParent.id = :parentId
+          AND t.occurrenceDate BETWEEN :from AND :to
+    """)
+    List<Task> findByRecurrenceParentIdInPeriod(@Param("parentId") Long parentId,
+                                                @Param("from") LocalDate from,
+                                                @Param("to") LocalDate to);
+
+    @Query("""
+        SELECT t FROM Task t
+        JOIN t.project p
+        JOIN p.board b
+        WHERE b.owner.id = :userId
+          AND t.recurrence IS NOT NULL
+    """)
+    List<Task> findRecurrenceTemplatesByOwner(@Param("userId") Long userId);
+
+    @Query("""
+        SELECT count(t) FROM Task t
+        WHERE t.recurrenceParent.id = :parentId
+    """)
+    long countByRecurrenceParentId(@Param("parentId") Long parentId);
+
+    @Query("""
+        SELECT t FROM Task t
+        WHERE t.recurrenceParent.id = :parentId
+          AND t.occurrenceDate < :before
+    """)
+    List<Task> findInstancesBefore(@Param("parentId") Long parentId,
+                                   @Param("before") LocalDate before);
 }
