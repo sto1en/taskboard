@@ -98,6 +98,7 @@
 }
 
 .shop__tab {
+    position: relative;
     padding: 10px 16px;
     background: transparent;
     border: none;
@@ -109,8 +110,35 @@
     cursor: pointer;
     transition: color .15s, border-color .15s;
 }
+
 .shop__tab:hover { color: var(--text); }
-.shop__tab--active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* Активный таб — градиентный текст + градиентное подчёркивание */
+.shop__tab--active {
+    background-color: var(--primary);
+    background-image: var(--accent-gradient, none);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    border-bottom-color: transparent;
+}
+
+.shop__tab--active::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--primary);
+    background-image: var(--accent-gradient, none);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+}
 
 .shop__grid {
     display: grid;

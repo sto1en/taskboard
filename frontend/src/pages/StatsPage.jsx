@@ -27,6 +27,39 @@ function formatDayLabel(iso, lang) {
     return `${d} ${RU_MONTHS_GEN[m - 1]}`
 }
 
+/**
+ * Читает актуальный акцент из <html> (CSS-переменные) и возвращает
+ * пару цветов для градиента бара. Для однотонных акцентов оба цвета
+ * будут одинаковыми — бар станет однотонным (это ок).
+ */
+function useAccentColors() {
+    const { user } = useAuth()
+    const [colors, setColors] = useState(['#a45cd6', '#a45cd6'])
+
+    useEffect(() => {
+        const update = () => {
+            const root = document.documentElement
+            const accent = getComputedStyle(root).getPropertyValue('--accent').trim() || '#a45cd6'
+            const gradient = getComputedStyle(root).getPropertyValue('--accent-gradient').trim()
+
+            if (gradient && gradient !== 'none') {
+                const parts = gradient.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g) || []
+                if (parts.length >= 2) {
+                    setColors([parts[0], parts[parts.length - 1]])
+                    return
+                }
+            }
+            setColors([accent, accent])
+        }
+
+        update()
+        const timer = setTimeout(update, 100)
+        return () => clearTimeout(timer)
+    }, [user?.appearance?.accentCode])
+
+    return colors
+}
+
 export default function StatsPage() {
     const t = useT()
     const { user } = useAuth()
@@ -41,6 +74,8 @@ export default function StatsPage() {
     const [achievements, setAchievements] = useState([])
     const [achLoading, setAchLoading] = useState(false)
     const [toastQueue] = useState([])
+
+    const [accentFrom, accentTo] = useAccentColors()
 
     useEffect(() => {
         if (tab !== 'overview') return
@@ -250,6 +285,12 @@ export default function StatsPage() {
                                     ) : (
                                         <ResponsiveContainer width="100%" height={260}>
                                             <BarChart data={tagData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                                                <defs>
+                                                    <linearGradient id="tagBarGradient" x1="0" y1="0" x2="1" y2="0">
+                                                        <stop offset="0%"   stopColor={accentFrom} />
+                                                        <stop offset="100%" stopColor={accentTo} />
+                                                    </linearGradient>
+                                                </defs>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                                                 <XAxis type="number" stroke="var(--text-muted)" fontSize={11} allowDecimals={false} />
                                                 <YAxis type="category" dataKey="name" stroke="var(--text-muted)" fontSize={11} width={100} />
@@ -261,7 +302,7 @@ export default function StatsPage() {
                                                         color: 'var(--text)',
                                                     }}
                                                 />
-                                                <Bar dataKey="Задач" fill="var(--accent, #4c9aff)" radius={[0, 6, 6, 0]} />
+                                                <Bar dataKey="Задач" fill="url(#tagBarGradient)" radius={[0, 6, 6, 0]} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     )}

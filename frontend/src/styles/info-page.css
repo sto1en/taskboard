@@ -112,19 +112,47 @@ kbd {
 }
 
 .settings-item {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 14px;
+    padding: 12px 14px 12px 18px;
     border-radius: 8px;
     text-decoration: none;
     color: var(--text);
     transition: background .15s;
+    overflow: hidden;
 }
+
+/* Мягкая акцентная подсветка */
 .settings-item:hover {
-    background: rgba(76, 154, 255, 0.06);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 8%, transparent);
     text-decoration: none;
+}
+html[data-theme="dark"] .settings-item:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+}
+
+/* Тонкая градиентная полоска слева — только на hover/active */
+.settings-item::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 0;
+    width: 3px;
+    border-radius: 2px;
+    background-color: var(--primary);
+    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity .15s;
+    pointer-events: none;
+}
+.settings-item:hover::before {
+    opacity: 1;
 }
 
 .settings-item__title {
@@ -139,33 +167,54 @@ kbd {
     color: var(--text-muted);
 }
 
+/* Стрелка — по умолчанию muted, на hover градиентная */
 .settings-item__arrow {
     font-size: 16px;
+    font-weight: 700;
     color: var(--text-muted);
     transition: transform .15s, color .15s;
+    flex-shrink: 0;
+    line-height: 1;
 }
+
 .settings-item:hover .settings-item__arrow {
     transform: translateX(3px);
-    color: var(--primary);
+    background-color: var(--primary);
+    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+/* ============================================================
+   Logout button — градиент danger
+   ============================================================ */
+
+.settings-logout,
+.btn-danger {
+    background-color: var(--danger);
+    background-image: linear-gradient(
+            120deg,
+            color-mix(in srgb, var(--danger) 85%, #000) 0%,
+            var(--danger) 50%,
+            color-mix(in srgb, var(--danger) 85%, #fff) 100%
+    );
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    color: #fff !important;
+    border: none !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 
 .settings-logout {
     margin-top: 8px;
-    background: var(--danger) !important;
-    color: #fff !important;
-    border: none !important;
-}
-.settings-logout:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--danger) 85%, #000) !important;
-    color: #fff !important;
 }
 
-.btn-danger {
-    background: var(--danger) !important;
-    color: #fff !important;
-    border: none !important;
-}
+.settings-logout:hover:not(:disabled),
 .btn-danger:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--danger) 85%, #000) !important;
+    filter: brightness(1.08);
     color: #fff !important;
 }

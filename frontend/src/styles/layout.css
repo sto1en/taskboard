@@ -350,6 +350,7 @@ html[data-theme="dark"] .sidebar__icon-btn {
     font-size: 14px;
     text-decoration: none;
     border-radius: var(--radius) 0 0 var(--radius);
+    transition: color .15s;
 }
 .sidebar__group-link:hover { color: var(--text); text-decoration: none; }
 .sidebar__group-icon { font-size: 14px; }
@@ -393,11 +394,26 @@ html[data-theme="dark"] .sidebar__icon-btn {
     text-overflow: ellipsis;
     transition: background .15s, color .15s;
 }
-.sidebar__sublink:hover { background: rgba(9, 30, 66, .06); color: var(--text); text-decoration: none; }
+.sidebar__sublink:hover {
+    background: rgba(9, 30, 66, .06);
+    color: var(--text);
+    text-decoration: none;
+}
+
+/* Активный пункт — мягкая подсветка + градиентный текст */
 .sidebar__sublink.active {
-    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
-    color: var(--accent, var(--primary));
+    background: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
+    background-color: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
+    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+    background-size: 4px 100%;
+    background-position: left center;
+    background-repeat: no-repeat;
     font-weight: 600;
+    color: var(--accent, var(--primary));
+}
+html[data-theme="dark"] .sidebar__sublink.active {
+    background-color: color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
+    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
 }
 
 .sidebar__pinned-board { display: flex; flex-direction: column; margin-bottom: 2px; }
@@ -409,7 +425,11 @@ html[data-theme="dark"] .sidebar__icon-btn {
     margin-left: 16px;
     margin-top: 2px;
 }
-.sidebar__sublink--project { font-size: 12px; padding: 5px 10px 5px 12px; color: var(--text-muted); }
+.sidebar__sublink--project {
+    font-size: 12px;
+    padding: 5px 10px 5px 12px;
+    color: var(--text-muted);
+}
 
 .sidebar__hint {
     padding: 10px 14px;
@@ -420,6 +440,7 @@ html[data-theme="dark"] .sidebar__icon-btn {
 }
 
 .sidebar__link {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -432,11 +453,32 @@ html[data-theme="dark"] .sidebar__icon-btn {
     cursor: pointer;
     transition: background .15s, color .15s;
     white-space: nowrap;
+    overflow: hidden;
 }
-.sidebar__link:hover { background: rgba(9, 30, 66, .06); color: var(--text); text-decoration: none; }
+.sidebar__link:hover {
+    background: rgba(9, 30, 66, .06);
+    color: var(--text);
+    text-decoration: none;
+}
+
+/* Активный пункт — мягкая подсветка + тонкая градиентная полоска слева */
 .sidebar__link.active {
-    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    background-color: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
     color: var(--accent, var(--primary));
+}
+.sidebar__link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background-color: var(--primary);
+    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    pointer-events: none;
 }
 
 .sidebar--collapsed .sidebar__group-link,
@@ -462,6 +504,7 @@ html[data-theme="dark"] .sidebar__icon-btn {
     flex-shrink: 0;
 }
 
+/* Кнопка «Выйти» — градиент danger (не акцент) */
 .sidebar__logout {
     display: flex;
     align-items: center;
@@ -470,7 +513,15 @@ html[data-theme="dark"] .sidebar__icon-btn {
     width: 100%;
     padding: 10px 12px;
     margin-top: 6px;
-    background: var(--danger);
+    background-color: var(--danger);
+    background-image: linear-gradient(
+            120deg,
+            color-mix(in srgb, var(--danger) 85%, #000) 0%,
+            var(--danger) 50%,
+            color-mix(in srgb, var(--danger) 85%, #fff) 100%
+    );
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
     border: none;
     border-radius: var(--radius);
     color: #fff;
@@ -479,11 +530,12 @@ html[data-theme="dark"] .sidebar__icon-btn {
     font-weight: 600;
     line-height: 1;
     cursor: pointer;
-    transition: background .15s, transform .12s;
+    transition: filter .15s, transform .12s;
     white-space: nowrap;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 .sidebar__logout:hover {
-    background: color-mix(in srgb, var(--danger) 85%, #000);
+    filter: brightness(1.08);
     transform: translateY(-1px);
 }
 .sidebar__logout-icon {
@@ -570,7 +622,7 @@ html[data-theme="dark"] .sidebar__icon-btn {
     line-height: 1;
 }
 
-/* ---------- Кнопка «?» — в правом верхнем углу, в упор к сайдбару ---------- */
+/* ---------- Кнопка «?» — в правом верхнем углу ---------- */
 
 .tree-help {
     position: absolute;
@@ -602,7 +654,6 @@ html[data-theme="dark"] .tree-help {
     transform: scale(1.1);
 }
 
-/* Тултип — выезжает влево, не выходит за пределы сайдбара */
 .tree-help__tip {
     position: absolute;
     top: 50%;

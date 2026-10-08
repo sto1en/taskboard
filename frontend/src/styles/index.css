@@ -73,36 +73,34 @@
 [data-accent="gray"]    { --accent: #97a0af; --accent-gradient: none; --accent-gradient-round: none; }
 [data-accent="slate"]   { --accent: #6b778c; --accent-gradient: none; --accent-gradient-round: none; }
 
-/* Градиентные акценты — linear 135° и для кнопок, и для кружков */
+/* ============================================================
+   Градиентные акценты — плавные, 2 стопа, угол 120deg
+   ============================================================ */
 
 [data-accent="sunset"] {
   --accent: #ff8fae;
-  --accent-gradient: linear-gradient(135deg, #ff8f73 0%, #ffb347 50%, #ff78c4 100%);
-  --accent-gradient-round: linear-gradient(135deg, #ff8f73 0%, #ffb347 50%, #ff78c4 100%);
+  --accent-gradient: linear-gradient(120deg, #ff8f73 0%, #ff78c4 100%);
+  --accent-gradient-round: linear-gradient(120deg, #ff8f73 0%, #ff78c4 100%);
 }
 [data-accent="ocean"] {
   --accent: #0081d6;
-  --accent-gradient: linear-gradient(135deg, #0047b3 0%, #00a0e0 50%, #00f0ff 100%);
-  --accent-gradient-round: linear-gradient(135deg, #0047b3 0%, #00a0e0 50%, #00f0ff 100%);
+  --accent-gradient: linear-gradient(120deg, #0047b3 0%, #00f0ff 100%);
+  --accent-gradient-round: linear-gradient(120deg, #0047b3 0%, #00f0ff 100%);
 }
 [data-accent="forest"] {
   --accent: #5a9f3a;
-  --accent-gradient: linear-gradient(135deg, #2a5c14 0%, #4f9d20 50%, #a8c93c 100%);
-  --accent-gradient-round: linear-gradient(135deg, #2a5c14 0%, #4f9d20 50%, #a8c93c 100%);
+  --accent-gradient: linear-gradient(120deg, #2a5c14 0%, #a8c93c 100%);
+  --accent-gradient-round: linear-gradient(120deg, #2a5c14 0%, #a8c93c 100%);
 }
 [data-accent="neon"] {
   --accent: #b100ff;
-  --accent-gradient: linear-gradient(135deg,
-  #ff00e5 0%, #b100ff 25%, #6a00ff 50%, #00c8ff 75%, #00f5ff 100%);
-  --accent-gradient-round: linear-gradient(135deg,
-  #ff00e5 0%, #b100ff 25%, #6a00ff 50%, #00c8ff 75%, #00f5ff 100%);
+  --accent-gradient: linear-gradient(120deg, #ff00e5 0%, #00f5ff 100%);
+  --accent-gradient-round: linear-gradient(120deg, #ff00e5 0%, #00f5ff 100%);
 }
 [data-accent="gold"] {
   --accent: #d4a017;
-  --accent-gradient: linear-gradient(135deg,
-  #fff3b0 0%, #ffe066 25%, #ffcc00 50%, #d4a017 75%, #8b5a00 100%);
-  --accent-gradient-round: linear-gradient(135deg,
-  #fff3b0 0%, #ffe066 25%, #ffcc00 50%, #d4a017 75%, #8b5a00 100%);
+  --accent-gradient: linear-gradient(120deg, #fff3b0 0%, #d4a017 100%);
+  --accent-gradient-round: linear-gradient(120deg, #fff3b0 0%, #d4a017 100%);
 }
 
 /* ============================================================
@@ -278,7 +276,7 @@ textarea.input {
 
 .btn-primary {
   background-color: var(--primary);
-  background-image: var(--accent-gradient, none);
+  background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
   background-size: 100% 100%;
   background-repeat: no-repeat;
   color: #fff;
@@ -330,12 +328,19 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
 }
 
 /* ============================================================
-   Градиентный текст для активных элементов
+   Утилиты: градиентный фон и градиентный текст
    ============================================================ */
 
+.accent-bg {
+  background-color: var(--primary);
+  background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
 .text-accent-gradient {
-  background-color: var(--accent);
-  background-image: var(--accent-gradient, none);
+  background-color: var(--primary);
+  background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
   background-size: 100% 100%;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
@@ -344,7 +349,6 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
   color: transparent;
 }
 
-/* Универсальное градиентное подчёркивание */
 .accent-underline::after {
   content: '';
   position: absolute;
@@ -354,7 +358,7 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
   height: 2px;
   border-radius: 1px;
   background-color: var(--primary);
-  background-image: var(--accent-gradient, none);
+  background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
   background-size: 100% 100%;
 }
 
@@ -647,7 +651,7 @@ html[data-theme="dark"] .reschedule-banner__close:hover {
   cursor: pointer;
   flex-shrink: 0;
   background-color: var(--accent);
-  background-image: var(--accent-gradient-round, var(--accent-gradient, none));
+  background-image: var(--accent-gradient-round, var(--accent-gradient, linear-gradient(var(--accent), var(--accent))));
   background-size: 100% 100%;
   background-repeat: no-repeat;
   transition: transform .15s, filter .15s;
@@ -660,14 +664,12 @@ html[data-theme="dark"] .reschedule-banner__close:hover {
   filter: brightness(1.1);
 }
 
-/* Активный — с градиентной окантовкой через три слоя фона */
-
 .accent-dot--active {
   background-color: transparent;
   background-image:
-          var(--accent-gradient-round, var(--accent-gradient, none)),
+          var(--accent-gradient-round, var(--accent-gradient, linear-gradient(var(--accent), var(--accent)))),
           linear-gradient(var(--surface), var(--surface)),
-          var(--accent-gradient-round, var(--accent-gradient, none));
+          var(--accent-gradient-round, var(--accent-gradient, linear-gradient(var(--accent), var(--accent))));
   background-clip: content-box, padding-box, border-box;
   background-origin: content-box, padding-box, border-box;
   background-size: 100% 100%;
