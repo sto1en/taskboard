@@ -149,7 +149,9 @@
     background: rgba(0, 0, 0, 0.85);
 }
 
-/* ---------- Кнопка «+ Добавить» для вложений ---------- */
+/* ---------- Кнопка «+ Добавить» для вложений ----------
+   По умолчанию — прозрачная с акцентной рамкой.
+   Заливка появляется при наведении. */
 
 .create-task__attachment-add {
     display: inline-flex;
@@ -158,9 +160,9 @@
     width: 100px;
     height: 100px;
     padding: 0;
-    background: var(--primary);
-    color: #fff;
-    border: none;
+    background: transparent;
+    color: var(--accent, var(--primary));
+    border: 2px dashed var(--accent, var(--primary));
     border-radius: 6px;
     font-family: inherit;
     font-size: 13px;
@@ -168,13 +170,19 @@
     cursor: pointer;
     text-align: center;
     line-height: 1.2;
-    transition: background .15s, transform .12s;
+    transition: background .15s, color .15s, border-color .15s, transform .12s;
     user-select: none;
     box-sizing: border-box;
 }
 
 .create-task__attachment-add:hover {
-    background: var(--primary-hover);
+    background-color: var(--primary);
+    background-image: var(--accent-gradient);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    color: #fff;
+    border-color: transparent;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
 }
 

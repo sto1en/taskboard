@@ -94,6 +94,13 @@ export default function CreateTaskModal({
         setRecurrence(null)
         setError(null)
 
+        // ВАЖНО: если передан presetStatusId — ставим его сразу
+        if (presetStatusId) {
+            setStatusId(String(presetStatusId))
+        } else {
+            setStatusId('')
+        }
+
         if (isProjectFixed) {
             setSelectedBoardId(fixedBoardId || null)
             setSelectedProjectId(fixedProjectId)
@@ -104,7 +111,7 @@ export default function CreateTaskModal({
             setSelectedBoardId(prev => prev || fixedBoardId || null)
         }
         // eslint-disable-next-line
-    }, [open, presetDeadline, isProjectFixed, fixedProjectId, fixedBoardId, presetColumns])
+    }, [open, presetDeadline, isProjectFixed, fixedProjectId, fixedBoardId, presetColumns, presetStatusId])
 
     useEffect(() => {
         if (!open || isProjectFixed) return
@@ -147,7 +154,7 @@ export default function CreateTaskModal({
         if (!open) return
         if (!selectedProjectId) {
             setColumns([])
-            setStatusId('')
+            if (!presetStatusId) setStatusId('')
             return
         }
         if (isProjectFixed && presetColumns?.length) {
@@ -157,15 +164,27 @@ export default function CreateTaskModal({
         setLoadingColumns(true)
         tasksApi.kanban(selectedProjectId)
             .then(({ data }) => {
-                setColumns(data.columns || [])
-                const active = (data.columns || []).find(c => c.categoryCode === 'ACTIVE')
-                const first = active?.statusId || data.columns?.[0]?.statusId || ''
-                setStatusId(prev => prev || first)
+                const cols = data.columns || []
+                setColumns(cols)
+
+                // Если statusId уже установлен и он есть в колонках — оставляем его.
+                // Иначе fallback: активный → presetStatusId → первый.
+                setStatusId(prev => {
+                    if (prev && cols.some(c => String(c.statusId) === String(prev))) {
+                        return prev
+                    }
+                    if (presetStatusId && cols.some(c => String(c.statusId) === String(presetStatusId))) {
+                        return String(presetStatusId)
+                    }
+                    const active = cols.find(c => c.categoryCode === 'ACTIVE')
+                    const fallback = active?.statusId || cols[0]?.statusId || ''
+                    return fallback ? String(fallback) : ''
+                })
             })
             .catch(() => setColumns([]))
             .finally(() => setLoadingColumns(false))
         // eslint-disable-next-line
-    }, [open, selectedProjectId, isProjectFixed, presetColumns])
+    }, [open, selectedProjectId, isProjectFixed, presetColumns, presetStatusId])
 
     useEffect(() => {
         if (!open) return
@@ -177,15 +196,6 @@ export default function CreateTaskModal({
             .then(({ data }) => setTags(data))
             .catch(() => setTags([]))
     }, [open, selectedBoardId])
-
-    useEffect(() => {
-        if (!open) return
-        if (statusId) return
-        if (!columns?.length) return
-        const active = columns.find(c => c.categoryCode === 'ACTIVE')
-        const first = active?.statusId || columns[0]?.statusId || ''
-        if (first) setStatusId(first)
-    }, [open, columns, statusId])
 
     const toggleTag = (tagId) => {
         setSelectedTagIds(prev =>
@@ -285,7 +295,6 @@ export default function CreateTaskModal({
                 tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
             })
 
-            // Повторение — сохраняем сразу после создания задачи
             if (recurrence && recurrence.rule) {
                 try {
                     await recurrenceApi.save(created.id, {
@@ -484,7 +493,6 @@ export default function CreateTaskModal({
                             </div>
                         )}
 
-                        {/* === Блок повторения === */}
                         <div className="task-detail__group" style={{ paddingBottom: 0, borderBottom: 'none', gap: 12 }}>
                             <RecurrenceEditor
                                 initial={recurrence}

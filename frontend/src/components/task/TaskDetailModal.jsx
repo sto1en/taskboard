@@ -5,6 +5,8 @@ import ConfirmModal from '../common/ConfirmModal'
 import AttachmentPreview from './AttachmentPreview'
 import DetailTextEditor from './DetailTextEditor'
 import RecurrenceEditor from './RecurrenceEditor'
+import TaskHistory from './TaskHistory'
+import TaskChat from './TaskChat'
 import {
     formatDeadline,
     splitDeadline,
@@ -37,6 +39,8 @@ export default function TaskDetailModal({
         confirmBeforeDelete,
         updateUser,
     })
+
+    const [detailTab, setDetailTab] = useState('details')
 
     const [task, setTask] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -157,6 +161,10 @@ export default function TaskDetailModal({
     }, [open, taskId])
 
     useEffect(() => {
+        if (open) setDetailTab('details')
+    }, [open, taskId])
+
+    useEffect(() => {
         if (!open) {
             setPreviewAttachment(null)
             setEditingTag(null)
@@ -169,6 +177,7 @@ export default function TaskDetailModal({
             setColumns(columnsProp || [])
             setRecurrence(null)
             setRecurrenceDirty(false)
+            setDetailTab('details')
         }
     }, [open, boardIdProp, columnsProp])
 
@@ -461,14 +470,16 @@ export default function TaskDetailModal({
                         <button type="button" className="btn btn-ghost" onClick={onClose}>
                             {t.close}
                         </button>
-                        <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={save}
-                            disabled={saving}
-                        >
-                            {saving ? t.loading : t.save}
-                        </button>
+                        {detailTab === 'details' && (
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={save}
+                                disabled={saving}
+                            >
+                                {saving ? t.loading : t.save}
+                            </button>
+                        )}
                     </>
                 }
             >
@@ -476,405 +487,457 @@ export default function TaskDetailModal({
                 {error && <div className="modal__error">{error}</div>}
 
                 {task && (
-                    <div className="task-detail">
-
-                        {isRecurrenceInstance && (
-                            <div className="recurrence-banner">
-                                <span className="recurrence-banner__icon">🔁</span>
-                                <div className="recurrence-banner__text">
-                                    Это повторение от{' '}
-                                    <b>
-                                        {task.occurrenceDate
-                                            ? new Date(task.occurrenceDate).toLocaleDateString()
-                                            : '—'}
-                                    </b>
-                                    . Изменения применятся ко всем вхождениям.
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="task-detail__group">
-                            <div className="modal__field">
-                                <label className="modal__label">{t.nameLabel}</label>
-                                <input
-                                    className="input"
-                                    value={form.title}
-                                    onChange={(e) => setField('title', e.target.value)}
-                                />
-                            </div>
-
-                            <div className="modal__field">
-                                <label className="modal__label">{t.taskDescriptionLabel}</label>
-                                <DetailTextEditor
-                                    value={form.description}
-                                    onSave={(html) => setField('description', html)}
-                                    placeholder={t.addDescription}
-                                    title={t.edit}
-                                />
-                            </div>
+                    <>
+                        <div className="task-detail-tabs">
+                            <button
+                                type="button"
+                                className={`task-detail-tab ${detailTab === 'details' ? 'task-detail-tab--active' : ''}`}
+                                onClick={() => setDetailTab('details')}
+                            >Детали</button>
+                            <button
+                                type="button"
+                                className={`task-detail-tab ${detailTab === 'history' ? 'task-detail-tab--active' : ''}`}
+                                onClick={() => setDetailTab('history')}
+                            >История</button>
+                            <button
+                                type="button"
+                                className={`task-detail-tab ${detailTab === 'chat' ? 'task-detail-tab--active' : ''}`}
+                                onClick={() => setDetailTab('chat')}
+                            >Обсуждение</button>
                         </div>
 
-                        <div className="task-detail__group">
-                            <div className="modal__row">
-                                {!isSubtask && columns.length > 0 && (
+                        {detailTab === 'history' ? (
+                            <TaskHistory taskId={taskId} />
+                        ) : detailTab === 'chat' ? (
+                            <TaskChat taskId={taskId} />
+                        ) : (
+                            <div className="task-detail">
+
+                                {(task.startedBy || task.lastEditedBy) && (
+                                    <div className="task-detail__authors">
+                                        {task.startedBy && (
+                                            <div className="task-detail__author-row">
+                                                <span className="task-detail__author-label">Начал:</span>
+                                                <span className="task-detail__author-name">
+                                                    {task.startedBy.displayName}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {task.lastEditedBy && (
+                                            <div className="task-detail__author-row">
+                                                <span className="task-detail__author-label">Последний редактор:</span>
+                                                <span className="task-detail__author-name">
+                                                    {task.lastEditedBy.displayName}
+                                                    {task.lastEditedAt && (
+                                                        <span className="task-detail__author-date">
+                                                            {' · '}{new Date(task.lastEditedAt).toLocaleString('ru-RU')}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {isRecurrenceInstance && (
+                                    <div className="recurrence-banner">
+                                        <span className="recurrence-banner__icon">🔁</span>
+                                        <div className="recurrence-banner__text">
+                                            Это повторение от{' '}
+                                            <b>
+                                                {task.occurrenceDate
+                                                    ? new Date(task.occurrenceDate).toLocaleDateString()
+                                                    : '—'}
+                                            </b>
+                                            . Изменения применятся ко всем вхождениям.
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="task-detail__group">
                                     <div className="modal__field">
-                                        <label className="modal__label">{t.statusLabel}</label>
-                                        <select
+                                        <label className="modal__label">{t.nameLabel}</label>
+                                        <input
                                             className="input"
-                                            value={form.statusId}
-                                            onChange={(e) => setField('statusId', Number(e.target.value))}
-                                        >
-                                            {columns.map(c => (
-                                                <option key={c.statusId} value={c.statusId}>{c.title}</option>
-                                            ))}
-                                        </select>
+                                            value={form.title}
+                                            onChange={(e) => setField('title', e.target.value)}
+                                        />
                                     </div>
-                                )}
 
-                                <div className="modal__field">
-                                    <label className="modal__label">{t.priorityLabel}</label>
-                                    <select
-                                        className="input"
-                                        value={form.priority}
-                                        onChange={(e) => setField('priority', Number(e.target.value))}
-                                    >
-                                        <option value={0}>{t.priorityNormal}</option>
-                                        <option value={1}>{t.priorityHigh}</option>
-                                        <option value={2}>{t.priorityUrgent}</option>
-                                    </select>
+                                    <div className="modal__field">
+                                        <label className="modal__label">{t.taskDescriptionLabel}</label>
+                                        <DetailTextEditor
+                                            value={form.description}
+                                            onSave={(html) => setField('description', html)}
+                                            placeholder={t.addDescription}
+                                            title={t.edit}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="modal__field">
-                                <label className="modal__label">{t.deadlineLabel}</label>
-                                <input
-                                    className="input"
-                                    type="date"
-                                    value={form.deadlineDate}
-                                    onChange={(e) => setField('deadlineDate', e.target.value)}
-                                />
-                            </div>
+                                <div className="task-detail__group">
+                                    <div className="modal__row">
+                                        {!isSubtask && columns.length > 0 && (
+                                            <div className="modal__field">
+                                                <label className="modal__label">{t.statusLabel}</label>
+                                                <select
+                                                    className="input"
+                                                    value={form.statusId}
+                                                    onChange={(e) => setField('statusId', Number(e.target.value))}
+                                                >
+                                                    {columns.map(c => (
+                                                        <option key={c.statusId} value={c.statusId}>{c.title}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
 
-                            <label className="task-detail__toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={form.hasTime}
-                                    onChange={(e) => setField('hasTime', e.target.checked)}
-                                />
-                                <span>{t.specifyTime}</span>
-                            </label>
+                                        <div className="modal__field">
+                                            <label className="modal__label">{t.priorityLabel}</label>
+                                            <select
+                                                className="input"
+                                                value={form.priority}
+                                                onChange={(e) => setField('priority', Number(e.target.value))}
+                                            >
+                                                <option value={0}>{t.priorityNormal}</option>
+                                                <option value={1}>{t.priorityHigh}</option>
+                                                <option value={2}>{t.priorityUrgent}</option>
+                                            </select>
+                                        </div>
+                                    </div>
 
-                            {form.hasTime && (
-                                <div className="modal__field">
-                                    <label className="modal__label">{t.timeLabel}</label>
-                                    <input
-                                        className="input"
-                                        type="time"
-                                        value={form.deadlineTime}
-                                        onChange={(e) => setField('deadlineTime', e.target.value)}
-                                    />
-                                </div>
-                            )}
-                        </div>
+                                    <div className="modal__field">
+                                        <label className="modal__label">{t.deadlineLabel}</label>
+                                        <input
+                                            className="input"
+                                            type="date"
+                                            value={form.deadlineDate}
+                                            onChange={(e) => setField('deadlineDate', e.target.value)}
+                                        />
+                                    </div>
 
-                        {!isSubtask && !isRecurrenceInstance && (
-                            <div className="task-detail__group">
-                                <RecurrenceEditor
-                                    taskId={taskId}
-                                    initial={recurrence}
-                                    onChange={(val) => {
-                                        setRecurrence(val)
-                                        setRecurrenceDirty(true)
-                                    }}
-                                />
-                            </div>
-                        )}
+                                    <label className="task-detail__toggle">
+                                        <input
+                                            type="checkbox"
+                                            checked={form.hasTime}
+                                            onChange={(e) => setField('hasTime', e.target.checked)}
+                                        />
+                                        <span>{t.specifyTime}</span>
+                                    </label>
 
-                        <div className="task-detail__group">
-                            <div className="task-detail__label-row">
-                                <div className="task-detail__label">{t.tagsLabel}</div>
-                                {boardId && (
-                                    <button
-                                        type="button"
-                                        className="task-detail__small-btn"
-                                        onClick={() => setCreatingTag(v => !v)}
-                                    >
-                                        {creatingTag ? t.cancelCreate : t.createTag}
-                                    </button>
-                                )}
-                            </div>
-
-                            {creatingTag && (
-                                <div className="task-detail__create-tag">
-                                    <input
-                                        className="input"
-                                        placeholder={t.tagName}
-                                        value={newTagTitle}
-                                        onChange={(e) => setNewTagTitle(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && createTag()}
-                                        autoFocus
-                                    />
-                                    <select
-                                        className="input tag-row__icon-select"
-                                        value={newTagIcon}
-                                        onChange={(e) => setNewTagIcon(e.target.value)}
-                                    >
-                                        {TAG_ICONS.map(ic => (
-                                            <option key={ic} value={ic}>
-                                                {ic ? `${ic}` : t.noIcon}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <div className="color-picker tag-row__colors">
-                                        {TAG_ACCENTS.map(c => (
-                                            <button
-                                                key={c}
-                                                type="button"
-                                                data-accent={c}
-                                                className={`color-picker__item color-picker__item--sm ${newTagAccent === c ? 'color-picker__item--active' : ''}`}
-                                                onClick={() => setNewTagAccent(c)}
+                                    {form.hasTime && (
+                                        <div className="modal__field">
+                                            <label className="modal__label">{t.timeLabel}</label>
+                                            <input
+                                                className="input"
+                                                type="time"
+                                                value={form.deadlineTime}
+                                                onChange={(e) => setField('deadlineTime', e.target.value)}
                                             />
-                                        ))}
-                                    </div>
-                                    <button type="button" className="btn btn-primary" onClick={createTag}>
-                                        {t.ok}
-                                    </button>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
 
-                            <div className="task-detail__tags">
-                                {tags.length === 0 && !creatingTag && (
-                                    <div className="task-detail__empty">{t.noBoardTags}</div>
+                                {!isSubtask && !isRecurrenceInstance && (
+                                    <div className="task-detail__group">
+                                        <RecurrenceEditor
+                                            taskId={taskId}
+                                            initial={recurrence}
+                                            onChange={(val) => {
+                                                setRecurrence(val)
+                                                setRecurrenceDirty(true)
+                                            }}
+                                        />
+                                    </div>
                                 )}
-                                {tags.map(tag => {
-                                    const active = (task.tags || []).some(tg => tg.id === tag.id)
-                                    return (
-                                        <div key={tag.id} className="task-detail__tag-wrap">
+
+                                <div className="task-detail__group">
+                                    <div className="task-detail__label-row">
+                                        <div className="task-detail__label">{t.tagsLabel}</div>
+                                        {boardId && (
                                             <button
                                                 type="button"
-                                                className={`task-detail__tag ${active ? 'active' : ''}`}
-                                                style={active ? {
-                                                    background: `var(--accent-${tag.accentCode || 'gray'})`,
-                                                    borderColor: `var(--accent-${tag.accentCode || 'gray'})`,
-                                                    color: '#fff',
-                                                } : {}}
-                                                onClick={() => toggleTag(tag.id)}
+                                                className="task-detail__small-btn"
+                                                onClick={() => setCreatingTag(v => !v)}
                                             >
-                                                {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
-                                                {tag.title}
+                                                {creatingTag ? t.cancelCreate : t.createTag}
                                             </button>
-                                            <button
-                                                type="button"
-                                                className="task-detail__tag-edit"
-                                                onClick={() => setEditingTag({
-                                                    id: tag.id,
-                                                    title: tag.title,
-                                                    accentCode: tag.accentCode || 'gray',
-                                                    icon: tag.icon || '',
-                                                })}
-                                                title={t.edit}
-                                            >✎</button>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </div>
+                                        )}
+                                    </div>
 
-                        {!isSubtask && (
-                            <div className="task-detail__group">
-                                <div className="task-detail__label-row">
-                                    <div className="task-detail__label">
-                                        {t.subtasksLabel} {(existingSubtasks.length + pendingSubtasks.length) > 0
-                                        ? `(${existingSubtasks.length + pendingSubtasks.length})`
-                                        : ''}
+                                    {creatingTag && (
+                                        <div className="task-detail__create-tag">
+                                            <input
+                                                className="input"
+                                                placeholder={t.tagName}
+                                                value={newTagTitle}
+                                                onChange={(e) => setNewTagTitle(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && createTag()}
+                                                autoFocus
+                                            />
+                                            <select
+                                                className="input tag-row__icon-select"
+                                                value={newTagIcon}
+                                                onChange={(e) => setNewTagIcon(e.target.value)}
+                                            >
+                                                {TAG_ICONS.map(ic => (
+                                                    <option key={ic} value={ic}>
+                                                        {ic ? `${ic}` : t.noIcon}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <div className="color-picker tag-row__colors">
+                                                {TAG_ACCENTS.map(c => (
+                                                    <button
+                                                        key={c}
+                                                        type="button"
+                                                        data-accent={c}
+                                                        className={`color-picker__item color-picker__item--sm ${newTagAccent === c ? 'color-picker__item--active' : ''}`}
+                                                        onClick={() => setNewTagAccent(c)}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <button type="button" className="btn btn-primary" onClick={createTag}>
+                                                {t.ok}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <div className="task-detail__tags">
+                                        {tags.length === 0 && !creatingTag && (
+                                            <div className="task-detail__empty">{t.noBoardTags}</div>
+                                        )}
+                                        {tags.map(tag => {
+                                            const active = (task.tags || []).some(tg => tg.id === tag.id)
+                                            return (
+                                                <div key={tag.id} className="task-detail__tag-wrap">
+                                                    <button
+                                                        type="button"
+                                                        className={`task-detail__tag ${active ? 'active' : ''}`}
+                                                        style={active ? {
+                                                            background: `var(--accent-${tag.accentCode || 'gray'})`,
+                                                            borderColor: `var(--accent-${tag.accentCode || 'gray'})`,
+                                                            color: '#fff',
+                                                        } : {}}
+                                                        onClick={() => toggleTag(tag.id)}
+                                                    >
+                                                        {tag.icon && <span className="task-tag__icon">{tag.icon}</span>}
+                                                        {tag.title}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="task-detail__tag-edit"
+                                                        onClick={() => setEditingTag({
+                                                            id: tag.id,
+                                                            title: tag.title,
+                                                            accentCode: tag.accentCode || 'gray',
+                                                            icon: tag.icon || '',
+                                                        })}
+                                                        title={t.edit}
+                                                    >✎</button>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 </div>
 
-                                <div className="task-detail__subtask-input-wrap">
-                                    <input
-                                        className="input"
-                                        placeholder={t.findOrCreateSubtask}
-                                        value={subtaskInput}
-                                        onChange={(e) => {
-                                            setSubtaskInput(e.target.value)
-                                            setShowSubtaskAutocomplete(true)
-                                        }}
-                                        onFocus={() => setShowSubtaskAutocomplete(true)}
-                                        onKeyDown={handleSubtaskKeyDown}
-                                    />
+                                {!isSubtask && (
+                                    <div className="task-detail__group">
+                                        <div className="task-detail__label-row">
+                                            <div className="task-detail__label">
+                                                {t.subtasksLabel} {(existingSubtasks.length + pendingSubtasks.length) > 0
+                                                ? `(${existingSubtasks.length + pendingSubtasks.length})`
+                                                : ''}
+                                            </div>
+                                        </div>
 
-                                    {showSubtaskAutocomplete && subtaskInput.trim().length > 0 && (
-                                        <div className="task-detail__subtask-autocomplete">
-                                            {autocompleteResults.map(st => (
-                                                <button
-                                                    key={st.id}
-                                                    type="button"
-                                                    className="task-detail__subtask-ac-item"
-                                                    onClick={() => attachExistingSubtask(st)}
-                                                >
-                                                    <span className="task-detail__subtask-ac-title">{st.title}</span>
-                                                    {st.statusTitle && (
-                                                        <span className="task-detail__subtask-ac-status">
-                                                            {st.statusTitle}
-                                                        </span>
+                                        <div className="task-detail__subtask-input-wrap">
+                                            <input
+                                                className="input"
+                                                placeholder={t.findOrCreateSubtask}
+                                                value={subtaskInput}
+                                                onChange={(e) => {
+                                                    setSubtaskInput(e.target.value)
+                                                    setShowSubtaskAutocomplete(true)
+                                                }}
+                                                onFocus={() => setShowSubtaskAutocomplete(true)}
+                                                onKeyDown={handleSubtaskKeyDown}
+                                            />
+
+                                            {showSubtaskAutocomplete && subtaskInput.trim().length > 0 && (
+                                                <div className="task-detail__subtask-autocomplete">
+                                                    {autocompleteResults.map(st => (
+                                                        <button
+                                                            key={st.id}
+                                                            type="button"
+                                                            className="task-detail__subtask-ac-item"
+                                                            onClick={() => attachExistingSubtask(st)}
+                                                        >
+                                                            <span className="task-detail__subtask-ac-title">{st.title}</span>
+                                                            {st.statusTitle && (
+                                                                <span className="task-detail__subtask-ac-status">
+                                                                    {st.statusTitle}
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                    {autocompleteResults.length === 0 && (
+                                                        <div className="task-detail__subtask-ac-empty">
+                                                            {t.noMatches}
+                                                        </div>
                                                     )}
-                                                </button>
-                                            ))}
-                                            {autocompleteResults.length === 0 && (
-                                                <div className="task-detail__subtask-ac-empty">
-                                                    {t.noMatches}
+                                                    {autocompleteResults.length > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            className="task-detail__subtask-ac-create"
+                                                            onClick={addPendingSubtask}
+                                                        >
+                                                            {t.createNew(subtaskInput.trim())}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
-                                            {autocompleteResults.length > 0 && (
-                                                <button
-                                                    type="button"
-                                                    className="task-detail__subtask-ac-create"
-                                                    onClick={addPendingSubtask}
-                                                >
-                                                    {t.createNew(subtaskInput.trim())}
-                                                </button>
-                                            )}
                                         </div>
-                                    )}
-                                </div>
 
-                                {subtaskError && (
-                                    <div className="modal__error" style={{ marginTop: 8 }}>
-                                        {subtaskError}
+                                        {subtaskError && (
+                                            <div className="modal__error" style={{ marginTop: 8 }}>
+                                                {subtaskError}
+                                            </div>
+                                        )}
+
+                                        <div className="task-detail__subtasks">
+                                            {existingSubtasks.length === 0 && pendingSubtasks.length === 0 && (
+                                                <div className="task-detail__empty">{t.noSubtasks}</div>
+                                            )}
+
+                                            {existingSubtasks.map(st => {
+                                                const stDone = st.statusCategoryCode === 'DONE'
+                                                    || st.statusCode === 'DONE'
+                                                    || st.statusCategoryCode === 'CANCELLED'
+
+                                                return (
+                                                    <div
+                                                        key={st.id}
+                                                        className="subtask-card"
+                                                        style={{ '--accent': task.statusAccentCode
+                                                                ? `var(--accent-${task.statusAccentCode})`
+                                                                : 'var(--primary)' }}
+                                                        onClick={() => openSubtask(st.id)}
+                                                    >
+                                                        <div className="subtask-card__head">
+                                                            <span
+                                                                className={`subtask-card__check ${stDone ? 'subtask-card__check--done' : ''}`}
+                                                            />
+                                                            <span className={`subtask-card__title ${stDone ? 'subtask-card__title--done' : ''}`}>
+                                                                {st.title}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                className="subtask-card__btn"
+                                                                onClick={(e) => { e.stopPropagation(); detachSubtask(st.id) }}
+                                                                title={t.makeStandalone}
+                                                            >↗</button>
+                                                            <button
+                                                                type="button"
+                                                                className="subtask-card__btn subtask-card__btn--danger"
+                                                                onClick={(e) => { e.stopPropagation(); deleteExistingSubtask(st.id) }}
+                                                                title={t.deleteSubtask}
+                                                            >🗑</button>
+                                                        </div>
+
+                                                        <div className="subtask-card__meta">
+                                                            {st.priority > 0 && (
+                                                                <span className="subtask-card__priority">
+                                                                    {st.priority === 2 ? '❗' : '⚡'}
+                                                                </span>
+                                                            )}
+                                                            {st.deadline && (
+                                                                <span className="subtask-card__deadline">
+                                                                    📅 {formatDeadline(st.deadline)}
+                                                                </span>
+                                                            )}
+                                                            {st.subtaskTotal > 0 && (
+                                                                <span className="subtask-card__subtask-count">
+                                                                    {st.subtaskDone}/{st.subtaskTotal}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+
+                                            {pendingSubtasks.map((ps, idx) => (
+                                                <div key={`pending-${idx}`} className="subtask-card subtask-card--pending">
+                                                    <div className="subtask-card__head">
+                                                        <span className="subtask-card__check" />
+                                                        <span className="subtask-card__title">{ps.title}</span>
+                                                        <span className="subtask-card__pending-badge">{t.newBadge}</span>
+                                                        <button
+                                                            type="button"
+                                                            className="subtask-card__btn subtask-card__btn--danger"
+                                                            onClick={(e) => { e.stopPropagation(); removePendingSubtask(idx) }}
+                                                            title={t.removeFromList}
+                                                        >×</button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 
-                                <div className="task-detail__subtasks">
-                                    {existingSubtasks.length === 0 && pendingSubtasks.length === 0 && (
-                                        <div className="task-detail__empty">{t.noSubtasks}</div>
-                                    )}
-
-                                    {existingSubtasks.map(st => {
-                                        const stDone = st.statusCategoryCode === 'DONE'
-                                            || st.statusCode === 'DONE'
-                                            || st.statusCategoryCode === 'CANCELLED'
-
-                                        return (
-                                            <div
-                                                key={st.id}
-                                                className="subtask-card"
-                                                style={{ '--accent': task.statusAccentCode
-                                                        ? `var(--accent-${task.statusAccentCode})`
-                                                        : 'var(--primary)' }}
-                                                onClick={() => openSubtask(st.id)}
-                                            >
-                                                <div className="subtask-card__head">
-                                                    <span
-                                                        className={`subtask-card__check ${stDone ? 'subtask-card__check--done' : ''}`}
-                                                    />
-                                                    <span className={`subtask-card__title ${stDone ? 'subtask-card__title--done' : ''}`}>
-                                                        {st.title}
-                                                    </span>
+                                <div className="task-detail__group">
+                                    <div className="task-detail__label">
+                                        {t.attachmentsLabel} {task.attachments?.length ? `(${task.attachments.length})` : ''}
+                                    </div>
+                                    <div className="task-detail__attachments">
+                                        {(task.attachments || []).map(a => {
+                                            const url = resolveUrl(a.url)
+                                            const isImage = a.mimeCode?.startsWith('image/')
+                                            return (
+                                                <div key={a.id} className="task-detail__attachment">
+                                                    {isImage && url ? (
+                                                        <img
+                                                            src={url}
+                                                            alt={a.originalName || ''}
+                                                            onClick={() => handleAttachmentClick(a)}
+                                                            style={{ cursor: 'zoom-in' }}
+                                                            onError={(e) => {
+                                                                e.target.style.display = 'none'
+                                                                e.target.parentNode.classList.add('task-detail__attachment--broken')
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            className="task-detail__file"
+                                                            onClick={() => handleAttachmentClick(a)}
+                                                            style={{ cursor: 'pointer' }}
+                                                        >
+                                                            📎 {a.originalName}
+                                                        </div>
+                                                    )}
                                                     <button
                                                         type="button"
-                                                        className="subtask-card__btn"
-                                                        onClick={(e) => { e.stopPropagation(); detachSubtask(st.id) }}
-                                                        title={t.makeStandalone}
-                                                    >↗</button>
-                                                    <button
-                                                        type="button"
-                                                        className="subtask-card__btn subtask-card__btn--danger"
-                                                        onClick={(e) => { e.stopPropagation(); deleteExistingSubtask(st.id) }}
-                                                        title={t.deleteSubtask}
-                                                    >🗑</button>
+                                                        className="task-detail__attachment-remove"
+                                                        onClick={() => detachAttachment(a.id)}
+                                                    >×</button>
                                                 </div>
+                                            )
+                                        })}
 
-                                                <div className="subtask-card__meta">
-                                                    {st.priority > 0 && (
-                                                        <span className="subtask-card__priority">
-                                                            {st.priority === 2 ? '❗' : '⚡'}
-                                                        </span>
-                                                    )}
-                                                    {st.deadline && (
-                                                        <span className="subtask-card__deadline">
-                                                            📅 {formatDeadline(st.deadline)}
-                                                        </span>
-                                                    )}
-                                                    {st.subtaskTotal > 0 && (
-                                                        <span className="subtask-card__subtask-count">
-                                                            {st.subtaskDone}/{st.subtaskTotal}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )
-                                    })}
-
-                                    {pendingSubtasks.map((ps, idx) => (
-                                        <div key={`pending-${idx}`} className="subtask-card subtask-card--pending">
-                                            <div className="subtask-card__head">
-                                                <span className="subtask-card__check" />
-                                                <span className="subtask-card__title">{ps.title}</span>
-                                                <span className="subtask-card__pending-badge">{t.newBadge}</span>
-                                                <button
-                                                    type="button"
-                                                    className="subtask-card__btn subtask-card__btn--danger"
-                                                    onClick={(e) => { e.stopPropagation(); removePendingSubtask(idx) }}
-                                                    title={t.removeFromList}
-                                                >×</button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        <label className="task-detail__attachment-add">
+                                            {uploading ? '...' : t.addAttachment}
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                style={{ display: 'none' }}
+                                                onChange={uploadAttachment}
+                                            />
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         )}
-
-                        <div className="task-detail__group">
-                            <div className="task-detail__label">
-                                {t.attachmentsLabel} {task.attachments?.length ? `(${task.attachments.length})` : ''}
-                            </div>
-                            <div className="task-detail__attachments">
-                                {(task.attachments || []).map(a => {
-                                    const url = resolveUrl(a.url)
-                                    const isImage = a.mimeCode?.startsWith('image/')
-                                    return (
-                                        <div key={a.id} className="task-detail__attachment">
-                                            {isImage && url ? (
-                                                <img
-                                                    src={url}
-                                                    alt={a.originalName || ''}
-                                                    onClick={() => handleAttachmentClick(a)}
-                                                    style={{ cursor: 'zoom-in' }}
-                                                    onError={(e) => {
-                                                        e.target.style.display = 'none'
-                                                        e.target.parentNode.classList.add('task-detail__attachment--broken')
-                                                    }}
-                                                />
-                                            ) : (
-                                                <div
-                                                    className="task-detail__file"
-                                                    onClick={() => handleAttachmentClick(a)}
-                                                    style={{ cursor: 'pointer' }}
-                                                >
-                                                    📎 {a.originalName}
-                                                </div>
-                                            )}
-                                            <button
-                                                type="button"
-                                                className="task-detail__attachment-remove"
-                                                onClick={() => detachAttachment(a.id)}
-                                            >×</button>
-                                        </div>
-                                    )
-                                })}
-
-                                <label className="task-detail__attachment-add">
-                                    {uploading ? '...' : t.addAttachment}
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        style={{ display: 'none' }}
-                                        onChange={uploadAttachment}
-                                    />
-                                </label>
-                            </div>
-                        </div>
-                    </div>
+                    </>
                 )}
             </Modal>
 

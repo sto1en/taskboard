@@ -78,6 +78,10 @@ public class UserMapper {
         return UserWorkspaceDto.builder()
                 .defaultBoardId(workspace.getDefaultBoard() != null
                         ? workspace.getDefaultBoard().getId() : null)
+                .launchProjectId(workspace.getLaunchProject() != null
+                        ? workspace.getLaunchProject().getId() : null)
+                .defaultProjectId(workspace.getDefaultProject() != null
+                        ? workspace.getDefaultProject().getId() : null)
                 .tasksPerPage(workspace.getTasksPerPage())
                 .confirmBeforeDelete(workspace.getConfirmBeforeDelete())
                 .build();

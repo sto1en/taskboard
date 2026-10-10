@@ -14,6 +14,8 @@ import coursework.taskboard.model.tag.Tag;
 import coursework.taskboard.model.tag.TagAppearance;
 import coursework.taskboard.model.task.*;
 import coursework.taskboard.model.user.User;
+import coursework.taskboard.model.user.UserAppearance;
+import coursework.taskboard.model.user.UserProfile;
 import coursework.taskboard.repository.attachment.AttachmentMetaRepository;
 import coursework.taskboard.repository.attachment.AttachmentRepository;
 import coursework.taskboard.repository.board.*;
@@ -22,9 +24,12 @@ import coursework.taskboard.repository.stage.StageRepository;
 import coursework.taskboard.repository.tag.TagAppearanceRepository;
 import coursework.taskboard.repository.tag.TagRepository;
 import coursework.taskboard.repository.task.*;
+import coursework.taskboard.repository.user.UserAppearanceRepository;
+import coursework.taskboard.repository.user.UserProfileRepository;
 import coursework.taskboard.service.achievement.AchievementService;
 import coursework.taskboard.service.shop.ShopService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +37,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -55,15 +61,18 @@ public class TaskService {
     private final TagAppearanceRepository tagAppearanceRepository;
     private final AttachmentRepository attachmentRepository;
     private final AttachmentMetaRepository attachmentMetaRepository;
+    private final UserProfileRepository userProfileRepository;
+    private final UserAppearanceRepository userAppearanceRepository;
 
     private final TaskMapper taskMapper;
     private final AchievementService achievementService;
     private final ShopService shopService;
     private final RecurrenceService recurrenceService;
+    private final TaskAuditService taskAuditService;
 
-    // ============================================================
-    // Создать задачу
-    // ============================================================
+    @Value("${app.upload.base-url}")
+    private String uploadBaseUrl;
+
     @Transactional
     public TaskDto createTask(Long projectId, CreateTaskRequest request, User user) {
         Project project = getProjectWithAccess(projectId, user);
@@ -101,6 +110,9 @@ public class TaskService {
                 : taskRepository.findByProjectIdAndParentIsNullOrderByPositionAsc(projectId).size());
 
         Task task = taskMapper.toTask(project, stage, parent, request, position);
+        task.setStartedBy(user);
+        task.setLastEditedBy(user);
+        task.setLastEditedAt(LocalDateTime.now());
         taskRepository.save(task);
 
         BoardStatus status = resolveStatus(request.getStatusId(), board);
@@ -129,9 +141,17 @@ public class TaskService {
 
         checkFunnyAchievementsOnText(user, task.getTitle());
 
-        return taskMapper.toTaskDto(task, settings, schedule, status,
+        taskAuditService.log(task, user, "CREATED", null);
+
+        TaskDto dto = taskMapper.toTaskDto(task, settings, schedule, status,
                 boardStatusAppearanceRepository.findById(status.getId()).orElse(null),
                 tagDtos, new ArrayList<>(), new ArrayList<>(), 0, 0);
+
+        dto.setStartedBy(buildUserShort(task.getStartedBy()));
+        dto.setLastEditedBy(buildUserShort(task.getLastEditedBy()));
+        dto.setLastEditedAt(task.getLastEditedAt());
+
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -177,8 +197,11 @@ public class TaskService {
                 subTags.add(taskMapper.toTagShortDto(tt.getTag(), ta));
             }
 
-            subtasks.add(taskMapper.toTaskShortDto(sub, subSettings, subSchedule, subStatus,
-                    subAppearance, subAttachmentNames, 0, 0, null, subTags));
+            TaskShortDto subDto = taskMapper.toTaskShortDto(sub, subSettings, subSchedule, subStatus,
+                    subAppearance, subAttachmentNames, 0, 0, null, subTags);
+            subDto.setStartedBy(buildUserShort(sub.getStartedBy()));
+            subDto.setLastEditedBy(buildUserShort(sub.getLastEditedBy()));
+            subtasks.add(subDto);
         }
 
         long subtaskTotal = subtasks.size();
@@ -188,6 +211,10 @@ public class TaskService {
 
         TaskDto dto = taskMapper.toTaskDto(task, settings, schedule, status, statusAppearance,
                 tags, attachments, subtasks, subtaskTotal, subtaskDone);
+
+        dto.setStartedBy(buildUserShort(task.getStartedBy()));
+        dto.setLastEditedBy(buildUserShort(task.getLastEditedBy()));
+        dto.setLastEditedAt(task.getLastEditedAt());
 
         RecurrenceDto rec = recurrenceService.getRule(task);
         dto.setRecurrence(rec);
@@ -242,6 +269,14 @@ public class TaskService {
         TaskSchedule schedule = taskScheduleRepository.findById(taskId).orElseThrow();
         Board board = task.getProject().getBoard();
 
+        String oldTitle = task.getTitle();
+        String oldDescription = task.getDescription();
+        String oldStatusTitle = settings.getStatus() != null ? settings.getStatus().getTitle() : null;
+        Short oldPriority = settings.getPriority();
+        LocalDateTime oldDeadline = schedule.getDeadline();
+        List<Long> oldTagIds = taskTagRepository.findByTaskId(taskId).stream()
+                .map(tt -> tt.getTag().getId()).toList();
+
         if (request.getTitle() != null) task.setTitle(request.getTitle());
         if (request.getDescription() != null) task.setDescription(request.getDescription());
         if (request.getPosition() != null) task.setPosition(request.getPosition());
@@ -293,8 +328,6 @@ public class TaskService {
                 task.setPosition((int) siblings);
             }
         }
-
-        taskRepository.save(task);
 
         if (request.getTitle() != null) {
             checkFunnyAchievementsOnText(user, task.getTitle());
@@ -366,11 +399,11 @@ public class TaskService {
         taskSettingsRepository.save(settings);
 
         if (request.getDeadline() != null) {
-            LocalDateTime oldDeadline = schedule.getDeadline();
+            LocalDateTime oldDl = schedule.getDeadline();
             LocalDateTime newDeadline = request.getDeadline();
 
-            boolean wasOverdue = oldDeadline != null
-                    && oldDeadline.isBefore(OverduePolicyService.thresholdNow())
+            boolean wasOverdue = oldDl != null
+                    && oldDl.isBefore(OverduePolicyService.thresholdNow())
                     && schedule.getCompletedAt() == null;
 
             schedule.setDeadline(newDeadline);
@@ -407,6 +440,48 @@ public class TaskService {
             }
         }
 
+        task.setLastEditedBy(user);
+        task.setLastEditedAt(LocalDateTime.now());
+        taskRepository.save(task);
+
+        if (!Objects.equals(oldTitle, task.getTitle())) {
+            taskAuditService.log(task, user, "UPDATED", "title", oldTitle, task.getTitle());
+        }
+        if (!Objects.equals(oldDescription, task.getDescription())) {
+            taskAuditService.log(task, user, "UPDATED", "description", oldDescription, task.getDescription());
+        }
+        String newStatusTitle = settings.getStatus() != null ? settings.getStatus().getTitle() : null;
+        if (!Objects.equals(oldStatusTitle, newStatusTitle)) {
+            taskAuditService.log(task, user, "STATUS_CHANGED", "status", oldStatusTitle, newStatusTitle);
+        }
+        if (!Objects.equals(oldPriority, settings.getPriority())) {
+            taskAuditService.log(task, user, "UPDATED", "priority",
+                    oldPriority != null ? oldPriority.toString() : null,
+                    settings.getPriority() != null ? settings.getPriority().toString() : null);
+        }
+        if (!Objects.equals(oldDeadline, schedule.getDeadline())) {
+            taskAuditService.log(task, user, "UPDATED", "deadline",
+                    oldDeadline != null ? oldDeadline.toString() : null,
+                    schedule.getDeadline() != null ? schedule.getDeadline().toString() : null);
+        }
+
+        List<Long> newTagIds = taskTagRepository.findByTaskId(taskId).stream()
+                .map(tt -> tt.getTag().getId()).toList();
+        for (Long id : newTagIds) {
+            if (!oldTagIds.contains(id)) {
+                Tag tag = tagRepository.findById(id).orElse(null);
+                taskAuditService.log(task, user, "TAG_ADDED", "tag", null,
+                        tag != null ? tag.getTitle() : String.valueOf(id));
+            }
+        }
+        for (Long id : oldTagIds) {
+            if (!newTagIds.contains(id)) {
+                Tag tag = tagRepository.findById(id).orElse(null);
+                taskAuditService.log(task, user, "TAG_REMOVED", "tag",
+                        tag != null ? tag.getTitle() : String.valueOf(id), null);
+            }
+        }
+
         List<TagShortDto> tagDtos = new ArrayList<>();
         for (TaskTag tt : taskTagRepository.findByTaskId(taskId)) {
             Tag tag = tt.getTag();
@@ -422,6 +497,10 @@ public class TaskService {
 
         TaskDto dto = taskMapper.toTaskDto(task, settings, schedule, status, statusAppearance,
                 tagDtos, new ArrayList<>(), new ArrayList<>(), subtaskTotal, 0);
+
+        dto.setStartedBy(buildUserShort(task.getStartedBy()));
+        dto.setLastEditedBy(buildUserShort(task.getLastEditedBy()));
+        dto.setLastEditedAt(task.getLastEditedAt());
 
         RecurrenceDto rec = recurrenceService.getRule(task);
         dto.setRecurrence(rec);
@@ -645,11 +724,26 @@ public class TaskService {
                 .position(position)
                 .build();
         taskAttachmentRepository.save(ta);
+
+        AttachmentMeta meta = attachmentMetaRepository.findById(attachmentId).orElse(null);
+        taskAuditService.log(task, user, "ATTACHMENT_ADDED", "attachment", null,
+                meta != null ? meta.getOriginalName() : String.valueOf(attachmentId));
+
+        task.setLastEditedBy(user);
+        task.setLastEditedAt(LocalDateTime.now());
+        taskRepository.save(task);
     }
 
     @Transactional
     public void detachAttachment(Long taskId, Long attachmentId, User user) {
-        getTaskWithAccess(taskId, user);
+        Task task = getTaskWithAccess(taskId, user);
+
+        Attachment a = attachmentRepository.findById(attachmentId).orElse(null);
+        AttachmentMeta meta = a != null
+                ? attachmentMetaRepository.findById(a.getId()).orElse(null)
+                : null;
+        taskAuditService.log(task, user, "ATTACHMENT_REMOVED", "attachment",
+                meta != null ? meta.getOriginalName() : String.valueOf(attachmentId), null);
 
         TaskAttachment.TaskAttachmentId id =
                 new TaskAttachment.TaskAttachmentId(taskId, attachmentId);
@@ -657,6 +751,10 @@ public class TaskService {
         if (taskAttachmentRepository.existsById(id)) {
             taskAttachmentRepository.deleteById(id);
         }
+
+        task.setLastEditedBy(user);
+        task.setLastEditedAt(LocalDateTime.now());
+        taskRepository.save(task);
     }
 
     private List<TaskShortDto> toShortDtos(List<Task> tasks) {
@@ -689,8 +787,11 @@ public class TaskService {
                     stTags.add(taskMapper.toTagShortDto(tt.getTag(), ta));
                 }
 
-                subtasks.add(taskMapper.toTaskShortDto(sub, ss, sch, stStatus, stApp,
-                        stAttachmentNames, 0, 0, null, stTags));
+                TaskShortDto subDto = taskMapper.toTaskShortDto(sub, ss, sch, stStatus, stApp,
+                        stAttachmentNames, 0, 0, null, stTags);
+                subDto.setStartedBy(buildUserShort(sub.getStartedBy()));
+                subDto.setLastEditedBy(buildUserShort(sub.getLastEditedBy()));
+                subtasks.add(subDto);
             }
 
             long subtaskTotal = subtasks.size();
@@ -704,11 +805,61 @@ public class TaskService {
                 tagDtos.add(taskMapper.toTagShortDto(tt.getTag(), ta));
             }
 
-            result.add(taskMapper.toTaskShortDto(task, settings, schedule, status, appearance,
-                    attachmentNames, subtaskTotal, subtaskDone, subtasks, tagDtos));
+            TaskShortDto dto = taskMapper.toTaskShortDto(task, settings, schedule, status, appearance,
+                    attachmentNames, subtaskTotal, subtaskDone, subtasks, tagDtos);
+            dto.setStartedBy(buildUserShort(task.getStartedBy()));
+            dto.setLastEditedBy(buildUserShort(task.getLastEditedBy()));
+            result.add(dto);
         }
 
         return result;
+    }
+
+    private UserShortDto buildUserShort(User u) {
+        if (u == null) return null;
+
+        UserProfile profile = userProfileRepository.findById(u.getId()).orElse(null);
+        AttachmentMeta meta = null;
+        if (profile != null && profile.getAvatar() != null) {
+            meta = attachmentMetaRepository.findById(profile.getAvatar().getId()).orElse(null);
+        }
+
+        UserAppearance appearance = userAppearanceRepository.findById(u.getId()).orElse(null);
+
+        String avatarCode = null;
+        String avatarEmoji = null;
+        String avatarImageUrl = null;
+        String frameCssClass = null;
+        String frameCode = null;
+
+        if (appearance != null) {
+            if (appearance.getActiveAvatar() != null) {
+                avatarCode = appearance.getActiveAvatar().getCode();
+                avatarEmoji = appearance.getActiveAvatar().getEmoji();
+                String raw = appearance.getActiveAvatar().getImageUrl();
+                if (raw != null && !raw.isBlank()) {
+                    avatarImageUrl = (raw.startsWith("http://")
+                            || raw.startsWith("https://")
+                            || raw.startsWith("/"))
+                            ? raw
+                            : uploadBaseUrl + "/" + raw;
+                }
+            }
+            if (appearance.getActiveFrame() != null) {
+                frameCssClass = appearance.getActiveFrame().getCssClass();
+                frameCode = appearance.getActiveFrame().getCode();
+            }
+        }
+
+        UserShortDto dto = taskMapper.toUserShortDto(u, profile, meta);
+        if (dto != null) {
+            dto.setAvatarCode(avatarCode);
+            dto.setAvatarEmoji(avatarEmoji);
+            dto.setAvatarImageUrl(avatarImageUrl);
+            dto.setFrameCssClass(frameCssClass);
+            dto.setFrameCode(frameCode);
+        }
+        return dto;
     }
 
     private List<String> getAttachmentNames(Long taskId) {
@@ -783,9 +934,11 @@ public class TaskService {
 
     @Transactional
     public void moveDeadline(Long taskId, LocalDate newDate, User user) {
-        getTaskWithAccess(taskId, user);
+        Task task = getTaskWithAccess(taskId, user);
         TaskSchedule schedule = taskScheduleRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Schedule not found"));
+
+        LocalDateTime oldDeadline = schedule.getDeadline();
 
         LocalDateTime newDeadline;
         if (schedule.getDeadline() != null
@@ -796,6 +949,16 @@ public class TaskService {
         }
         schedule.setDeadline(newDeadline);
         taskScheduleRepository.save(schedule);
+
+        if (!Objects.equals(oldDeadline, newDeadline)) {
+            taskAuditService.log(task, user, "UPDATED", "deadline",
+                    oldDeadline != null ? oldDeadline.toString() : null,
+                    newDeadline != null ? newDeadline.toString() : null);
+        }
+
+        task.setLastEditedBy(user);
+        task.setLastEditedAt(LocalDateTime.now());
+        taskRepository.save(task);
     }
 
     @Transactional

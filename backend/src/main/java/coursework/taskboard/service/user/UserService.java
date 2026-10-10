@@ -4,14 +4,21 @@ import coursework.taskboard.dto.user.*;
 import coursework.taskboard.model.attachment.Attachment;
 import coursework.taskboard.model.attachment.AttachmentMeta;
 import coursework.taskboard.model.board.Board;
+import coursework.taskboard.model.project.Project;
 import coursework.taskboard.model.user.*;
 import coursework.taskboard.repository.attachment.AttachmentMetaRepository;
 import coursework.taskboard.repository.attachment.AttachmentRepository;
+import coursework.taskboard.repository.board.BoardMemberRepository;
 import coursework.taskboard.repository.board.BoardRepository;
+import coursework.taskboard.repository.project.ProjectRepository;
 import coursework.taskboard.repository.user.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -28,8 +35,13 @@ public class UserService {
     private final AttachmentRepository attachmentRepository;
     private final AttachmentMetaRepository attachmentMetaRepository;
     private final BoardRepository boardRepository;
+    private final ProjectRepository projectRepository;
+    private final BoardMemberRepository boardMemberRepository;
 
     private final UserMapper userMapper;
+
+    @Value("${app.upload.base-url}")
+    private String uploadBaseUrl;
 
     // ============================================================
     // Получить полный профиль текущего пользователя
@@ -52,6 +64,43 @@ public class UserService {
 
         return userMapper.toUserDto(user, profile, appearance, locale,
                 workspace, display, notification, avatarMeta);
+    }
+
+    // ============================================================
+    // Поиск пользователей по displayName (для приглашения в доску)
+    // ============================================================
+    @Transactional(readOnly = true)
+    public List<UserSearchDto> searchUsers(String query, User requester) {
+        if (query == null || query.trim().length() < 1) {
+            return List.of();
+        }
+        String q = query.trim();
+        List<UserProfile> profiles = userProfileRepository.searchByDisplayName(q);
+
+        List<UserSearchDto> result = new ArrayList<>();
+        for (UserProfile p : profiles) {
+            if (p.getUser() == null) continue;
+            if (p.getUser().getId().equals(requester.getId())) continue;   // не показываем себя
+
+            String avatarUrl = null;
+            if (p.getAvatar() != null) {
+                AttachmentMeta meta = attachmentMetaRepository
+                        .findById(p.getAvatar().getId()).orElse(null);
+                if (meta != null) {
+                    avatarUrl = uploadBaseUrl + "/" + meta.getUrl();
+                }
+            }
+
+            result.add(UserSearchDto.builder()
+                    .userId(p.getUser().getId())
+                    .username(p.getUser().getUsername())
+                    .displayName(p.getDisplayName())
+                    .avatarUrl(avatarUrl)
+                    .build());
+
+            if (result.size() >= 20) break;
+        }
+        return result;
     }
 
     // ============================================================
@@ -93,7 +142,7 @@ public class UserService {
     }
 
     // ============================================================
-    // Внешний вид (создаёт запись, если её ещё нет)
+    // Внешний вид
     // ============================================================
     @Transactional
     public UserAppearanceDto updateAppearance(User user, UpdateAppearanceRequest request) {
@@ -171,7 +220,10 @@ public class UserService {
         UserWorkspace workspace = userWorkspaceRepository.findById(user.getId())
                 .orElseThrow(() -> new IllegalStateException("Workspace not found"));
 
-        if (request.getDefaultBoardId() != null) {
+        if (Boolean.TRUE.equals(request.getClearDefaultBoard())) {
+            workspace.setDefaultBoard(null);
+            workspace.setLaunchProject(null);
+        } else if (request.getDefaultBoardId() != null) {
             Board board = boardRepository.findById(request.getDefaultBoardId())
                     .orElseThrow(() -> new IllegalArgumentException("Board not found"));
 
@@ -179,6 +231,37 @@ public class UserService {
                 throw new IllegalArgumentException("Not your board");
             }
             workspace.setDefaultBoard(board);
+            if (workspace.getLaunchProject() != null
+                    && !workspace.getLaunchProject().getBoard().getId().equals(board.getId())) {
+                workspace.setLaunchProject(null);
+            }
+        }
+
+        if (Boolean.TRUE.equals(request.getClearLaunchProject())) {
+            workspace.setLaunchProject(null);
+        } else if (request.getLaunchProjectId() != null) {
+            Project p = projectRepository.findById(request.getLaunchProjectId())
+                    .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+            if (!boardMemberRepository.existsByBoardIdAndUserId(
+                    p.getBoard().getId(), user.getId())) {
+                throw new IllegalArgumentException("No access to project");
+            }
+            workspace.setLaunchProject(p);
+            if (workspace.getDefaultBoard() == null) {
+                workspace.setDefaultBoard(p.getBoard());
+            }
+        }
+
+        if (Boolean.TRUE.equals(request.getClearDefaultProject())) {
+            workspace.setDefaultProject(null);
+        } else if (request.getDefaultProjectId() != null) {
+            Project p = projectRepository.findById(request.getDefaultProjectId())
+                    .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+            if (!boardMemberRepository.existsByBoardIdAndUserId(
+                    p.getBoard().getId(), user.getId())) {
+                throw new IllegalArgumentException("No access to project");
+            }
+            workspace.setDefaultProject(p);
         }
 
         if (request.getTasksPerPage() != null) {

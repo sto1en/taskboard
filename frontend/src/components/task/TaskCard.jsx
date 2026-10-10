@@ -4,6 +4,7 @@ import { tasksApi } from '../../api/api'
 import Subtask from './Subtask'
 import InlineEdit from '../common/InlineEdit'
 import DetailTextEditor from './DetailTextEditor'
+import AvatarWithFrame from '../layout/AvatarWithFrame'
 import { formatDeadline } from '../../utils/format'
 import { isDone as checkIsDone, isCancelled as checkIsCancelled, isExpired as checkIsExpired } from '../../utils/sortTasks'
 import useT from '../../hooks/useT'
@@ -115,6 +116,11 @@ export default function TaskCard({
         ? `var(--accent-${task.statusAccentCode}, var(--primary))`
         : 'var(--primary)'
 
+    const authorsTooltip = [
+        task.startedBy && `Начал: ${task.startedBy.displayName}`,
+        task.lastEditedBy && `Последний редактор: ${task.lastEditedBy.displayName}`,
+    ].filter(Boolean).join('\n')
+
     return (
         <div
             className={`task-card ${isDone ? 'task-card--done' : ''}`}
@@ -142,6 +148,45 @@ export default function TaskCard({
                     onSave={saveTitle}
                     title={t.edit}
                 />
+
+                {(task.startedBy || task.lastEditedBy) && (
+                    <div className="task-card__authors" title={authorsTooltip}>
+                        {task.startedBy && (
+                            <div className="task-card__author">
+                                <AvatarWithFrame
+                                    avatar={{
+                                        code: task.startedBy.avatarCode || undefined,
+                                        emoji: task.startedBy.avatarEmoji || undefined,
+                                        imageUrl: task.startedBy.avatarImageUrl || task.startedBy.avatarUrl || undefined,
+                                    }}
+                                    frame={task.startedBy.frameCssClass
+                                        ? { cssClass: task.startedBy.frameCssClass }
+                                        : null}
+                                    displayName={task.startedBy.displayName}
+                                    username={task.startedBy.username}
+                                    size={22}
+                                />
+                            </div>
+                        )}
+                        {task.lastEditedBy && task.lastEditedBy.id !== task.startedBy?.id && (
+                            <div className="task-card__author task-card__author--editor">
+                                <AvatarWithFrame
+                                    avatar={{
+                                        code: task.lastEditedBy.avatarCode || undefined,
+                                        emoji: task.lastEditedBy.avatarEmoji || undefined,
+                                        imageUrl: task.lastEditedBy.avatarImageUrl || task.lastEditedBy.avatarUrl || undefined,
+                                    }}
+                                    frame={task.lastEditedBy.frameCssClass
+                                        ? { cssClass: task.lastEditedBy.frameCssClass }
+                                        : null}
+                                    displayName={task.lastEditedBy.displayName}
+                                    username={task.lastEditedBy.username}
+                                    size={22}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {task.priority > 0 && (
                     <span className="task-card__priority task-card__priority--big">
@@ -243,6 +288,22 @@ export default function TaskCard({
                                             <> +{fullTask.attachments.length - 1}</>
                                         )}
                                     </span>
+                                </div>
+                            )}
+                            {(fullTask.startedBy || fullTask.lastEditedBy) && (
+                                <div className="task-card__details-authors">
+                                    {fullTask.startedBy && (
+                                        <div className="task-card__details-author-row">
+                                            <span className="task-card__details-label">Начал:</span>
+                                            <span>{fullTask.startedBy.displayName}</span>
+                                        </div>
+                                    )}
+                                    {fullTask.lastEditedBy && (
+                                        <div className="task-card__details-author-row">
+                                            <span className="task-card__details-label">Последний редактор:</span>
+                                            <span>{fullTask.lastEditedBy.displayName}</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </>

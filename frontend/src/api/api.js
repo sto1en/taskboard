@@ -38,6 +38,13 @@ export const boardsApi = {
     move: (id, { position }) => api.patch(`/boards/${id}`, { position }),
 }
 
+export const boardMembersApi = {
+    list:   (boardId) => api.get(`/boards/${boardId}/members`),
+    add:    (boardId, data) => api.post(`/boards/${boardId}/members`, data),
+    update: (boardId, userId, data) => api.patch(`/boards/${boardId}/members/${userId}`, data),
+    remove: (boardId, userId) => api.delete(`/boards/${boardId}/members/${userId}`),
+}
+
 export const projectsApi = {
     listByBoard: (boardId) => api.get(`/boards/${boardId}/projects`),
     get: (id) => api.get(`/projects/${id}`),
@@ -57,6 +64,7 @@ export const tasksApi = {
     listByProject: (projectId) => api.get(`/projects/${projectId}/tasks`),
     kanban: (projectId) => api.get(`/projects/${projectId}/kanban`),
     get: (id) => api.get(`/tasks/${id}`),
+    history: (id) => api.get(`/tasks/${id}/history`),
     create: (projectId, data) => api.post(`/projects/${projectId}/tasks`, data),
     update: (id, data) => api.patch(`/tasks/${id}`, data),
     delete: (id) => api.delete(`/tasks/${id}`),
@@ -72,6 +80,13 @@ export const tasksApi = {
     snoozeReschedule: (id, hours = 24) =>
         api.patch(`/tasks/${id}/snooze-reschedule`, null, { params: { hours } }),
     moveDate: (id, date) => api.patch(`/tasks/${id}/move-date`, null, { params: { date } }),
+
+    messages: {
+        list:   (taskId) => api.get(`/tasks/${taskId}/messages`),
+        create: (taskId, data) => api.post(`/tasks/${taskId}/messages`, data),
+        update: (taskId, messageId, data) => api.patch(`/tasks/${taskId}/messages/${messageId}`, data),
+        delete: (taskId, messageId) => api.delete(`/tasks/${taskId}/messages/${messageId}`),
+    },
 }
 
 export const recurrenceApi = {
@@ -111,8 +126,9 @@ export const attachmentsApi = {
     delete: (id) => api.delete(`/attachments/${id}`),
 }
 
-export const userApi = {
+export const usersApi = {
     me: () => api.get('/users/me'),
+    search: (q) => api.get('/users/search', { params: { q } }),
     updateProfile: (data) => api.patch('/users/me/profile', data),
     updateAppearance: (data) => api.patch('/users/me/appearance', data),
     updateLocale: (data) => api.patch('/users/me/locale', data),
@@ -120,6 +136,9 @@ export const userApi = {
     updateDisplay: (data) => api.patch('/users/me/display', data),
     updateNotification: (data) => api.patch('/users/me/notification', data),
 }
+
+/* Алиас для обратной совместимости */
+export const userApi = usersApi
 
 export const searchApi = {
     global: (q) => api.get('/search', { params: { q } }),

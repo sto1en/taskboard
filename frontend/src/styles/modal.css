@@ -1160,3 +1160,80 @@ html[data-theme="dark"] .task-detail__subtask-ac-status {
     cursor: pointer;
     margin: 0;
 }
+
+/* ============================================================
+   RescheduleModal
+   ============================================================ */
+
+.reschedule-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.reschedule-modal__task {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 10px 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    border-left: 3px solid var(--accent, var(--primary));
+    word-break: break-word;
+}
+
+.reschedule-modal__quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.reschedule-modal__quick-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+    white-space: nowrap;
+}
+
+.reschedule-modal__quick-btn:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
+}
+
+/* Поля даты/времени в модалке переноса — на всю ширину */
+.reschedule-modal .modal__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.reschedule-modal .modal__row .modal__field + .modal__field {
+    /* если время понадобится — оно встанет под датой */
+}
+
+.reschedule-modal .modal__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.reschedule-modal .input {
+    padding: 12px 14px;
+    font-size: 14px;
+    border-radius: 8px;
+}
+
+.reschedule-modal .task-detail__toggle {
+    margin-top: 0;
+}

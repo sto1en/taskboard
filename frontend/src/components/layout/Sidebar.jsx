@@ -169,14 +169,13 @@ export default function Sidebar() {
         <>
             <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
                 <div className="sidebar__user">
-                    {/* Аватар */}
+                    {/* Аватар — размер задаётся родителем через CSS */}
                     <Link to="/profile" className="sidebar__user-avatar" title="Настройки профиля">
                         <AvatarWithFrame
                             avatar={activeAvatar}
                             frame={activeFrame}
                             displayName={displayName}
                             username={user?.username}
-                            size={56}
                         />
                     </Link>
 

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { boardsApi, statusesApi, tagsApi } from '../api/api'
 import StatusEditor from '../components/Board/StatusEditor'
 import TagEditor from '../components/Board/TagEditor'
+import BoardMembersEditor from '../components/Board/BoardMembersEditor'
 import useT from '../hooks/useT'
 
 export default function BoardSettingsPage() {
@@ -49,6 +50,14 @@ export default function BoardSettingsPage() {
             <div className="board-detail__head">
                 <button className="btn btn-ghost" onClick={() => nav(`/boards/${boardId}`)}>←</button>
                 <h2 className="board-detail__title">{t.boardSettingsTitle(board.title)}</h2>
+            </div>
+
+            <div className="board-settings__section">
+                <h3 className="board-settings__title">Участники</h3>
+                <BoardMembersEditor
+                    boardId={Number(boardId)}
+                    ownerRole={board.ownerRole}
+                />
             </div>
 
             <div className="board-settings__section">

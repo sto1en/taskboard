@@ -26,4 +26,5 @@ public class BoardDto {
     private Long mainProjectId;
     private long projectCount;
     private long taskCount;
+    private Long ownerId;
 }

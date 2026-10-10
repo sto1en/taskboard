@@ -10,6 +10,8 @@ import coursework.taskboard.model.stage.Stage;
 import coursework.taskboard.model.tag.Tag;
 import coursework.taskboard.model.tag.TagAppearance;
 import coursework.taskboard.model.task.*;
+import coursework.taskboard.model.user.User;
+import coursework.taskboard.model.user.UserProfile;
 import coursework.taskboard.service.task.OverduePolicyService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -186,6 +188,16 @@ public class TaskMapper {
                 .allowDragIn(allowDragIn != null ? allowDragIn : true)
                 .count(tasks.size())
                 .tasks(tasks)
+                .build();
+    }
+
+    public UserShortDto toUserShortDto(User user, UserProfile profile, AttachmentMeta avatarMeta) {
+        if (user == null) return null;
+        return UserShortDto.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .displayName(profile != null ? profile.getDisplayName() : user.getUsername())
+                .avatarUrl(avatarMeta != null ? baseUrl + "/" + avatarMeta.getUrl() : null)
                 .build();
     }
 }

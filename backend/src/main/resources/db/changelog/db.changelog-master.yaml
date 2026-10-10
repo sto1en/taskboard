@@ -19,3 +19,15 @@ databaseChangeLog:
       file: db/changelog/009-add-task-recurrences.yaml
   - include:
       file: db/changelog/010-add-shop-accents.yaml
+  - include:
+      file: db/changelog/011-add-default-project.yaml
+  - include:
+      file: db/changelog/012-add-launch-project.yaml
+  - include:
+      file: db/changelog/013-mark-system-statuses.yaml
+  - include:
+      file: db/changelog/014-add-task-authors.yaml
+  - include:
+      file: db/changelog/015-add-task-audit.yaml
+  - include:
+      file: db/changelog/016-add-task-messages.yaml

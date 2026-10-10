@@ -28,8 +28,34 @@ function ProtectedRoute({ children }) {
 function PublicRoute({ children }) {
     const { token, loading } = useAuth()
     if (loading) return <div className="loading">Загрузка...</div>
-    if (token) return <Navigate to="/calendar" replace />
+    if (token) return <Navigate to="/" replace />
     return children
+}
+
+/**
+ * Стартовая страница.
+ * Если у пользователя включён тумблер «Открывать доску при запуске» (workspace.defaultBoardId),
+ * ведём на стартовый проект (если выбран) или на саму доску.
+ * Иначе — на календарь.
+ */
+function HomeRedirect() {
+    const { user, loading } = useAuth()
+
+    if (loading) return <div className="loading">Загрузка...</div>
+
+    const ws = user?.workspace
+    if (ws?.defaultBoardId) {
+        if (ws?.launchProjectId) {
+            return (
+                <Navigate
+                    to={`/boards/${ws.defaultBoardId}/projects/${ws.launchProjectId}`}
+                    replace
+                />
+            )
+        }
+        return <Navigate to={`/boards/${ws.defaultBoardId}`} replace />
+    }
+    return <Navigate to="/calendar" replace />
 }
 
 export default function App() {
@@ -43,6 +69,7 @@ export default function App() {
                             <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
 
                             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                                <Route path="/" element={<HomeRedirect />} />
                                 <Route path="/calendar" element={<CalendarPage />} />
                                 <Route path="/boards" element={<BoardsPage />} />
                                 <Route path="/boards/:id" element={<BoardDetailPage />} />
@@ -57,7 +84,7 @@ export default function App() {
                                 <Route path="/boards/:boardId/projects/:projectId/search" element={<ProjectSearchPage />} />
                             </Route>
 
-                            <Route path="*" element={<Navigate to="/calendar" replace />} />
+                            <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>
                     </HotkeysProvider>
                 </ThemeApplier>

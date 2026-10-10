@@ -10,8 +10,8 @@
   --success:       #36b37e;
 
   --accent:        #4c9aff;
-  --accent-gradient: none;
-  --accent-gradient-round: none;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
 
   --radius:        6px;
   --shadow-sm:     0 1px 2px rgba(9, 30, 66, 0.08);
@@ -46,32 +46,126 @@
 }
 
 /* ============================================================
-   Акценты — без html, работают и на <html>, и на .accent-dot
+   Однотонные акценты — градиент = сам акцент.
+   ВАЖНО: не `none`, иначе background-clip: text и три-слойные
+   фоны (accent-dot--active) исчезают.
    ============================================================ */
 
-[data-accent="blue"]    { --accent: #4c9aff; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="indigo"]  { --accent: #5e6cff; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="violet"]  { --accent: #8f6ed5; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="purple"]  { --accent: #a45cd6; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="pink"]    { --accent: #ff78c4; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="magenta"] { --accent: #d16bdd; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="red"]     { --accent: #ff5630; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="coral"]   { --accent: #ff8f73; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="orange"]  { --accent: #ffab00; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="amber"]   { --accent: #ffc400; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="yellow"]  { --accent: #ffd600; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="lime"]    { --accent: #b3d400; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="green"]   { --accent: #36b37e; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="mint"]    { --accent: #57d9a3; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="teal"]    { --accent: #00b8d9; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="cyan"]    { --accent: #00b8d9; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="sky"]     { --accent: #4c9aff; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="navy"]    { --accent: #0052cc; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="maroon"]  { --accent: #ae2e24; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="olive"]   { --accent: #877700; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="brown"]   { --accent: #9e7c5a; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="gray"]    { --accent: #97a0af; --accent-gradient: none; --accent-gradient-round: none; }
-[data-accent="slate"]   { --accent: #6b778c; --accent-gradient: none; --accent-gradient-round: none; }
+[data-accent="blue"] {
+  --accent: #4c9aff;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="indigo"] {
+  --accent: #5e6cff;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="violet"] {
+  --accent: #8f6ed5;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="purple"] {
+  --accent: #a45cd6;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="pink"] {
+  --accent: #ff78c4;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="magenta"] {
+  --accent: #d16bdd;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="red"] {
+  --accent: #ff5630;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="coral"] {
+  --accent: #ff8f73;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="orange"] {
+  --accent: #ffab00;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="amber"] {
+  --accent: #ffc400;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="yellow"] {
+  --accent: #ffd600;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="lime"] {
+  --accent: #b3d400;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="green"] {
+  --accent: #36b37e;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="mint"] {
+  --accent: #57d9a3;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="teal"] {
+  --accent: #00b8d9;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="cyan"] {
+  --accent: #00b8d9;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="sky"] {
+  --accent: #4c9aff;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="navy"] {
+  --accent: #0052cc;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="maroon"] {
+  --accent: #ae2e24;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="olive"] {
+  --accent: #877700;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="brown"] {
+  --accent: #9e7c5a;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="gray"] {
+  --accent: #97a0af;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
+[data-accent="slate"] {
+  --accent: #6b778c;
+  --accent-gradient: linear-gradient(var(--accent), var(--accent));
+  --accent-gradient-round: linear-gradient(var(--accent), var(--accent));
+}
 
 /* ============================================================
    Градиентные акценты — плавные, 2 стопа, угол 120deg
@@ -276,7 +370,7 @@ textarea.input {
 
 .btn-primary {
   background-color: var(--primary);
-  background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+  background-image: var(--accent-gradient);
   background-size: 100% 100%;
   background-repeat: no-repeat;
   color: #fff;
@@ -333,14 +427,14 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
 
 .accent-bg {
   background-color: var(--primary);
-  background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+  background-image: var(--accent-gradient);
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
 
 .text-accent-gradient {
   background-color: var(--primary);
-  background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+  background-image: var(--accent-gradient);
   background-size: 100% 100%;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
@@ -358,7 +452,7 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
   height: 2px;
   border-radius: 1px;
   background-color: var(--primary);
-  background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+  background-image: var(--accent-gradient);
   background-size: 100% 100%;
 }
 
@@ -651,7 +745,7 @@ html[data-theme="dark"] .reschedule-banner__close:hover {
   cursor: pointer;
   flex-shrink: 0;
   background-color: var(--accent);
-  background-image: var(--accent-gradient-round, var(--accent-gradient, linear-gradient(var(--accent), var(--accent))));
+  background-image: var(--accent-gradient-round, var(--accent-gradient));
   background-size: 100% 100%;
   background-repeat: no-repeat;
   transition: transform .15s, filter .15s;
@@ -664,12 +758,13 @@ html[data-theme="dark"] .reschedule-banner__close:hover {
   filter: brightness(1.1);
 }
 
+/* Активный — с градиентной окантовкой через три слоя фона */
 .accent-dot--active {
   background-color: transparent;
   background-image:
-          var(--accent-gradient-round, var(--accent-gradient, linear-gradient(var(--accent), var(--accent)))),
+          var(--accent-gradient-round, var(--accent-gradient)),
           linear-gradient(var(--surface), var(--surface)),
-          var(--accent-gradient-round, var(--accent-gradient, linear-gradient(var(--accent), var(--accent))));
+          var(--accent-gradient-round, var(--accent-gradient));
   background-clip: content-box, padding-box, border-box;
   background-origin: content-box, padding-box, border-box;
   background-size: 100% 100%;
@@ -678,16 +773,15 @@ html[data-theme="dark"] .reschedule-banner__close:hover {
   box-shadow: 0 0 0 1px var(--surface);
 }
 
+/* Белая точка внутри активного кружка — без чёрного кольца */
 .accent-dot--active::after {
   content: '';
   display: block;
-  width: 30%;
-  height: 30%;
+  width: 28%;
+  height: 28%;
   border-radius: 50%;
   background: #fff;
-  box-shadow:
-          0 0 0 2px rgba(0, 0, 0, 0.3),
-          0 0 4px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.35);
   pointer-events: none;
   z-index: 2;
   position: relative;

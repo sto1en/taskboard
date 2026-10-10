@@ -87,7 +87,6 @@ public class BoardService {
             }
         });
 
-        // Ачивка «Хранитель досок»
         long boardsCount = boardRepository.countByOwnerId(user.getId());
         achievementService.checkBoards(user, boardsCount);
 
@@ -98,16 +97,17 @@ public class BoardService {
 
     @Transactional(readOnly = true)
     public List<BoardDto> getUserBoards(User user) {
-        List<Board> boards = boardRepository.findByOwnerIdOrderByPositionAsc(user.getId());
+        List<BoardMember> memberships = boardMemberRepository.findByUserId(user.getId());
+
         List<BoardDto> result = new ArrayList<>();
 
-        for (Board board : boards) {
+        for (BoardMember m : memberships) {
+            Board board = m.getBoard();
+
             BoardAppearance appearance = boardAppearanceRepository
                     .findById(board.getId()).orElse(null);
             BoardSettings settings = boardSettingsRepository
                     .findById(board.getId()).orElse(null);
-            BoardMember member = boardMemberRepository
-                    .findByBoardIdAndUserId(board.getId(), user.getId()).orElse(null);
             Project main = projectRepository
                     .findByBoardIdAndIsMainTrue(board.getId()).orElse(null);
             long projectCount = projectRepository.countByBoardId(board.getId());
@@ -115,7 +115,7 @@ public class BoardService {
 
             String coverUrl = resolveCoverUrl(appearance);
 
-            result.add(boardMapper.toBoardDto(board, appearance, settings, member,
+            result.add(boardMapper.toBoardDto(board, appearance, settings, m,
                     main, projectCount, taskCount, coverUrl));
         }
 
@@ -152,6 +152,12 @@ public class BoardService {
     @Transactional
     public BoardDto updateBoard(Long boardId, UpdateBoardRequest request, User user) {
         Board board = getBoardWithAccess(boardId, user);
+        BoardMember member = boardMemberRepository
+                .findByBoardIdAndUserId(boardId, user.getId()).orElseThrow();
+
+        if ("viewer".equals(member.getRole())) {
+            throw new IllegalArgumentException("Недостаточно прав");
+        }
 
         if (request.getTitle() != null) board.setTitle(request.getTitle());
         if (request.getDescription() != null) board.setDescription(request.getDescription());
@@ -199,8 +205,6 @@ public class BoardService {
         }
 
         Project main = projectRepository.findByBoardIdAndIsMainTrue(boardId).orElse(null);
-        BoardMember member = boardMemberRepository
-                .findByBoardIdAndUserId(boardId, user.getId()).orElseThrow();
         BoardAppearance appearance = boardAppearanceRepository.findById(boardId).orElse(null);
         BoardSettings settings = boardSettingsRepository.findById(boardId).orElse(null);
         long projectCount = projectRepository.countByBoardId(boardId);
@@ -219,7 +223,7 @@ public class BoardService {
                 .findByBoardIdAndUserId(boardId, user.getId()).orElseThrow();
 
         if (!"owner".equals(member.getRole())) {
-            throw new IllegalArgumentException("Only owner can delete board");
+            throw new IllegalArgumentException("Только владелец может удалить доску");
         }
 
         boardRepository.delete(board);
@@ -233,11 +237,11 @@ public class BoardService {
     }
 
     private void createTaskStatuses(Board board) {
-        createStatus(board, "task", "ACTIVE", "IN_PROGRESS", "В процессе", 1, true, false);
-        createStatus(board, "task", "DONE", "DONE", "Выполнено", 2, false, false);
+        createStatus(board, "task", "ACTIVE", "IN_PROGRESS", "В процессе", 1, true, true);
+        createStatus(board, "task", "DONE", "DONE", "Выполнено", 2, false, true);
         createStatus(board, "task", "EXPIRED", "EXPIRED", "Просрочено", 3, false, true);
-        createStatus(board, "task", "CANCELLED", "CANCELLED", "Отменено", 4, false, false);
-        createStatus(board, "task", "FROZEN", "FROZEN", "Отложено", 5, false, false);
+        createStatus(board, "task", "CANCELLED", "CANCELLED", "Отменено", 4, false, true);
+        createStatus(board, "task", "FROZEN", "FROZEN", "Отложено", 5, false, true);
     }
 
     private List<BoardStatus> createProjectStatuses(Board board) {

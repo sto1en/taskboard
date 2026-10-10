@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { recurrenceApi } from '../../api/api'
 
 const UNITS = [
-    { code: 'm', label: 'минут' },
-    { code: 'h', label: 'часов' },
     { code: 'd', label: 'дней' },
     { code: 'w', label: 'недель' },
     { code: 'M', label: 'месяцев' },
@@ -12,18 +10,30 @@ const UNITS = [
 
 const MAX_COPIES = 100
 
+/** Единицы, которые больше не поддерживаются — конвертируем в дни. */
+const DEPRECATED_UNITS = new Set(['m', 'h'])
+
 function parseRule(rule) {
     if (!rule) return { n: 1, unit: 'd' }
+
     if (rule.startsWith('every:')) {
         const arg = rule.slice(6)
         const unit = arg.charAt(arg.length - 1)
         const n = parseInt(arg.slice(0, -1), 10)
+        // если единица устаревшая — принудительно день
+        if (DEPRECATED_UNITS.has(unit)) {
+            return { n: Math.max(1, isNaN(n) ? 1 : n), unit: 'd' }
+        }
+        if (!UNITS.some(u => u.code === unit)) {
+            return { n: 1, unit: 'd' }
+        }
         return { n: isNaN(n) ? 1 : n, unit }
     }
+
+    // 'hourly:*' и 'daily/weekly/...' — нормализуем
     if (rule.startsWith('hourly')) {
-        const arg = rule.split(':')[1]
-        const n = parseInt(arg || '1', 10)
-        return { n: isNaN(n) ? 1 : n, unit: 'h' }
+        // бывшие часовые повторения — переводим в 1 день
+        return { n: 1, unit: 'd' }
     }
     if (rule === 'daily')   return { n: 1, unit: 'd' }
     if (rule === 'weekly')  return { n: 1, unit: 'w' }

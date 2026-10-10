@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 013-01-mark-system-statuses
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: board_statuses }
+      changes:
+        - sql:
+            sql: |
+              UPDATE board_statuses
+              SET is_system = TRUE
+              WHERE scope = 'task'
+                AND code IN ('IN_PROGRESS', 'DONE', 'EXPIRED', 'CANCELLED', 'FROZEN');

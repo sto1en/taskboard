@@ -920,10 +920,6 @@ html[data-theme="dark"] .subtask-mini__deadline {
     text-decoration: underline;
 }
 
-/* ============================================================
-   TaskCard — зачёркнутая задача, если DONE
-   ============================================================ */
-
 .task-card--done .task-card__title {
     text-decoration: line-through;
     opacity: 0.65;
@@ -1120,7 +1116,6 @@ html[data-theme="dark"] .kanban-col__title--editable:hover {
     max-width: 220px;
 }
 
-/* CompactView — заголовок группы */
 .compact-group__title-wrap {
     flex: 1;
     min-width: 0;
@@ -1178,4 +1173,417 @@ html[data-theme="dark"] .compact-group__title--editable:hover {
 .color-menu__item:hover {
     transform: scale(1.15);
     border-color: var(--text);
+}
+
+/* ============================================================
+   Авторы задачи — аватарки в карточке
+   ============================================================ */
+
+.task-card__authors {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    flex-shrink: 0;
+}
+
+.task-card__author {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    margin-left: -6px;
+    flex-shrink: 0;
+    position: relative;
+}
+.task-card__author:first-child {
+    margin-left: 0;
+}
+
+.task-card__author .avatar-frame {
+    width: 22px !important;
+    height: 22px !important;
+}
+
+.task-card__author--editor {
+    z-index: 1;
+}
+
+.task-card__details-authors {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.task-card__details-author-row {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 12px;
+    color: var(--text);
+}
+
+/* ============================================================
+   Авторы задачи — блок в модалке задачи
+   ============================================================ */
+
+.task-detail__authors {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.task-detail__author-row {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+}
+
+.task-detail__author-label {
+    color: var(--text-muted);
+    font-weight: 600;
+    flex-shrink: 0;
+    min-width: 130px;
+}
+
+.task-detail__author-name {
+    color: var(--text);
+    word-break: break-word;
+}
+
+.task-detail__author-date {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+/* ============================================================
+   TaskDetailModal — вкладки
+   ============================================================ */
+
+.task-detail-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.task-detail-tab {
+    position: relative;
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+    white-space: nowrap;
+}
+
+.task-detail-tab:hover {
+    color: var(--text);
+}
+
+.task-detail-tab--active {
+    color: var(--accent, var(--primary));
+    border-bottom-color: var(--accent, var(--primary));
+}
+
+/* ============================================================
+   TaskHistory — простой список
+   ============================================================ */
+
+.task-history {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px 0;
+}
+
+.task-history__item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.task-history__avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--accent, var(--primary)), var(--primary-hover));
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.task-history__avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.task-history__avatar-frame {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+}
+.task-history__avatar-frame .avatar-frame {
+    width: 32px !important;
+    height: 32px !important;
+}
+
+.task-history__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.task-history__line {
+    font-size: 13px;
+    color: var(--text);
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.task-history__user {
+    font-weight: 600;
+}
+
+.task-history__action {
+    color: var(--text-muted);
+}
+
+.task-history__action b {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.task-history__time {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.task-history__empty {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-style: italic;
+}
+
+/* ============================================================
+   TaskChat
+   ============================================================ */
+
+.task-chat {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 460px;
+    min-height: 0;
+}
+
+.task-chat__list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 2px;
+    scrollbar-width: thin;
+}
+
+.task-chat__empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-style: italic;
+}
+
+.task-chat__msg {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.task-chat__msg--own {
+    flex-direction: row-reverse;
+}
+
+.task-chat__avatar-wrap {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+}
+.task-chat__avatar-wrap .avatar-frame {
+    width: 32px !important;
+    height: 32px !important;
+}
+
+.task-chat__avatar {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--accent, var(--primary)), var(--primary-hover));
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+}
+
+.task-chat__bubble {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: 10px;
+    max-width: 70%;
+    min-width: 0;
+    word-break: break-word;
+}
+
+.task-chat__msg--own .task-chat__bubble {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+}
+
+.task-chat__meta {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+
+.task-chat__msg--own .task-chat__meta {
+    justify-content: flex-end;
+}
+
+.task-chat__author {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.task-chat__time {
+    font-size: 10px;
+    opacity: 0.85;
+}
+
+.task-chat__text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.task-chat__edit {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.task-chat__edit-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.task-chat__actions {
+    display: flex;
+    gap: 2px;
+    align-self: flex-start;
+    padding-top: 4px;
+}
+
+.task-chat__msg--own .task-chat__actions {
+    align-self: flex-start;
+}
+
+.task-chat__action {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-grid;
+    place-items: center;
+    transition: background .15s, color .15s;
+}
+.task-chat__action:hover {
+    background: rgba(9, 30, 66, 0.06);
+    color: var(--text);
+}
+html[data-theme="dark"] .task-chat__action:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+.task-chat__action--danger:hover {
+    background: rgba(255, 86, 48, 0.1);
+    color: var(--danger);
+}
+
+/* ============================================================
+   Composer — компактный, поле = высоте кнопки
+   ============================================================ */
+
+.task-chat__composer {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    flex-shrink: 0;
+}
+
+.task-chat__input {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    min-height: 38px;
+    max-height: 120px;
+    height: 38px;
+    resize: none;
+    font-family: inherit;
+    box-sizing: border-box;
+    border-radius: 8px;
+}
+
+.task-chat__send {
+    flex-shrink: 0;
+    padding: 0 16px;
+    height: 38px;
+    min-height: 38px;
+    font-size: 13px;
+    box-sizing: border-box;
+    border-radius: 8px;
 }

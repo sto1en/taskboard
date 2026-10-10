@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-01-user-workspace-launch-project
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: user_workspace
+                columnName: launch_project_id
+      changes:
+        - addColumn:
+            tableName: user_workspace
+            columns:
+              - column:
+                  name: launch_project_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: projects(id)
+                    foreignKeyName: fk_user_workspace_launch_project

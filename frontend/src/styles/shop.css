@@ -98,7 +98,6 @@
 }
 
 .shop__tab {
-    position: relative;
     padding: 10px 16px;
     background: transparent;
     border: none;
@@ -110,35 +109,8 @@
     cursor: pointer;
     transition: color .15s, border-color .15s;
 }
-
 .shop__tab:hover { color: var(--text); }
-
-/* Активный таб — градиентный текст + градиентное подчёркивание */
-.shop__tab--active {
-    background-color: var(--primary);
-    background-image: var(--accent-gradient, none);
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    border-bottom-color: transparent;
-}
-
-.shop__tab--active::after {
-    content: '';
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: -1px;
-    height: 2px;
-    border-radius: 1px;
-    background-color: var(--primary);
-    background-image: var(--accent-gradient, none);
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-}
+.shop__tab--active { color: var(--primary); border-bottom-color: var(--primary); }
 
 .shop__grid {
     display: grid;
@@ -162,8 +134,8 @@
     border-color: color-mix(in srgb, var(--accent, var(--primary)) 40%, var(--border));
 }
 .shop-card--active {
-    border-color: var(--success);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--success) 25%, transparent);
+    border-color: var(--accent, var(--primary));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, var(--primary)) 25%, transparent);
 }
 
 .shop-card__preview {
@@ -199,7 +171,7 @@
 .shop-card__badge {
     font-size: 11px;
     font-weight: 700;
-    color: var(--success);
+    color: var(--accent, var(--primary));
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
@@ -431,7 +403,7 @@
 .tree-skin-preview__emoji { font-size: 44px; line-height: 1; }
 
 /* ============================================================
-   Профиль: сетка выбора
+   Профиль: сетка выбора аватарок/рамок
    ============================================================ */
 
 .profile-avatar-preview {
@@ -451,6 +423,7 @@
     color: var(--text-muted);
 }
 
+/* Заголовок секции выбора */
 .profile-picker-title {
     font-size: 13px;
     font-weight: 700;
@@ -458,6 +431,35 @@
     letter-spacing: 0.5px;
     color: var(--text-muted);
     margin-bottom: 10px;
+}
+
+/* Строка заголовка + тумблер справа (для «Купленные рамки») */
+.profile-picker-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.profile-picker-title--inline {
+    margin-bottom: 0;
+}
+
+.profile-picker-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.profile-picker-toggle__label {
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .profile-picker-empty {
@@ -473,6 +475,13 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
     gap: 12px;
+    transition: opacity .15s;
+}
+
+/* Когда тумблер выключен — притушить плитки */
+.profile-picker--disabled {
+    opacity: 0.4;
+    pointer-events: none;
 }
 
 .profile-picker__item {
@@ -482,22 +491,32 @@
     justify-content: center;
     width: 100%;
     aspect-ratio: 1 / 1;
-    padding: 6px;
+    padding: 8px;
     background: var(--bg);
     border: 2px solid transparent;
     border-radius: 12px;
     cursor: pointer;
-    transition: transform .15s, border-color .15s, background .15s;
+    transition: transform .15s, border-color .15s, background .15s, box-shadow .15s;
     font-family: inherit;
+    overflow: hidden;
+    box-sizing: border-box;
 }
-.profile-picker__item:hover {
+
+.profile-picker__item:hover:not(:disabled) {
     transform: scale(1.05);
     border-color: color-mix(in srgb, var(--accent, var(--primary)) 60%, transparent);
 }
+
 .profile-picker__item--active {
-    border-color: var(--success);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--success) 30%, transparent);
+    border-color: var(--accent, var(--primary));
+    background: color-mix(in srgb, var(--accent, var(--primary)) 10%, var(--bg));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, var(--primary)) 30%, transparent);
 }
+
+.profile-picker__item:disabled {
+    cursor: not-allowed;
+}
+
 .profile-picker__item--locked { opacity: 0.65; }
 
 .profile-picker__emoji {
@@ -521,6 +540,7 @@
     box-shadow: var(--shadow-sm);
 }
 
+/* Круглая плитка рамки — прозрачная заливка внутри, видна только рамка (box-shadow) */
 .profile-picker__frame {
     display: inline-flex;
     align-items: center;
@@ -528,14 +548,13 @@
     width: 52px;
     height: 52px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent, var(--primary)), var(--primary-hover));
+    background: transparent;
     box-sizing: border-box;
+    flex-shrink: 0;
 }
 
 .profile-picker__frame-inner {
-    font-size: 16px;
-    font-weight: 800;
-    color: #fff;
+    display: none;
 }
 
 .taskboard-logo {

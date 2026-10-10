@@ -33,6 +33,10 @@ public class TaskShortDto {
     private List<TaskShortDto> subtasks;
     private List<TagShortDto> tags;
 
+    // Авторы / редакторы
+    private UserShortDto startedBy;
+    private UserShortDto lastEditedBy;
+
     // Повторения
     private Boolean isRecurrenceInstance;
     private Long recurrenceParentId;

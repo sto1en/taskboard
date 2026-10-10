@@ -1,0 +1,43 @@
+databaseChangeLog:
+  - changeSet:
+      id: 015-01-task-audit-logs
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: task_audit_logs }
+      changes:
+        - createTable:
+            tableName: task_audit_logs
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: task_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: tasks(id)
+                    foreignKeyName: fk_task_audit_task
+                    deleteCascade: true
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: users(id)
+                    foreignKeyName: fk_task_audit_user
+              - column: { name: action,      type: VARCHAR(40),  constraints: { nullable: false } }
+              - column: { name: field,       type: VARCHAR(60),  constraints: { nullable: true } }
+              - column: { name: old_value,   type: TEXT,         constraints: { nullable: true } }
+              - column: { name: new_value,   type: TEXT,         constraints: { nullable: true } }
+              - column: { name: created_at,  type: TIMESTAMP,    constraints: { nullable: false } }
+        - createIndex:
+            tableName: task_audit_logs
+            indexName: idx_task_audit_task
+            columns:
+              - column: { name: task_id }
+              - column: { name: created_at }

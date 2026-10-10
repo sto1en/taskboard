@@ -2,6 +2,7 @@ package coursework.taskboard.model.task;
 
 import coursework.taskboard.model.project.Project;
 import coursework.taskboard.model.stage.Stage;
+import coursework.taskboard.model.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -54,6 +55,21 @@ public class Task {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    // ============================================================
+    // Авторы / редакторы
+    // ============================================================
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "started_by_id")
+    private User startedBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "last_edited_by_id")
+    private User lastEditedBy;
+
+    @Column(name = "last_edited_at")
+    private LocalDateTime lastEditedAt;
 
     // ============================================================
     // Повторения

@@ -94,6 +94,12 @@ export const MESSAGES = {
         tasksPerPage: 'Задач на странице',
         confirmDelete: 'Спрашивать подтверждение перед удалением',
 
+        // Workspace: launch behaviour + calendar default project
+        launchToggle: 'Открывать доску при запуске',
+        launchProject: 'Стартовый проект',
+        openWholeBoard: '— Открыть всю доску —',
+        defaultProject: 'Проект для новых задач из календаря',
+
         taskSort: 'Сортировка задач',
         sortManual: 'Ручная',
         sortByStatus: 'По статусу',
@@ -330,7 +336,7 @@ export const MESSAGES = {
         nothingFound: 'Ничего не найдено',
         noTasks: 'Нет задач',
 
-        // Default statuses (fallback if backend sends ru)
+        // Default statuses
         defaultStatusInProgress: 'В процессе',
         defaultStatusDone: 'Выполнено',
         defaultStatusOverdue: 'Просрочено',
@@ -420,6 +426,12 @@ export const MESSAGES = {
         notSelected: '— Not selected —',
         tasksPerPage: 'Tasks per page',
         confirmDelete: 'Ask confirmation before delete',
+
+        // Workspace: launch behaviour + calendar default project
+        launchToggle: 'Open a board on launch',
+        launchProject: 'Launch project',
+        openWholeBoard: '— Open whole board —',
+        defaultProject: 'Project for new tasks from calendar',
 
         taskSort: 'Task sorting',
         sortManual: 'Manual',

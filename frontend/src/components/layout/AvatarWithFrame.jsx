@@ -5,38 +5,49 @@ export default function AvatarWithFrame({
                                             frame,
                                             displayName,
                                             username,
-                                            size = 36,
+                                            size,
                                             className = '',
                                         }) {
     const initial = (displayName || username || 'U').charAt(0).toUpperCase()
-    const imageUrl = avatar?.imageUrl
+    const code = avatar?.code
     const emoji = avatar?.emoji
-    const code = avatar?.code || 'default'
+    const imageUrl = avatar?.imageUrl
+
     const frameCssClass = frame?.cssClass || ''
 
-    const svgNode = SvgAvatar({ code })
+    const svgNode = code ? SvgAvatar({ code }) : null
+
+    const outerStyle = size
+        ? { width: size, height: size }
+        : undefined
+
+    let content = null
+
+    if (svgNode) {
+        content = svgNode
+    } else if (emoji) {
+        content = <span className="avatar-frame__emoji">{emoji}</span>
+    } else if (imageUrl) {
+        content = (
+            <img
+                src={imageUrl}
+                alt={displayName || username}
+                className={`avatar-frame__img avatar-frame__img--${code || 'default'}`}
+                draggable={false}
+            />
+        )
+    } else {
+        content = <span className="avatar-frame__initial">{initial}</span>
+    }
 
     return (
         <div
             className={`avatar-frame ${frameCssClass} ${className}`}
-            style={{ width: size, height: size }}
+            style={outerStyle}
             title={displayName || username}
         >
             <div className="avatar-frame__inner">
-                {svgNode ? (
-                    svgNode
-                ) : imageUrl ? (
-                    <img
-                        src={imageUrl}
-                        alt={displayName || username}
-                        className={`avatar-frame__img avatar-frame__img--${code}`}
-                        draggable={false}
-                    />
-                ) : emoji ? (
-                    <span className="avatar-frame__emoji">{emoji}</span>
-                ) : (
-                    <span className="avatar-frame__initial">{initial}</span>
-                )}
+                {content}
             </div>
         </div>
     )

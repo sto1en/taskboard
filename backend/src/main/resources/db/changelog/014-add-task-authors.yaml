@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: 014-01-task-authors
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: tasks
+                columnName: started_by_id
+      changes:
+        - addColumn:
+            tableName: tasks
+            columns:
+              - column:
+                  name: started_by_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: users(id)
+                    foreignKeyName: fk_tasks_started_by
+              - column:
+                  name: last_edited_by_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: users(id)
+                    foreignKeyName: fk_tasks_last_edited_by
+              - column:
+                  name: last_edited_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true

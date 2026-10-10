@@ -3,6 +3,7 @@ package coursework.taskboard.controller;
 import coursework.taskboard.dto.task.*;
 import coursework.taskboard.model.user.User;
 import coursework.taskboard.service.auth.CurrentUserService;
+import coursework.taskboard.service.task.TaskAuditService;
 import coursework.taskboard.service.task.TaskService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import java.util.List;
 public class TaskController {
 
     private final TaskService taskService;
+    private final TaskAuditService taskAuditService;
     private final CurrentUserService currentUserService;
 
     @GetMapping("/projects/{projectId}/tasks")
@@ -38,6 +40,13 @@ public class TaskController {
     public ResponseEntity<TaskDto> get(@PathVariable Long id) {
         User user = currentUserService.getCurrentUser();
         return ResponseEntity.ok(taskService.getTask(id, user));
+    }
+
+    @GetMapping("/tasks/{id}/history")
+    public ResponseEntity<List<TaskAuditLogDto>> history(@PathVariable Long id) {
+        User user = currentUserService.getCurrentUser();
+        taskService.getTask(id, user); // проверка доступа
+        return ResponseEntity.ok(taskAuditService.list(id));
     }
 
     @PostMapping("/projects/{projectId}/tasks")

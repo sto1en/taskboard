@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { userApi, boardsApi, shopApi } from '../api/api'
+import { userApi, boardsApi, shopApi, projectsApi } from '../api/api'
 import useT from '../hooks/useT'
 import AccentDot from '../components/shop/AccentDot'
+import HelpTip from '../components/common/HelpTip'
+import { SvgAvatar } from '../components/Layout/SvgAvatars'
 
 const RUSSIAN_TIMEZONES = [
     { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
@@ -44,9 +46,51 @@ const DEFAULT_APPEARANCE = {
     treeKind: 'sakura',
 }
 const DEFAULT_LOCALE = { language: 'ru', timezone: 'Europe/Moscow' }
-const DEFAULT_WORKSPACE = { defaultBoardId: null, tasksPerPage: 50, confirmBeforeDelete: true }
+const DEFAULT_WORKSPACE = {
+    defaultBoardId: null,
+    launchProjectId: null,
+    defaultProjectId: null,
+    tasksPerPage: 50,
+    confirmBeforeDelete: true,
+}
 const DEFAULT_DISPLAY = { taskSortMode: 'manual', taskSortDir: 'asc', projectViewMode: 'kanban' }
 const DEFAULT_NOTIFICATION = { notifyEmail: true, notifyDeadline: true, notifyDigest: 'daily', remindBeforeDays: 1 }
+
+const BASE_ACCENTS = [
+    { id: 'base-blue', code: 'blue', title: 'Синий' },
+]
+
+function AvatarVisual({ avatar, displayName, username }) {
+    const code = avatar?.code
+    const svgNode = code ? SvgAvatar({ code }) : null
+    const initial = (displayName || username || 'U').charAt(0).toUpperCase()
+
+    if (svgNode) {
+        return <span className="profile-picker__svg">{svgNode}</span>
+    }
+    if (avatar?.imageUrl) {
+        return (
+            <img
+                src={avatar.imageUrl}
+                alt={avatar.title || ''}
+                className="profile-picker__img"
+                draggable={false}
+            />
+        )
+    }
+    if (avatar?.emoji) {
+        return <span className="profile-picker__emoji">{avatar.emoji}</span>
+    }
+    return <span className="profile-picker__emoji">{initial}</span>
+}
+
+/**
+ * Рамка считается «валидной» для отображения, если у неё есть cssClass.
+ * Пустые рамки (без класса) не показываем и не даём выбрать.
+ */
+function isRenderableFrame(f) {
+    return !!f?.cssClass
+}
 
 export default function ProfilePage() {
     const { user, updateUser } = useAuth()
@@ -74,11 +118,17 @@ export default function ProfilePage() {
     const [localeForm, setLocaleForm] = useState(DEFAULT_LOCALE)
     const [workspaceForm, setWorkspaceForm] = useState(DEFAULT_WORKSPACE)
     const [boards, setBoards] = useState([])
+    const [projectsOfDefaultBoard, setProjectsOfDefaultBoard] = useState([])
+    const [allProjects, setAllProjects] = useState([])
     const [displayForm, setDisplayForm] = useState(DEFAULT_DISPLAY)
     const [notificationForm, setNotificationForm] = useState(DEFAULT_NOTIFICATION)
 
     const [pendingAccentId, setPendingAccentId] = useState(null)
     const [shop, setShop] = useState(null)
+
+    // Состояние тумблера «Включить рамку» + ID последней выбранной рамки
+    const [frameEnabled, setFrameEnabled] = useState(false)
+    const [lastFrameId, setLastFrameId] = useState(null)
 
     useEffect(() => {
         if (!user) return
@@ -98,8 +148,51 @@ export default function ProfilePage() {
         boardsApi.list().then(({ data }) => setBoards(data))
     }, [user])
 
+    useEffect(() => {
+        if (!boards.length) {
+            setAllProjects([])
+            return
+        }
+        Promise.all(
+            boards.map(b =>
+                projectsApi.listByBoard(b.id)
+                    .then(({ data }) => data.map(p => ({
+                        ...p,
+                        boardId: b.id,
+                        boardTitle: b.title,
+                    })))
+                    .catch(() => [])
+            )
+        ).then(arrays => {
+            setAllProjects(arrays.flat())
+        })
+    }, [boards])
+
+    useEffect(() => {
+        const bid = workspaceForm.defaultBoardId
+        if (!bid) {
+            setProjectsOfDefaultBoard([])
+            return
+        }
+        projectsApi.listByBoard(bid)
+            .then(({ data }) => setProjectsOfDefaultBoard(data))
+            .catch(() => setProjectsOfDefaultBoard([]))
+    }, [workspaceForm.defaultBoardId])
+
     const loadShop = () => {
-        shopApi.get().then(({ data }) => setShop(data)).catch(() => setShop(null))
+        shopApi.get().then(({ data }) => {
+            setShop(data)
+
+            // синхронизируем состояние тумблера и «последней выбранной» с бэком
+            const active = (data?.frames || []).find(f => f.active && isRenderableFrame(f))
+            if (active) {
+                setFrameEnabled(true)
+                setLastFrameId(active.id)
+            } else {
+                setFrameEnabled(false)
+                // lastFrameId НЕ сбрасываем — чтобы пользователь мог включить обратно
+            }
+        }).catch(() => setShop(null))
     }
     useEffect(() => { loadShop() }, [])
 
@@ -116,7 +209,7 @@ export default function ProfilePage() {
 
     const saveAppearance = async () => {
         try {
-            if (pendingAccentId) {
+            if (pendingAccentId && !String(pendingAccentId).startsWith('base-')) {
                 const owned = shop?.accents?.find(a => a.id === pendingAccentId && a.owned)
                 if (!owned) await shopApi.buyAccent(pendingAccentId)
                 await shopApi.equipAccent(pendingAccentId)
@@ -124,6 +217,8 @@ export default function ProfilePage() {
                 loadShop()
                 window.dispatchEvent(new Event('shop:refresh'))
                 window.dispatchEvent(new Event('user:refresh'))
+            } else if (pendingAccentId && String(pendingAccentId).startsWith('base-')) {
+                setPendingAccentId(null)
             }
 
             const { accentCode, ...rest } = appearanceForm
@@ -140,13 +235,21 @@ export default function ProfilePage() {
             flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
+
     const saveWorkspace = async () => {
         try {
-            const { data } = await userApi.updateWorkspace(workspaceForm)
+            const payload = {
+                ...workspaceForm,
+                clearDefaultBoard: !workspaceForm.defaultBoardId,
+                clearLaunchProject: !workspaceForm.launchProjectId,
+                clearDefaultProject: !workspaceForm.defaultProjectId,
+            }
+            const { data } = await userApi.updateWorkspace(payload)
             updateUser({ workspace: data })
             flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
+
     const saveDisplay = async () => {
         try {
             const { data } = await userApi.updateDisplay(displayForm)
@@ -179,10 +282,58 @@ export default function ProfilePage() {
             const owned = shop?.frames?.find(f => f.id === frameId && f.owned)
             if (!owned) await shopApi.buyFrame(frameId)
             await shopApi.equipFrame(frameId)
+            setFrameEnabled(true)
+            setLastFrameId(frameId)
             loadShop()
             window.dispatchEvent(new Event('shop:refresh'))
             window.dispatchEvent(new Event('user:refresh'))
             flash('Сохранено')
+        } catch (e) { flashErr(e) }
+    }
+
+    /**
+     * Тумблер «Включить рамку»:
+     *  - выключение: unequipFrame + запомнить последнюю активную рамку.
+     *  - включение: если есть lastFrameId — надеть её; если её нет — взять
+     *    текущую активную или первую купленную. Если вообще ничего нет — ничего не делать.
+     */
+    const toggleFramesEnabled = async () => {
+        try {
+            if (frameEnabled) {
+                // Запоминаем текущую активную, чтобы вернуть при следующем включении
+                const currentActive = (shop?.frames || []).find(
+                    f => f.active && isRenderableFrame(f)
+                )
+                if (currentActive) setLastFrameId(currentActive.id)
+
+                await shopApi.unequipFrame()
+                setFrameEnabled(false)
+            } else {
+                // Целевая рамка: lastFrameId → текущая активная → первая купленная (fallback)
+                const currentActive = (shop?.frames || []).find(
+                    f => f.active && isRenderableFrame(f)
+                )
+                const owned = (shop?.frames || []).filter(
+                    f => f.owned && isRenderableFrame(f)
+                )
+                const targetId =
+                    lastFrameId
+                    || currentActive?.id
+                    || owned[0]?.id
+                    || null
+
+                if (!targetId) return
+
+                await shopApi.equipFrame(targetId)
+                setFrameEnabled(true)
+                setLastFrameId(targetId)
+            }
+
+            // Обновляем shop, но НЕ трогаем frameEnabled из ответа — состояние уже верное
+            const { data } = await shopApi.get()
+            setShop(data)
+            window.dispatchEvent(new Event('shop:refresh'))
+            window.dispatchEvent(new Event('user:refresh'))
         } catch (e) { flashErr(e) }
     }
 
@@ -203,10 +354,27 @@ export default function ProfilePage() {
     ]
 
     const activeAvatar = shop?.avatars?.find(a => a.active) || null
-    const activeFrame = shop?.frames?.find(f => f.active) || null
+    const activeFrame = shop?.frames?.find(f => f.active && isRenderableFrame(f)) || null
 
-    const activeAccentId = pendingAccentId
-        || shop?.accents?.find(a => a.active)?.id
+    // Показываем только «валидные» рамки (с cssClass)
+    const ownedFrames = useMemo(
+        () => (shop?.frames || []).filter(f => f.owned && isRenderableFrame(f)),
+        [shop]
+    )
+
+    const ownedAccents = (shop?.accents || []).filter(a => a.owned)
+    const ownedAccentCodes = new Set(ownedAccents.map(a => a.code))
+
+    const accentList = [
+        ...BASE_ACCENTS.filter(b => !ownedAccentCodes.has(b.code)),
+        ...ownedAccents,
+    ]
+
+    const currentAccentCode = appearanceForm.accentCode
+    const currentAccent = accentList.find(a => a.code === currentAccentCode)
+    const currentAccentId = pendingAccentId
+        || currentAccent?.id
+        || ownedAccents.find(a => a.active)?.id
         || null
 
     return (
@@ -233,12 +401,12 @@ export default function ProfilePage() {
                     <div className="profile-avatar-preview">
                         <div className={`avatar-frame ${activeFrame?.cssClass || ''}`}
                              style={{ width: 96, height: 96 }}>
-                            <div className={`avatar-frame__inner ${activeAvatar?.cssClass || ''}`}>
-                                {activeAvatar?.emoji
-                                    ? <span className="avatar-frame__emoji">{activeAvatar.emoji}</span>
-                                    : <span className="avatar-frame__initial">
-                                        {(user.profile?.displayName || user.username).charAt(0).toUpperCase()}
-                                      </span>}
+                            <div className="avatar-frame__inner">
+                                <AvatarVisual
+                                    avatar={activeAvatar}
+                                    displayName={user.profile?.displayName}
+                                    username={user.username}
+                                />
                             </div>
                         </div>
                         <div className="profile-avatar-preview__hint">
@@ -269,34 +437,64 @@ export default function ProfilePage() {
                                                 onClick={() => applyAvatar(a.id)}
                                                 title={a.title}
                                             >
-                                                <span className="profile-picker__emoji">{a.emoji || '👤'}</span>
+                                                <AvatarVisual
+                                                    avatar={a}
+                                                    displayName={user.profile?.displayName}
+                                                    username={user.username}
+                                                />
                                             </button>
                                         )
                                     })}
                                 </div>
                             )}
 
-                            <div className="profile-picker-title" style={{ marginTop: 20 }}>
-                                Купленные рамки
+                            {/* ── Заголовок «Купленные рамки» + тумблер справа ── */}
+                            <div className="profile-picker-title-row">
+                                <div className="profile-picker-title profile-picker-title--inline">
+                                    Купленные рамки
+                                </div>
+                                {ownedFrames.length > 0 && (
+                                    <div className="profile-picker-toggle">
+                                        <span
+                                            className="profile-picker-toggle__label"
+                                            onClick={toggleFramesEnabled}
+                                        >
+                                            Включить рамку
+                                        </span>
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={frameEnabled}
+                                            className={`toggle ${frameEnabled ? 'toggle--on' : ''}`}
+                                            onClick={(e) => {
+                                                e.preventDefault()
+                                                e.stopPropagation()
+                                                toggleFramesEnabled()
+                                            }}
+                                        >
+                                            <span className="toggle__thumb" />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                            {shop.frames.filter(f => f.owned).length === 0 ? (
+
+                            {ownedFrames.length === 0 ? (
                                 <div className="profile-picker-empty">
                                     Пока нет купленных рамок. Откройте магазин, чтобы выбрать.
                                 </div>
                             ) : (
-                                <div className="profile-picker">
-                                    {shop.frames.filter(f => f.owned).map(f => {
-                                        const isActive = f.active
+                                <div className={`profile-picker ${!frameEnabled ? 'profile-picker--disabled' : ''}`}>
+                                    {ownedFrames.map(f => {
+                                        const isActive = frameEnabled && f.active
                                         return (
                                             <button
                                                 key={f.id}
                                                 className={`profile-picker__item ${isActive ? 'profile-picker__item--active' : ''}`}
                                                 onClick={() => applyFrame(f.id)}
                                                 title={f.title}
+                                                disabled={!frameEnabled}
                                             >
-                                                <span className={`profile-picker__frame ${f.cssClass || ''}`}>
-                                                    <span className="profile-picker__frame-inner">Т</span>
-                                                </span>
+                                                <span className={`profile-picker__frame ${f.cssClass || ''}`} />
                                             </button>
                                         )
                                     })}
@@ -355,27 +553,22 @@ export default function ProfilePage() {
 
                         {!shop ? (
                             <div className="profile-picker-empty">Загрузка…</div>
-                        ) : (shop.accents || []).filter(a => a.owned).length === 0 ? (
+                        ) : accentList.length === 0 ? (
                             <div className="profile-picker-empty">
-                                Пока нет купленных акцентов. Откройте магазин, чтобы выбрать.
-                                <div style={{ marginTop: 8 }}>
-                                    <Link to="/shop" className="btn btn-ghost">Перейти в магазин</Link>
-                                </div>
+                                Нет доступных акцентов.
                             </div>
                         ) : (
                             <div className="accent-picker">
-                                {(shop.accents || [])
-                                    .filter(a => a.owned)
-                                    .map(a => (
-                                        <AccentDot
-                                            key={a.id}
-                                            code={a.code}
-                                            title={a.title}
-                                            size={40}
-                                            active={activeAccentId === a.id}
-                                            onClick={() => pickAccent(a)}
-                                        />
-                                    ))}
+                                {accentList.map(a => (
+                                    <AccentDot
+                                        key={a.id}
+                                        code={a.code}
+                                        title={a.title}
+                                        size={40}
+                                        active={currentAccentId === a.id}
+                                        onClick={() => pickAccent(a)}
+                                    />
+                                ))}
                             </div>
                         )}
                     </div>
@@ -465,24 +658,114 @@ export default function ProfilePage() {
 
             {tab === 'workspace' && (
                 <div className="profile-section">
+                    <div className="profile-field profile-field--card">
+                        <div className="toggle-row">
+                            <span className="toggle-row__label">
+                                {t.launchToggle || 'Открывать доску при запуске'}
+                                <HelpTip text="Если включено — при входе на сайт откроется выбранная доска (или конкретный проект). Иначе — календарь." />
+                            </span>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={!!workspaceForm.defaultBoardId}
+                                className={`toggle ${workspaceForm.defaultBoardId ? 'toggle--on' : ''}`}
+                                onClick={() => {
+                                    if (workspaceForm.defaultBoardId) {
+                                        setWorkspaceForm(f => ({
+                                            ...f,
+                                            defaultBoardId: null,
+                                            launchProjectId: null,
+                                        }))
+                                    } else {
+                                        const firstBoardId = boards[0]?.id || null
+                                        setWorkspaceForm(f => ({
+                                            ...f,
+                                            defaultBoardId: firstBoardId,
+                                            launchProjectId: null,
+                                        }))
+                                    }
+                                }}
+                            >
+                                <span className="toggle__thumb" />
+                            </button>
+                        </div>
+
+                        {workspaceForm.defaultBoardId && (
+                            <div className="profile-field--card-body">
+                                <div className="profile-field">
+                                    <label className="profile-field__label-row">
+                                        <span>{t.defaultBoard || 'Доска по умолчанию'}</span>
+                                    </label>
+                                    <select
+                                        className="input"
+                                        value={workspaceForm.defaultBoardId || ''}
+                                        onChange={(e) => {
+                                            const v = e.target.value ? Number(e.target.value) : null
+                                            setWorkspaceForm(f => ({
+                                                ...f,
+                                                defaultBoardId: v,
+                                                launchProjectId: null,
+                                            }))
+                                        }}
+                                    >
+                                        {boards.map(b => (
+                                            <option key={b.id} value={b.id}>{b.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="profile-field">
+                                    <label className="profile-field__label-row">
+                                        <span>{t.launchProject || 'Стартовый проект'}</span>
+                                        <HelpTip text="Если выбрать — при запуске откроется именно этот проект. Если оставить пусто — откроется доска целиком." />
+                                    </label>
+                                    <select
+                                        className="input"
+                                        value={workspaceForm.launchProjectId || ''}
+                                        onChange={(e) => {
+                                            const v = e.target.value ? Number(e.target.value) : null
+                                            setWorkspaceForm(f => ({ ...f, launchProjectId: v }))
+                                        }}
+                                    >
+                                        <option value="">{t.openWholeBoard || '— Открыть всю доску —'}</option>
+                                        {projectsOfDefaultBoard.map(p => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.title}{p.isMain ? ' (главный)' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="profile-field">
-                        <label>{t.defaultBoard || 'Доска по умолчанию'}</label>
+                        <label className="profile-field__label-row">
+                            <span>{t.defaultProject || 'Проект для новых задач из календаря'}</span>
+                            <HelpTip text="Когда вы создаёте задачу прямо из календаря, она автоматически попадает в этот проект. Если ничего не выбрано — откроется обычное окно с выбором доски и проекта." />
+                        </label>
                         <select
                             className="input"
-                            value={workspaceForm.defaultBoardId || ''}
-                            onChange={(e) => setWorkspaceForm(f => ({
-                                ...f,
-                                defaultBoardId: e.target.value ? Number(e.target.value) : null,
-                            }))}
+                            value={workspaceForm.defaultProjectId || ''}
+                            onChange={(e) => {
+                                const v = e.target.value ? Number(e.target.value) : null
+                                setWorkspaceForm(f => ({ ...f, defaultProjectId: v }))
+                            }}
                         >
                             <option value="">{t.notSelected || '— Не выбрано —'}</option>
-                            {boards.map(b => (
-                                <option key={b.id} value={b.id}>{b.title}</option>
+                            {allProjects.map(p => (
+                                <option key={p.id} value={p.id}>
+                                    {p.boardTitle} → {p.title}{p.isMain ? ' (главный)' : ''}
+                                </option>
                             ))}
                         </select>
                     </div>
+
                     <div className="profile-field">
-                        <label>{t.tasksPerPage || 'Задач на странице'}</label>
+                        <label className="profile-field__label-row">
+                            <span>{t.tasksPerPage || 'Задач на странице'}</span>
+                            <HelpTip text="Сколько задач подгружать за один раз в списках и на канбан-доске. Влияет на скорость загрузки." />
+                        </label>
                         <input
                             className="input"
                             type="number"
@@ -492,6 +775,7 @@ export default function ProfilePage() {
                             onChange={(e) => setWorkspaceForm(f => ({ ...f, tasksPerPage: Number(e.target.value) }))}
                         />
                     </div>
+
                     <div className="profile-field profile-field--check">
                         <label>
                             <input
@@ -502,6 +786,7 @@ export default function ProfilePage() {
                             {t.confirmDelete || 'Спрашивать подтверждение перед удалением'}
                         </label>
                     </div>
+
                     <button className="btn btn-primary" onClick={saveWorkspace}>
                         {t.apply || 'Применить'}
                     </button>

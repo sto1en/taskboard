@@ -42,6 +42,15 @@ public class TaskDto {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // ============================================================
+    // Авторы / редакторы
+    // ============================================================
+
+    private UserShortDto startedBy;
+    private UserShortDto lastEditedBy;
+    private LocalDateTime lastEditedAt;
+
     // ============================================================
     // Повторения
     // ============================================================

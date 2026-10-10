@@ -242,7 +242,10 @@ html[data-theme="dark"] .topbar__search:focus {
 
 .sidebar--collapsed {
     width: 60px;
+    padding: 12px 0;
 }
+
+/* ---------- Пользователь ---------- */
 
 .sidebar__user {
     display: flex;
@@ -256,11 +259,13 @@ html[data-theme="dark"] .topbar__search:focus {
 
 .sidebar--collapsed .sidebar__user {
     flex-direction: column;
-    padding: 0 6px 12px;
-    gap: 8px;
+    padding: 0 4px 10px;
+    gap: 6px;
     min-height: unset;
+    align-items: center;
 }
 
+/* ВАЖНО: overflow: visible — иначе box-shadow рамки обрезается */
 .sidebar__user-avatar {
     display: inline-flex;
     align-items: center;
@@ -271,14 +276,34 @@ html[data-theme="dark"] .topbar__search:focus {
     border-radius: 50%;
     width: 56px;
     height: 56px;
+    /* место под рамку снаружи круга */
+    margin: 5px;
+    overflow: visible;
+    position: relative;
+    z-index: 1;
 }
+
 .sidebar__user-avatar:hover {
     text-decoration: none;
     transform: scale(1.05);
 }
+
+/* Свёрнутый сайдбар — аватарка 36×36 */
 .sidebar--collapsed .sidebar__user-avatar {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
+    margin: 6px;
+}
+
+/* В свёрнутом режиме у аватарки отключаем hover-скейл */
+.sidebar--collapsed .sidebar__user-avatar:hover {
+    transform: none;
+}
+
+/* Внутренний .avatar-frame в сайдбаре — 100% от родителя */
+.sidebar__user-avatar .avatar-frame {
+    width: 100%;
+    height: 100%;
 }
 
 .sidebar__name {
@@ -319,6 +344,15 @@ html[data-theme="dark"] .topbar__search:focus {
 html[data-theme="dark"] .sidebar__icon-btn {
     background: rgba(255, 255, 255, 0.06);
 }
+
+/* В свёрнутом режиме кнопка сворачивания тоже меньше */
+.sidebar--collapsed .sidebar__icon-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+}
+
+/* ---------- Навигация ---------- */
 
 .sidebar__nav {
     flex: 1;
@@ -400,11 +434,10 @@ html[data-theme="dark"] .sidebar__icon-btn {
     text-decoration: none;
 }
 
-/* Активный пункт — мягкая подсветка + градиентный текст */
+/* Активный пункт — мягкая подсветка + тонкая градиентная полоска слева */
 .sidebar__sublink.active {
-    background: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
     background-color: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
-    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+    background-image: var(--accent-gradient);
     background-size: 4px 100%;
     background-position: left center;
     background-repeat: no-repeat;
@@ -413,7 +446,6 @@ html[data-theme="dark"] .sidebar__icon-btn {
 }
 html[data-theme="dark"] .sidebar__sublink.active {
     background-color: color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
-    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
 }
 
 .sidebar__pinned-board { display: flex; flex-direction: column; margin-bottom: 2px; }
@@ -475,7 +507,7 @@ html[data-theme="dark"] .sidebar__sublink.active {
     width: 3px;
     border-radius: 0 2px 2px 0;
     background-color: var(--primary);
-    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+    background-image: var(--accent-gradient);
     background-size: 100% 100%;
     background-repeat: no-repeat;
     pointer-events: none;
@@ -494,6 +526,8 @@ html[data-theme="dark"] .sidebar__sublink.active {
 }
 
 .sidebar__divider { height: 1px; background: var(--border); margin: 8px 12px; }
+
+/* ---------- Низ сайдбара ---------- */
 
 .sidebar__bottom {
     padding: 8px;
