@@ -13,6 +13,44 @@
 
 /* ---------- Шапка ---------- */
 
+.calendar__coop-tabs {
+    display: inline-flex;
+    align-self: center;
+    gap: 4px;
+    padding: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.calendar__coop-tab {
+    padding: 8px 18px;
+    background: transparent;
+    border: none;
+    border-radius: 9px;
+    color: var(--text-muted, var(--text));
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+}
+
+.calendar__coop-tab:hover {
+    color: var(--text);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+}
+
+.calendar__coop-tab--active {
+    background: var(--accent, var(--primary));
+    color: #fff;
+}
+
+.calendar__coop-tab--active:hover {
+    background: var(--accent, var(--primary));
+    color: #fff;
+}
+
 .calendar__head {
     display: grid;
     grid-template-columns: auto 1fr auto;

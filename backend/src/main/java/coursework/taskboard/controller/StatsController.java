@@ -37,8 +37,9 @@ public class StatsController {
     @GetMapping("/daily-load")
     public ResponseEntity<List<DailyLoadDto>> dailyLoad(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Boolean coop) {
         User user = currentUserService.getCurrentUser();
-        return ResponseEntity.ok(statsService.getDailyLoad(from, to, user));
+        return ResponseEntity.ok(statsService.getDailyLoad(from, to, user, coop));
     }
 }

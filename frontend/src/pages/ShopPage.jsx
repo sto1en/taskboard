@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { shopApi, adminApi } from '../api/api'
 import useT from '../hooks/useT'
+import { useAuth } from '../context/AuthContext'
 import AvatarCard from '../components/Shop/AvatarCard'
 import FrameCard from '../components/Shop/FrameCard'
 import TreeSkinCard from '../components/Shop/TreeSkinCard'
@@ -19,6 +20,7 @@ const asArray = (v) => (Array.isArray(v) ? v : [])
 
 export default function ShopPage() {
     const t = useT()
+    const { user } = useAuth()
     const [tab, setTab] = useState('avatars')
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -162,6 +164,9 @@ export default function ShopPage() {
     const treeSkins = asArray(data?.treeSkins)
     const accents   = asArray(data?.accents)
 
+    const activeAvatar = avatars.find(a => a.active) || null
+    const userDisplayName = user?.profile?.displayName || user?.username
+
     return (
         <div className="shop">
             <div className="shop__head">
@@ -262,6 +267,9 @@ export default function ShopPage() {
                                 <FrameCard
                                     key={f.id}
                                     item={f}
+                                    userAvatar={activeAvatar}
+                                    userDisplayName={userDisplayName}
+                                    userUsername={user?.username}
                                     onBuy={() => wrap(() => shopApi.buyFrame(f.id))}
                                     onEquip={() => wrap(() => shopApi.equipFrame(f.id))}
                                     onUnequip={() => wrap(() => shopApi.unequipFrame())}

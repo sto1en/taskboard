@@ -6,6 +6,7 @@ import useT from '../hooks/useT'
 import AccentDot from '../components/shop/AccentDot'
 import HelpTip from '../components/common/HelpTip'
 import { SvgAvatar } from '../components/Layout/SvgAvatars'
+import { resolveUrl } from '../utils/format'
 
 const RUSSIAN_TIMEZONES = [
     { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
@@ -84,7 +85,7 @@ function AvatarVisual({ avatar, displayName, username }) {
     if (avatar?.imageUrl) {
         return (
             <img
-                src={avatar.imageUrl}
+                src={resolveUrl(avatar.imageUrl)}
                 alt={avatar.title || ''}
                 className="profile-picker__img"
                 draggable={false}

@@ -11,6 +11,7 @@ import coursework.taskboard.model.task.TaskSchedule;
 import coursework.taskboard.model.task.TaskSettings;
 import coursework.taskboard.model.user.User;
 import coursework.taskboard.repository.attachment.AttachmentMetaRepository;
+import coursework.taskboard.repository.board.BoardMemberRepository;
 import coursework.taskboard.repository.board.BoardRepository;
 import coursework.taskboard.repository.board.BoardStatusAppearanceRepository;
 import coursework.taskboard.repository.project.ProjectRepository;
@@ -35,6 +36,7 @@ public class CalendarService {
     private final TaskSettingsRepository taskSettingsRepository;
     private final BoardStatusAppearanceRepository boardStatusAppearanceRepository;
     private final BoardRepository boardRepository;
+    private final BoardMemberRepository boardMemberRepository;
     private final ProjectRepository projectRepository;
     private final TaskAttachmentRepository taskAttachmentRepository;
     private final AttachmentMetaRepository attachmentMetaRepository;
@@ -58,6 +60,9 @@ public class CalendarService {
 
         Map<LocalDate, List<CalendarTaskDto>> byDate = new TreeMap<>();
 
+        // Кеш: boardId -> есть ли в доске другие участники (кооп)
+        Map<Long, Boolean> coopByBoard = new HashMap<>();
+
         for (TaskSchedule schedule : schedules) {
             if (schedule.getDeadline() == null) continue;
 
@@ -65,6 +70,12 @@ public class CalendarService {
 
             Task task = schedule.getTask();
             TaskSettings settings = taskSettingsRepository.findById(task.getId()).orElse(null);
+
+            Long boardId = task.getProject().getBoard() != null
+                    ? task.getProject().getBoard().getId() : null;
+            boolean coop = boardId != null
+                    && coopByBoard.computeIfAbsent(boardId,
+                        id -> boardMemberRepository.countByBoardId(id) > 0);
 
             BoardStatusAppearance appearance = null;
             if (settings != null && settings.getStatus() != null) {
@@ -92,6 +103,8 @@ public class CalendarService {
                     .title(task.getTitle())
                     .projectId(task.getProject().getId())
                     .projectTitle(task.getProject().getTitle())
+                    .boardId(boardId)
+                    .coop(coop)
                     .statusCode(settings != null && settings.getStatus() != null
                             ? settings.getStatus().getCode() : null)
                     .statusTitle(settings != null && settings.getStatus() != null

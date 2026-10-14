@@ -1,4 +1,5 @@
 import { resolveUrl } from '../../utils/format'
+import AvatarWithFrame from '../layout/AvatarWithFrame'
 
 const NEW_DAYS = 7
 
@@ -12,7 +13,7 @@ function hasDiscount(price, oldPrice) {
     return oldPrice != null && oldPrice > price
 }
 
-export default function FrameCard({ item, onBuy, onEquip, onUnequip }) {
+export default function FrameCard({ item, onBuy, onEquip, onUnequip, userAvatar, userDisplayName, userUsername }) {
     const owned = item.owned
     const active = item.active
 
@@ -44,14 +45,13 @@ export default function FrameCard({ item, onBuy, onEquip, onUnequip }) {
                         draggable={false}
                     />
                 ) : (
-                    <div
-                        className={`avatar-frame ${item.cssClass || ''}`}
-                        style={{ width: 80, height: 80 }}
-                    >
-                        <div className="avatar-frame__inner">
-                            <span className="avatar-frame__initial">Т</span>
-                        </div>
-                    </div>
+                    <AvatarWithFrame
+                        avatar={userAvatar}
+                        frame={{ cssClass: item.cssClass || '' }}
+                        displayName={userDisplayName}
+                        username={userUsername}
+                        size={80}
+                    />
                 )}
             </div>
 

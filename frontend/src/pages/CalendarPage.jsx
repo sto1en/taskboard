@@ -51,6 +51,8 @@ export default function CalendarPage() {
 
     const [boards, setBoards] = useState([])
 
+    const [coopFilter, setCoopFilter] = useState('all') // 'all' | 'coop' | 'own'
+
     const [openDay, setOpenDay] = useState(null)
     const [createDate, setCreateDate] = useState(null)
     const [openTaskId, setOpenTaskId] = useState(null)
@@ -108,9 +110,11 @@ export default function CalendarPage() {
 
         if (!silent) setLoading(true)
 
+        const coopParam = coopFilter === 'all' ? undefined : coopFilter === 'coop'
+
         Promise.all([
             calendarApi.get(from, to),
-            statsApi.dailyLoad(from, to),
+            statsApi.dailyLoad(from, to, coopParam),
         ])
             .then(([calRes, loadRes]) => {
                 const map = {}
@@ -136,14 +140,14 @@ export default function CalendarPage() {
     }
 
     // eslint-disable-next-line
-    useEffect(() => reloadCalendar(), [year, month])
+    useEffect(() => reloadCalendar(), [year, month, coopFilter])
 
     useEffect(() => {
         const onRefresh = () => reloadCalendar({ silent: true })
         window.addEventListener('tasks:refresh', onRefresh)
         return () => window.removeEventListener('tasks:refresh', onRefresh)
         // eslint-disable-next-line
-    }, [year, month])
+    }, [year, month, coopFilter])
 
     useEffect(() => {
         const handler = (e) => {
@@ -427,8 +431,14 @@ export default function CalendarPage() {
         },
     ])
 
+    const matchesCoopFilter = (task) => {
+        if (coopFilter === 'all') return true
+        if (coopFilter === 'coop') return !!task.coop
+        return !task.coop
+    }
+
     const dayTasksForModal = openDay
-        ? (tasksByDay[Number(openDay.split('-')[2])] || [])
+        ? (tasksByDay[Number(openDay.split('-')[2])] || []).filter(matchesCoopFilter)
         : []
 
     return (
@@ -464,6 +474,23 @@ export default function CalendarPage() {
                 <button className="calendar__nav-btn" onClick={nextMonth} aria-label="Следующий месяц">›</button>
             </div>
 
+            <div className="calendar__coop-tabs">
+                {[
+                    ['all', 'Все'],
+                    ['coop', 'Кооп'],
+                    ['own', 'Собственные'],
+                ].map(([code, label]) => (
+                    <button
+                        key={code}
+                        type="button"
+                        className={`calendar__coop-tab ${coopFilter === code ? 'calendar__coop-tab--active' : ''}`}
+                        onClick={() => setCoopFilter(code)}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
+
             {loading ? (
                 <div className="calendar__loading">{t.loading}</div>
             ) : (
@@ -482,7 +509,9 @@ export default function CalendarPage() {
                             && month === today.getMonth()
                             && year === today.getFullYear()
                         const isWeekend = (i % 7) >= 5
-                        const dayTasksRaw = day ? (tasksByDay[day] || []) : []
+                        const dayTasksRaw = day
+                            ? (tasksByDay[day] || []).filter(matchesCoopFilter)
+                            : []
 
                         const active = dayTasksRaw.filter(x => !isDoneCategory(x.statusCategoryCode))
                         const done = dayTasksRaw.filter(x => isDoneCategory(x.statusCategoryCode))

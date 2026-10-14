@@ -58,7 +58,7 @@ public class StatsService {
         List<TopTagDto> topTags = buildTopTags(user);
 
         // Нагрузка — за диапазон from..to
-        List<DailyLoadDto> dailyLoad = buildDailyLoad(user, from, to);
+        List<DailyLoadDto> dailyLoad = buildDailyLoad(user, from, to, null);
 
         return StatsOverviewDto.builder()
                 .period(period)
@@ -80,7 +80,12 @@ public class StatsService {
     // ============================================================
     @Transactional(readOnly = true)
     public List<DailyLoadDto> getDailyLoad(LocalDate from, LocalDate to, User user) {
-        return buildDailyLoad(user, from.atStartOfDay(), to.plusDays(1).atStartOfDay());
+        return getDailyLoad(from, to, user, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DailyLoadDto> getDailyLoad(LocalDate from, LocalDate to, User user, Boolean coop) {
+        return buildDailyLoad(user, from.atStartOfDay(), to.plusDays(1).atStartOfDay(), coop);
     }
 
     // ============================================================
@@ -148,8 +153,8 @@ public class StatsService {
         return result;
     }
 
-    private List<DailyLoadDto> buildDailyLoad(User user, LocalDateTime from, LocalDateTime to) {
-        List<Object[]> rows = taskScheduleRepository.loadByDay(user.getId(), from, to);
+    private List<DailyLoadDto> buildDailyLoad(User user, LocalDateTime from, LocalDateTime to, Boolean coop) {
+        List<Object[]> rows = taskScheduleRepository.loadByDay(user.getId(), from, to, coop);
         Map<String, DailyLoadDto> map = new TreeMap<>();
 
         for (Object[] r : rows) {

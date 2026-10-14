@@ -222,7 +222,10 @@ export const searchApi = {
 export const statsApi = {
     get: (period) => api.get('/stats', { params: { period } }),
     overview: (period) => api.get('/stats/overview', { params: { period } }),
-    dailyLoad: (from, to) => api.get('/stats/daily-load', { params: { from, to } }),
+    dailyLoad: (from, to, coop) =>
+        api.get('/stats/daily-load', {
+            params: { from, to, ...(coop === undefined ? {} : { coop }) },
+        }),
 }
 
 // ============================================================

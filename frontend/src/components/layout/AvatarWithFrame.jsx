@@ -1,4 +1,5 @@
 import { SvgAvatar } from './SvgAvatars'
+import { resolveUrl } from '../../utils/format'
 
 /**
  * Единый компонент аватарки с рамкой.
@@ -22,7 +23,7 @@ export default function AvatarWithFrame({
     const initial = (displayName || username || 'U').charAt(0).toUpperCase()
     const code = avatar?.code
     const emoji = avatar?.emoji
-    const imageUrl = avatar?.imageUrl
+    const imageUrl = resolveUrl(avatar?.imageUrl)
 
     const frameCssClass = frame?.cssClass || ''
 

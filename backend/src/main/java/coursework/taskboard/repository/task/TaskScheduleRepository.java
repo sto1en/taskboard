@@ -93,10 +93,15 @@ public interface TaskScheduleRepository extends JpaRepository<TaskSchedule, Long
         WHERE b.owner_id = :userId
           AND ts.deadline >= :from
           AND ts.deadline < :to
+          AND (CAST(:coop AS boolean) IS NULL OR EXISTS (
+                  SELECT 1 FROM board_members bm
+                  WHERE bm.board_id = b.id
+              ) = CAST(:coop AS boolean))
         GROUP BY d
         ORDER BY d
     """, nativeQuery = true)
     List<Object[]> loadByDay(@Param("userId") Long userId,
                              @Param("from") LocalDateTime from,
-                             @Param("to") LocalDateTime to);
+                             @Param("to") LocalDateTime to,
+                             @Param("coop") Boolean coop);
 }
