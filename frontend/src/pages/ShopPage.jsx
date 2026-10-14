@@ -1,3 +1,5 @@
+// frontend/src/pages/ShopPage.jsx
+
 import { useEffect, useMemo, useState } from 'react'
 import { shopApi, adminApi } from '../api/api'
 import useT from '../hooks/useT'
@@ -8,6 +10,12 @@ import AccentCard from '../components/Shop/AccentCard'
 import CategoryChips from '../components/Shop/CategoryChips'
 import SortToggle from '../components/Shop/SortToggle'
 import ShopEmptyState from '../components/Shop/ShopEmptyState'
+import ShopPagination from '../components/Shop/ShopPagination'
+
+const PAGE_SIZE = 24
+
+// Хелпер: гарантирует массив, даже если с бэка пришёл null / не объект
+const asArray = (v) => (Array.isArray(v) ? v : [])
 
 export default function ShopPage() {
     const t = useT()
@@ -27,15 +35,20 @@ export default function ShopPage() {
     const [sortBy, setSortBy] = useState('default')
     const [sortDir, setSortDir] = useState('asc')
 
+    const [pageAvatars, setPageAvatars] = useState(0)
+    const [pageFrames, setPageFrames] = useState(0)
+    const [pageTrees, setPageTrees] = useState(0)
+    const [pageAccents, setPageAccents] = useState(0)
+
     useEffect(() => {
         Promise.all([
             adminApi.listAvatarCategories().then(({ data }) => data).catch(() => []),
             adminApi.listFrameCategories().then(({ data }) => data).catch(() => []),
             adminApi.listAccentCategories().then(({ data }) => data).catch(() => []),
         ]).then(([ac, fc, acc]) => {
-            setAvatarCategories(ac)
-            setFrameCategories(fc)
-            setAccentCategories(acc)
+            setAvatarCategories(asArray(ac))
+            setFrameCategories(asArray(fc))
+            setAccentCategories(asArray(acc))
         })
     }, [])
 
@@ -53,7 +66,11 @@ export default function ShopPage() {
         if (selectedAccentCats.length > 0) params.accentCategoryIds = selectedAccentCats
 
         shopApi.get(params)
-            .then(({ data }) => setData(data))
+            .then(({ data }) => {
+                // Диагностика — раскомментируй, если хочешь проверить структуру
+                // console.log('[Shop] API response:', data)
+                setData(data)
+            })
             .catch(err => setError(err.response?.data?.message || 'Ошибка загрузки'))
             .finally(() => setLoading(false))
     }
@@ -62,6 +79,20 @@ export default function ShopPage() {
         load()
         // eslint-disable-next-line
     }, [
+        sortBy,
+        sortDir,
+        selectedAvatarCats.join(','),
+        selectedFrameCats.join(','),
+        selectedAccentCats.join(','),
+    ])
+
+    useEffect(() => {
+        setPageAvatars(0)
+        setPageFrames(0)
+        setPageTrees(0)
+        setPageAccents(0)
+    }, [
+        tab,
         sortBy,
         sortDir,
         selectedAvatarCats.join(','),
@@ -116,8 +147,20 @@ export default function ShopPage() {
         }
     }
 
+    const paginate = (arr, page) => {
+        const list = asArray(arr)
+        const start = page * PAGE_SIZE
+        return list.slice(start, start + PAGE_SIZE)
+    }
+
     const showFilters = tab === 'avatars' || tab === 'frames' || tab === 'accents'
     const hasFilter = currentSelected.length > 0
+
+    // Вытащим массивы один раз
+    const avatars   = asArray(data?.avatars)
+    const frames    = asArray(data?.frames)
+    const treeSkins = asArray(data?.treeSkins)
+    const accents   = asArray(data?.accents)
 
     return (
         <div className="shop">
@@ -125,20 +168,28 @@ export default function ShopPage() {
                 <h1 className="shop__title">Магазин</h1>
                 {data && (
                     <div className="shop__balance" title="Листья">
-                        🍃 <b>{data.leaves}</b>
+                        🍃 <b>{data.leaves ?? 0}</b>
                     </div>
                 )}
             </div>
 
             <div className="shop__tabs">
                 <button className={`shop__tab ${tab === 'avatars' ? 'shop__tab--active' : ''}`}
-                        onClick={() => setTab('avatars')}>Аватарки</button>
+                        onClick={() => setTab('avatars')}>
+                    Аватарки {avatars.length > 0 && <span className="shop__tab-count">{avatars.length}</span>}
+                </button>
                 <button className={`shop__tab ${tab === 'frames' ? 'shop__tab--active' : ''}`}
-                        onClick={() => setTab('frames')}>Рамки</button>
+                        onClick={() => setTab('frames')}>
+                    Рамки {frames.length > 0 && <span className="shop__tab-count">{frames.length}</span>}
+                </button>
                 <button className={`shop__tab ${tab === 'trees' ? 'shop__tab--active' : ''}`}
-                        onClick={() => setTab('trees')}>Деревья</button>
+                        onClick={() => setTab('trees')}>
+                    Деревья {treeSkins.length > 0 && <span className="shop__tab-count">{treeSkins.length}</span>}
+                </button>
                 <button className={`shop__tab ${tab === 'accents' ? 'shop__tab--active' : ''}`}
-                        onClick={() => setTab('accents')}>Акценты</button>
+                        onClick={() => setTab('accents')}>
+                    Акценты {accents.length > 0 && <span className="shop__tab-count">{accents.length}</span>}
+                </button>
             </div>
 
             {showFilters && (
@@ -164,79 +215,123 @@ export default function ShopPage() {
             {loading && <div className="loading">{t.loading}</div>}
             {error && <div className="error">{error}</div>}
 
+            {!loading && !data && (
+                <ShopEmptyState message="Магазин недоступен" />
+            )}
+
+            {/* ==== AVATARS ==== */}
             {!loading && data && tab === 'avatars' && (
-                data.avatars.length === 0 ? (
+                avatars.length === 0 ? (
                     <ShopEmptyState
                         onReset={hasFilter ? resetActiveFilter : null}
                         message="Нет аватарок в этой категории"
                     />
                 ) : (
-                    <div className="shop__grid">
-                        {data.avatars.map(a => (
-                            <AvatarCard
-                                key={a.id}
-                                item={a}
-                                onBuy={() => wrap(() => shopApi.buyAvatar(a.id))}
-                                onEquip={() => wrap(() => shopApi.equipAvatar(a.id))}
-                            />
-                        ))}
-                    </div>
+                    <>
+                        <div className="shop__grid">
+                            {paginate(avatars, pageAvatars).map(a => (
+                                <AvatarCard
+                                    key={a.id}
+                                    item={a}
+                                    onBuy={() => wrap(() => shopApi.buyAvatar(a.id))}
+                                    onEquip={() => wrap(() => shopApi.equipAvatar(a.id))}
+                                />
+                            ))}
+                        </div>
+                        <ShopPagination
+                            page={pageAvatars}
+                            pageSize={PAGE_SIZE}
+                            total={avatars.length}
+                            onChange={setPageAvatars}
+                        />
+                    </>
                 )
             )}
 
+            {/* ==== FRAMES ==== */}
             {!loading && data && tab === 'frames' && (
-                data.frames.length === 0 ? (
+                frames.length === 0 ? (
                     <ShopEmptyState
                         onReset={hasFilter ? resetActiveFilter : null}
                         message="Нет рамок в этой категории"
                     />
                 ) : (
-                    <div className="shop__grid">
-                        {data.frames.map(f => (
-                            <FrameCard
-                                key={f.id}
-                                item={f}
-                                onBuy={() => wrap(() => shopApi.buyFrame(f.id))}
-                                onEquip={() => wrap(() => shopApi.equipFrame(f.id))}
-                                onUnequip={() => wrap(() => shopApi.unequipFrame())}
-                            />
-                        ))}
-                    </div>
+                    <>
+                        <div className="shop__grid">
+                            {paginate(frames, pageFrames).map(f => (
+                                <FrameCard
+                                    key={f.id}
+                                    item={f}
+                                    onBuy={() => wrap(() => shopApi.buyFrame(f.id))}
+                                    onEquip={() => wrap(() => shopApi.equipFrame(f.id))}
+                                    onUnequip={() => wrap(() => shopApi.unequipFrame())}
+                                />
+                            ))}
+                        </div>
+                        <ShopPagination
+                            page={pageFrames}
+                            pageSize={PAGE_SIZE}
+                            total={frames.length}
+                            onChange={setPageFrames}
+                        />
+                    </>
                 )
             )}
 
+            {/* ==== TREES ==== */}
             {!loading && data && tab === 'trees' && (
-                <div className="shop__grid">
-                    {data.treeSkins.map(s => (
-                        <TreeSkinCard
-                            key={s.id}
-                            item={s}
-                            onBuy={() => wrap(() => shopApi.buyTreeSkin(s.id))}
-                            onEquip={() => wrap(() => shopApi.equipTreeSkin(s.id))}
-                            onUnequip={() => wrap(() => shopApi.unequipTreeSkin())}
+                treeSkins.length === 0 ? (
+                    <ShopEmptyState message="Нет деревьев" />
+                ) : (
+                    <>
+                        <div className="shop__grid">
+                            {paginate(treeSkins, pageTrees).map(s => (
+                                <TreeSkinCard
+                                    key={s.id}
+                                    item={s}
+                                    onBuy={() => wrap(() => shopApi.buyTreeSkin(s.id))}
+                                    onEquip={() => wrap(() => shopApi.equipTreeSkin(s.id))}
+                                    onUnequip={() => wrap(() => shopApi.unequipTreeSkin())}
+                                />
+                            ))}
+                        </div>
+                        <ShopPagination
+                            page={pageTrees}
+                            pageSize={PAGE_SIZE}
+                            total={treeSkins.length}
+                            onChange={setPageTrees}
                         />
-                    ))}
-                </div>
+                    </>
+                )
             )}
 
+            {/* ==== ACCENTS ==== */}
             {!loading && data && tab === 'accents' && (
-                data.accents.length === 0 ? (
+                accents.length === 0 ? (
                     <ShopEmptyState
                         onReset={hasFilter ? resetActiveFilter : null}
                         message="Нет акцентов в этой категории"
                     />
                 ) : (
-                    <div className="shop__grid">
-                        {(data.accents || []).map(a => (
-                            <AccentCard
-                                key={a.id}
-                                item={a}
-                                onBuy={() => wrap(() => shopApi.buyAccent(a.id))}
-                                onEquip={() => wrap(() => shopApi.equipAccent(a.id))}
-                                onUnequip={() => wrap(() => shopApi.unequipAccent())}
-                            />
-                        ))}
-                    </div>
+                    <>
+                        <div className="shop__grid">
+                            {paginate(accents, pageAccents).map(a => (
+                                <AccentCard
+                                    key={a.id}
+                                    item={a}
+                                    onBuy={() => wrap(() => shopApi.buyAccent(a.id))}
+                                    onEquip={() => wrap(() => shopApi.equipAccent(a.id))}
+                                    onUnequip={() => wrap(() => shopApi.unequipAccent())}
+                                />
+                            ))}
+                        </div>
+                        <ShopPagination
+                            page={pageAccents}
+                            pageSize={PAGE_SIZE}
+                            total={accents.length}
+                            onChange={setPageAccents}
+                        />
+                    </>
                 )
             )}
         </div>

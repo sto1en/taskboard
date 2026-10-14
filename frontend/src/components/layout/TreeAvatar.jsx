@@ -1,4 +1,7 @@
+// frontend/src/components/layout/TreeAvatar.jsx
+
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import * as Sakura from './trees/SakuraTree'
 import * as Birch from './trees/BirchTree'
 import * as Palm from './trees/PalmTree'
@@ -254,6 +257,8 @@ export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }
     const [bounce, setBounce] = useState(false)
     const [leaves, setLeaves] = useState([])
     const [tipOpen, setTipOpen] = useState(false)
+    const [tipCoords, setTipCoords] = useState(null)
+
     const prevDoneRef = useRef(done)
     const prevKindRef = useRef(kind)
     const nextLeafId = useRef(0)
@@ -306,6 +311,33 @@ export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }
         }, 3800)
     }, [kind, stage])
 
+    // ============================================================
+    // Тултип "?" — позиционируется через getBoundingClientRect,
+    // рендерится через портал в document.body, поверх всего
+    // ============================================================
+    const handleTipEnter = (e) => {
+        const rect = e.currentTarget.getBoundingClientRect()
+        setTipCoords({
+            top: rect.top + rect.height / 2,
+            left: rect.right + 10,
+        })
+        setTipOpen(true)
+    }
+
+    const handleTipLeave = () => {
+        setTipOpen(false)
+        setTipCoords(null)
+    }
+
+    const handleTipClick = (e) => {
+        e.stopPropagation()
+        if (tipOpen) {
+            handleTipLeave()
+        } else {
+            handleTipEnter(e)
+        }
+    }
+
     const cap = Math.min(maxHeight, Math.floor(window.innerHeight * 0.5))
 
     let size
@@ -328,31 +360,17 @@ export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }
     return (
         <div className="tree-avatar-wrap">
 
-            {/* Кнопка «?» */}
+            {/* Кнопка «?» — при наведении/клике открывает тултип */}
             <div
                 className="tree-help"
-                onClick={(e) => { e.stopPropagation(); setTipOpen(v => !v) }}
-                onMouseEnter={() => setTipOpen(true)}
-                onMouseLeave={() => setTipOpen(false)}
-                onBlur={() => setTipOpen(false)}
+                onClick={handleTipClick}
+                onMouseEnter={handleTipEnter}
+                onMouseLeave={handleTipLeave}
                 role="button"
                 tabIndex={0}
                 aria-label="Что такое дерево прогресса"
             >
                 ?
-                {tipOpen && (
-                    <div className="tree-help__tip" role="tooltip">
-                        <div className="tree-help__tip-title">Дерево прогресса 🌱</div>
-                        <div className="tree-help__tip-text">
-                            Оно растёт, пока ты закрываешь задачи. Каждая выполненная
-                            сегодня — новый росток.
-                        </div>
-                        <div className="tree-help__tip-text">
-                            Выполни 10 — и дерево станет взрослым. Тогда можно{' '}
-                            <b>кликнуть</b> по нему, и с него посыпятся листья ✨
-                        </div>
-                    </div>
-                )}
             </div>
 
             <div
@@ -389,6 +407,33 @@ export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }
             </div>
 
             <ProgressBar done={done} target={10} label={t.progressTree} />
+
+            {/* Тултип — рендерится через портал в document.body */}
+            {tipOpen && tipCoords && createPortal(
+                <div
+                    className="tree-help__tip"
+                    style={{
+                        position: 'fixed',
+                        top: tipCoords.top,
+                        left: tipCoords.left,
+                        transform: 'translateY(-50%)',
+                        zIndex: 99999,
+                        pointerEvents: 'none',
+                    }}
+                    role="tooltip"
+                >
+                    <div className="tree-help__tip-title">Дерево прогресса 🌱</div>
+                    <div className="tree-help__tip-text">
+                        Оно растёт, пока ты закрываешь задачи. Каждая выполненная
+                        сегодня — новый росток.
+                    </div>
+                    <div className="tree-help__tip-text">
+                        Выполни 10 — и дерево станет взрослым. Тогда можно{' '}
+                        <b>кликнуть</b> по нему, и с него посыпятся листья ✨
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     )
 }
