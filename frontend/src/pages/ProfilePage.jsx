@@ -43,7 +43,7 @@ const DEFAULT_APPEARANCE = {
     density: 'cozy',
     sidebarCollapsed: false,
     treeEnabled: true,
-    treeKind: 'sakura',
+    treeKind: 'apple',
 }
 const DEFAULT_LOCALE = { language: 'ru', timezone: 'Europe/Moscow' }
 const DEFAULT_WORKSPACE = {
@@ -59,6 +59,19 @@ const DEFAULT_NOTIFICATION = { notifyEmail: true, notifyDeadline: true, notifyDi
 const BASE_ACCENTS = [
     { id: 'base-blue', code: 'blue', title: 'Синий' },
 ]
+
+// Иконки для деревьев
+const TREE_ICONS = {
+    sakura: '🌸',
+    birch:  '🌳',
+    palm:   '🌴',
+    apple:  '🍎',
+    oak:    '🌰',
+    cherry: '🌸',
+    xmas:   '🎄',
+    neon:   '✨',
+    crystal:'💎',
+}
 
 function AvatarVisual({ avatar, displayName, username }) {
     const code = avatar?.code
@@ -84,10 +97,6 @@ function AvatarVisual({ avatar, displayName, username }) {
     return <span className="profile-picker__emoji">{initial}</span>
 }
 
-/**
- * Рамка считается «валидной» для отображения, если у неё есть cssClass.
- * Пустые рамки (без класса) не показываем и не даём выбрать.
- */
 function isRenderableFrame(f) {
     return !!f?.cssClass
 }
@@ -126,7 +135,6 @@ export default function ProfilePage() {
     const [pendingAccentId, setPendingAccentId] = useState(null)
     const [shop, setShop] = useState(null)
 
-    // Состояние тумблера «Включить рамку» + ID последней выбранной рамки
     const [frameEnabled, setFrameEnabled] = useState(false)
     const [lastFrameId, setLastFrameId] = useState(null)
 
@@ -183,14 +191,12 @@ export default function ProfilePage() {
         shopApi.get().then(({ data }) => {
             setShop(data)
 
-            // синхронизируем состояние тумблера и «последней выбранной» с бэком
             const active = (data?.frames || []).find(f => f.active && isRenderableFrame(f))
             if (active) {
                 setFrameEnabled(true)
                 setLastFrameId(active.id)
             } else {
                 setFrameEnabled(false)
-                // lastFrameId НЕ сбрасываем — чтобы пользователь мог включить обратно
             }
         }).catch(() => setShop(null))
     }
@@ -291,16 +297,9 @@ export default function ProfilePage() {
         } catch (e) { flashErr(e) }
     }
 
-    /**
-     * Тумблер «Включить рамку»:
-     *  - выключение: unequipFrame + запомнить последнюю активную рамку.
-     *  - включение: если есть lastFrameId — надеть её; если её нет — взять
-     *    текущую активную или первую купленную. Если вообще ничего нет — ничего не делать.
-     */
     const toggleFramesEnabled = async () => {
         try {
             if (frameEnabled) {
-                // Запоминаем текущую активную, чтобы вернуть при следующем включении
                 const currentActive = (shop?.frames || []).find(
                     f => f.active && isRenderableFrame(f)
                 )
@@ -309,7 +308,6 @@ export default function ProfilePage() {
                 await shopApi.unequipFrame()
                 setFrameEnabled(false)
             } else {
-                // Целевая рамка: lastFrameId → текущая активная → первая купленная (fallback)
                 const currentActive = (shop?.frames || []).find(
                     f => f.active && isRenderableFrame(f)
                 )
@@ -329,7 +327,6 @@ export default function ProfilePage() {
                 setLastFrameId(targetId)
             }
 
-            // Обновляем shop, но НЕ трогаем frameEnabled из ответа — состояние уже верное
             const { data } = await shopApi.get()
             setShop(data)
             window.dispatchEvent(new Event('shop:refresh'))
@@ -341,6 +338,26 @@ export default function ProfilePage() {
         setAppearanceForm(f => ({ ...f, accentCode: accent.code }))
         setPendingAccentId(accent.id)
     }
+
+    // ============================================================
+    // Только купленные деревья для селекта
+    // ============================================================
+    const ownedTreeSkins = useMemo(() => {
+        const owned = (shop?.treeSkins || []).filter(s => s.owned)
+        // Fallback: если яблоня не выдана — покажем её насильно
+        if (owned.length === 0) {
+            return [{ code: 'apple', title: 'Яблоня' }]
+        }
+        // Гарантируем, что яблоня всегда в списке (если она есть в shop вообще)
+        const hasApple = owned.some(s => s.code === 'apple')
+        if (!hasApple) {
+            const appleFromShop = (shop?.treeSkins || []).find(s => s.code === 'apple')
+            if (appleFromShop) {
+                return [{ code: 'apple', title: 'Яблоня' }, ...owned]
+            }
+        }
+        return owned
+    }, [shop])
 
     if (!user) return <div className="loading">Loading...</div>
 
@@ -356,7 +373,6 @@ export default function ProfilePage() {
     const activeAvatar = shop?.avatars?.find(a => a.active) || null
     const activeFrame = shop?.frames?.find(f => f.active && isRenderableFrame(f)) || null
 
-    // Показываем только «валидные» рамки (с cssClass)
     const ownedFrames = useMemo(
         () => (shop?.frames || []).filter(f => f.owned && isRenderableFrame(f)),
         [shop]
@@ -448,7 +464,6 @@ export default function ProfilePage() {
                                 </div>
                             )}
 
-                            {/* ── Заголовок «Купленные рамки» + тумблер справа ── */}
                             <div className="profile-picker-title-row">
                                 <div className="profile-picker-title profile-picker-title--inline">
                                     Купленные рамки
@@ -563,6 +578,9 @@ export default function ProfilePage() {
                                     <AccentDot
                                         key={a.id}
                                         code={a.code}
+                                        hexColor={a.hexColor}
+                                        hexColorSecondary={a.hexColorSecondary}
+                                        isGradient={a.isGradient}
                                         title={a.title}
                                         size={40}
                                         active={currentAccentId === a.id}
@@ -590,14 +608,14 @@ export default function ProfilePage() {
                         <label>{t.treeKind || 'Вид дерева'}</label>
                         <select
                             className="input"
-                            value={appearanceForm.treeKind || 'sakura'}
+                            value={appearanceForm.treeKind || 'apple'}
                             onChange={(e) => setAppearanceForm(f => ({ ...f, treeKind: e.target.value }))}
                         >
-                            <option value="apple">{t.treeApple || '🍎 Яблоня'}</option>
-                            <option value="palm">{t.treePalm || '🌴 Пальма'}</option>
-                            <option value="birch">{t.treeBirch || '🌳 Берёза'}</option>
-                            <option value="sakura">{t.treeSakura || '🌸 Сакура'}</option>
-                            <option value="xmas">{t.treeXmas || '🎄 Ёлка'}</option>
+                            {ownedTreeSkins.map(s => (
+                                <option key={s.code} value={s.code}>
+                                    {TREE_ICONS[s.code] || '🌳'} {s.title}
+                                </option>
+                            ))}
                         </select>
                     </div>
 

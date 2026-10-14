@@ -1,5 +1,6 @@
 package coursework.taskboard.service.shop;
 
+import coursework.taskboard.dto.shop.CategoryDto;
 import coursework.taskboard.dto.shop.ShopItemDto;
 import coursework.taskboard.dto.shop.UserShopDto;
 import coursework.taskboard.model.shop.*;
@@ -31,8 +32,17 @@ public class ShopService {
     private final UserAccentRepository userAccentRepository;
     private final UserAppearanceRepository userAppearanceRepository;
 
+    // ============================================================
+    // Основной метод — с фильтрами и сортировкой
+    // ============================================================
     @Transactional(readOnly = true)
-    public UserShopDto getShop(User user) {
+    public UserShopDto getShop(User user,
+                               String sortBy,
+                               String sortDir,
+                               List<Long> avatarCategoryIds,
+                               List<Long> frameCategoryIds,
+                               List<Long> accentCategoryIds) {
+
         int leaves = getLeaves(user);
 
         UserAppearance appearance = userAppearanceRepository.findById(user.getId()).orElse(null);
@@ -44,14 +54,39 @@ public class ShopService {
                 ? appearance.getActiveTreeSkin().getId() : null;
         String activeAccentCode = appearance != null ? appearance.getAccentCode() : null;
 
-        // Avatars
-        Set<Long> ownedAvatars = new HashSet<>();
+        return UserShopDto.builder()
+                .leaves(leaves)
+                .avatars(buildAvatarDtos(user, activeAvatarId, avatarCategoryIds, sortBy, sortDir))
+                .frames(buildFrameDtos(user, activeFrameId, frameCategoryIds, sortBy, sortDir))
+                .treeSkins(buildTreeSkinDtos(user, activeSkinId))
+                .accents(buildAccentDtos(user, activeAccentCode, accentCategoryIds, sortBy, sortDir))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public UserShopDto getShop(User user) {
+        return getShop(user, null, null, null, null, null);
+    }
+
+    // ============================================================
+    // Avatars
+    // ============================================================
+    private List<ShopItemDto> buildAvatarDtos(User user, Long activeId,
+                                              List<Long> categoryIds,
+                                              String sortBy, String sortDir) {
+        Set<Long> owned = new HashSet<>();
         for (UserAvatar ua : userAvatarRepository.findByUserId(user.getId())) {
-            ownedAvatars.add(ua.getAvatar().getId());
+            owned.add(ua.getAvatar().getId());
         }
-        List<ShopItemDto> avatarDtos = new ArrayList<>();
-        for (Avatar a : avatarRepository.findAllByOrderBySortOrderAsc()) {
-            avatarDtos.add(ShopItemDto.builder()
+
+        List<Avatar> list = avatarRepository.findWithCategoriesFiltered(
+                categoryIds == null || categoryIds.isEmpty() ? null : categoryIds
+        );
+        list = sortByPrice(list, sortBy, sortDir, Avatar::getPrice);
+
+        List<ShopItemDto> result = new ArrayList<>();
+        for (Avatar a : list) {
+            result.add(ShopItemDto.builder()
                     .id(a.getId())
                     .code(a.getCode())
                     .title(a.getTitle())
@@ -60,72 +95,154 @@ public class ShopService {
                     .imageUrl(a.getImageUrl())
                     .cssClass(a.getCssClass())
                     .price(a.getPrice())
-                    .owned(ownedAvatars.contains(a.getId()))
-                    .active(a.getId().equals(activeAvatarId))
+                    .oldPrice(a.getOldPrice())
+                    .owned(owned.contains(a.getId()))
+                    .active(a.getId().equals(activeId))
+                    .createdAt(a.getCreatedAt())
+                    .categories(toCategoryDtos(a.getCategories()))
                     .build());
         }
+        return result;
+    }
 
-        // Frames
-        Set<Long> ownedFrames = new HashSet<>();
+    // ============================================================
+    // Frames
+    // ============================================================
+    private List<ShopItemDto> buildFrameDtos(User user, Long activeId,
+                                             List<Long> categoryIds,
+                                             String sortBy, String sortDir) {
+        Set<Long> owned = new HashSet<>();
         for (UserFrame uf : userFrameRepository.findByUserId(user.getId())) {
-            ownedFrames.add(uf.getFrame().getId());
+            owned.add(uf.getFrame().getId());
         }
-        List<ShopItemDto> frameDtos = new ArrayList<>();
-        for (Frame f : frameRepository.findAllByOrderBySortOrderAsc()) {
-            frameDtos.add(ShopItemDto.builder()
-                    .id(f.getId()).code(f.getCode()).title(f.getTitle())
-                    .description(f.getDescription()).price(f.getPrice())
+
+        List<Frame> list = frameRepository.findWithCategoriesFiltered(
+                categoryIds == null || categoryIds.isEmpty() ? null : categoryIds
+        );
+        list = sortByPrice(list, sortBy, sortDir, Frame::getPrice);
+
+        List<ShopItemDto> result = new ArrayList<>();
+        for (Frame f : list) {
+            result.add(ShopItemDto.builder()
+                    .id(f.getId())
+                    .code(f.getCode())
+                    .title(f.getTitle())
+                    .description(f.getDescription())
                     .cssClass(f.getCssClass())
-                    .owned(ownedFrames.contains(f.getId()))
-                    .active(f.getId().equals(activeFrameId))
+                    .imageUrl(f.getImageUrl())
+                    .hexColor(f.getHexColor())
+                    .price(f.getPrice())
+                    .oldPrice(f.getOldPrice())
+                    .owned(owned.contains(f.getId()))
+                    .active(f.getId().equals(activeId))
+                    .createdAt(f.getCreatedAt())
+                    .categories(toCategoryDtos(f.getCategories()))
                     .build());
         }
+        return result;
+    }
 
-        // Tree skins
-        Set<Long> ownedSkins = new HashSet<>();
+    // ============================================================
+    // Tree skins (без категорий)
+    // ============================================================
+    private List<ShopItemDto> buildTreeSkinDtos(User user, Long activeId) {
+        Set<Long> owned = new HashSet<>();
         for (UserTreeSkin us : userTreeSkinRepository.findByUserId(user.getId())) {
-            ownedSkins.add(us.getTreeSkin().getId());
-        }
-        List<ShopItemDto> skinDtos = new ArrayList<>();
-        for (TreeSkin s : treeSkinRepository.findAllByOrderBySortOrderAsc()) {
-            skinDtos.add(ShopItemDto.builder()
-                    .id(s.getId()).code(s.getCode()).title(s.getTitle())
-                    .description(s.getDescription()).price(s.getPrice())
-                    .owned(ownedSkins.contains(s.getId()))
-                    .active(s.getId().equals(activeSkinId))
-                    .build());
+            owned.add(us.getTreeSkin().getId());
         }
 
-        // Accents
-        Set<Long> ownedAccents = new HashSet<>();
-        for (UserAccent ua : userAccentRepository.findByUserId(user.getId())) {
-            ownedAccents.add(ua.getAccentSkin().getId());
+        List<ShopItemDto> result = new ArrayList<>();
+        for (TreeSkin s : treeSkinRepository.findAllByOrderBySortOrderAsc()) {
+            result.add(ShopItemDto.builder()
+                    .id(s.getId())
+                    .code(s.getCode())
+                    .title(s.getTitle())
+                    .description(s.getDescription())
+                    .price(s.getPrice())
+                    .owned(owned.contains(s.getId()))
+                    .active(s.getId().equals(activeId))
+                    .build());
         }
-        List<ShopItemDto> accentDtos = new ArrayList<>();
-        for (AccentSkin a : accentSkinRepository.findAllByOrderBySortOrderAsc()) {
-            accentDtos.add(ShopItemDto.builder()
+        return result;
+    }
+
+    // ============================================================
+    // Accents
+    // ============================================================
+    private List<ShopItemDto> buildAccentDtos(User user, String activeCode,
+                                              List<Long> categoryIds,
+                                              String sortBy, String sortDir) {
+        Set<Long> owned = new HashSet<>();
+        for (UserAccent ua : userAccentRepository.findByUserId(user.getId())) {
+            owned.add(ua.getAccentSkin().getId());
+        }
+
+        List<AccentSkin> list = accentSkinRepository.findWithCategoriesFiltered(
+                categoryIds == null || categoryIds.isEmpty() ? null : categoryIds
+        );
+        list = sortByPrice(list, sortBy, sortDir, AccentSkin::getPrice);
+
+        List<ShopItemDto> result = new ArrayList<>();
+        for (AccentSkin a : list) {
+            result.add(ShopItemDto.builder()
                     .id(a.getId())
                     .code(a.getCode())
                     .title(a.getTitle())
                     .description(a.getDescription())
                     .price(a.getPrice())
+                    .oldPrice(a.getOldPrice())
+                    .hexColor(a.getHexColor())
+                    .hexColorSecondary(a.getHexColorSecondary())
+                    .isGradient(a.getIsGradient())
+                    .imageUrl(a.getImageUrl())
                     .cssClass(a.getCode())
-                    .owned(ownedAccents.contains(a.getId()))
-                    .active(a.getCode().equals(activeAccentCode))
+                    .owned(owned.contains(a.getId()))
+                    .active(a.getCode().equals(activeCode))
+                    .createdAt(a.getCreatedAt())
+                    .categories(toCategoryDtos(a.getCategories()))
                     .build());
         }
-
-        return UserShopDto.builder()
-                .leaves(leaves)
-                .avatars(avatarDtos)
-                .frames(frameDtos)
-                .treeSkins(skinDtos)
-                .accents(accentDtos)
-                .build();
+        return result;
     }
 
     // ============================================================
-    // Аватарки
+    // Helpers
+    // ============================================================
+    private <T> List<T> sortByPrice(List<T> list, String sortBy, String sortDir,
+                                    java.util.function.Function<T, Integer> priceGetter) {
+        if (!"price".equalsIgnoreCase(sortBy)) return list;
+        boolean desc = "desc".equalsIgnoreCase(sortDir);
+        list.sort((a, b) -> desc
+                ? Integer.compare(priceGetter.apply(b), priceGetter.apply(a))
+                : Integer.compare(priceGetter.apply(a), priceGetter.apply(b)));
+        return list;
+    }
+
+    private List<CategoryDto> toCategoryDtos(Set<?> categories) {
+        if (categories == null || categories.isEmpty()) return List.of();
+        return categories.stream()
+                .map(c -> {
+                    Long id = null;
+                    String code = null;
+                    String title = null;
+                    Integer sortOrder = 0;
+                    if (c instanceof AvatarCategory ac) {
+                        id = ac.getId(); code = ac.getCode(); title = ac.getTitle(); sortOrder = ac.getSortOrder();
+                    } else if (c instanceof FrameCategory fc) {
+                        id = fc.getId(); code = fc.getCode(); title = fc.getTitle(); sortOrder = fc.getSortOrder();
+                    } else if (c instanceof AccentCategory acc) {
+                        id = acc.getId(); code = acc.getCode(); title = acc.getTitle(); sortOrder = acc.getSortOrder();
+                    }
+                    return CategoryDto.builder()
+                            .id(id).code(code).title(title).sortOrder(sortOrder)
+                            .build();
+                })
+                .sorted((c1, c2) -> Integer.compare(c1.getSortOrder(), c2.getSortOrder()))
+                .toList();
+    }
+
+    // ============================================================
+    // Аватарки — купля/надевание
     // ============================================================
     @Transactional
     public UserShopDto buyAvatar(User user, Long avatarId) {
@@ -259,6 +376,10 @@ public class ShopService {
     // ============================================================
     // Листья
     // ============================================================
+
+    /**
+     * Начислить листья. Если amount <= 0 — ничего не делает.
+     */
     @Transactional
     public void addLeaves(User user, int amount) {
         if (amount <= 0) return;
@@ -274,12 +395,29 @@ public class ShopService {
         userCurrencyRepository.save(cur);
     }
 
-    private int getLeaves(User user) {
-        return userCurrencyRepository.findById(user.getId())
-                .map(UserCurrency::getLeaves)
-                .orElse(0);
+    /**
+     * Безопасное списание. Если листьев не хватает — обнуляет до 0.
+     * Не уходит в минус. Используется при отмене задач и удалении.
+     */
+    @Transactional
+    public void deductLeavesSafe(User user, int amount) {
+        if (amount <= 0) return;
+        UserCurrency cur = userCurrencyRepository.findById(user.getId())
+                .orElseGet(() -> userCurrencyRepository.save(
+                        UserCurrency.builder()
+                                .user(user)
+                                .userId(user.getId())
+                                .leaves(0)
+                                .build()
+                ));
+        int newVal = Math.max(0, cur.getLeaves() - amount);
+        cur.setLeaves(newVal);
+        userCurrencyRepository.save(cur);
     }
 
+    /**
+     * Строгое списание (для покупок). Бросает исключение, если не хватает.
+     */
     private void deductLeaves(User user, int amount) {
         UserCurrency cur = userCurrencyRepository.findById(user.getId())
                 .orElseGet(() -> userCurrencyRepository.save(
@@ -294,5 +432,11 @@ public class ShopService {
         }
         cur.setLeaves(cur.getLeaves() - amount);
         userCurrencyRepository.save(cur);
+    }
+
+    private int getLeaves(User user) {
+        return userCurrencyRepository.findById(user.getId())
+                .map(UserCurrency::getLeaves)
+                .orElse(0);
     }
 }

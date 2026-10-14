@@ -16,7 +16,6 @@ function SakuraFlower({ cx, cy, r = 6, rot = 0, hue = 'mid' }) {
         const rad = angle * Math.PI / 180
         const px = cx + Math.cos(rad) * r * 0.55
         const py = cy + Math.sin(rad) * r * 0.55
-        // лепесток с выемкой
         const d = `M${px} ${py - r * 0.55}
                    C${px + r * 0.45} ${py - r * 0.5} ${px + r * 0.55} ${py} ${px} ${py + r * 0.3}
                    C${px - r * 0.55} ${py} ${px - r * 0.45} ${py - r * 0.5} ${px} ${py - r * 0.55} Z`
@@ -30,7 +29,6 @@ function SakuraFlower({ cx, cy, r = 6, rot = 0, hue = 'mid' }) {
         <g>
             {petals}
             <circle cx={cx} cy={cy} r={r * 0.18} fill={p.core} />
-            {/* тычинки */}
             <line x1={cx} y1={cy} x2={cx - r * 0.35} y2={cy - r * 0.35} stroke={p.stamen} strokeWidth={r * 0.05} opacity="0.75"/>
             <line x1={cx} y1={cy} x2={cx + r * 0.35} y2={cy - r * 0.3} stroke={p.stamen} strokeWidth={r * 0.05} opacity="0.75"/>
             <line x1={cx} y1={cy} x2={cx + r * 0.3} y2={cy + r * 0.35} stroke={p.stamen} strokeWidth={r * 0.05} opacity="0.75"/>
@@ -38,7 +36,6 @@ function SakuraFlower({ cx, cy, r = 6, rot = 0, hue = 'mid' }) {
     )
 }
 
-// Облако цветов — очень плотная группа (важно для «пышной» кроны)
 function FlowerCloud({ cx, cy, r = 16, seed = 0, density = 3 }) {
     const flowers = []
     const count = Math.round(density * 8)
@@ -58,25 +55,20 @@ function FlowerCloud({ cx, cy, r = 16, seed = 0, density = 3 }) {
     return <g>{flowers}</g>
 }
 
-// Толстый изогнутый ствол + ветки
 function Trunk() {
     return (
         <g>
-            {/* ствол — толстый, изогнутый вправо */}
             <path d="M50 95 C46 84 44 74 48 62 C52 52 50 44 47 36"
                   stroke="#4a2f22" strokeWidth="7" strokeLinecap="round" fill="none"/>
-            {/* блики на стволе */}
             <path d="M47 90 C44 80 43 72 46 62"
                   stroke="#6b4534" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.75"/>
             <path d="M52 82 C50 72 50 62 49 52"
                   stroke="#6b4534" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity="0.6"/>
-            {/* полоски коры */}
             <path d="M45 78 C44 72 45 66 47 62"
                   stroke="#2f1d14" strokeWidth="0.8" strokeLinecap="round" fill="none" opacity="0.7"/>
             <path d="M52 70 C51 64 51 58 50 52"
                   stroke="#2f1d14" strokeWidth="0.8" strokeLinecap="round" fill="none" opacity="0.7"/>
 
-            {/* главные ветки — почти горизонтально в стороны */}
             <path d="M48 62 C42 58 34 56 26 58" stroke="#4a2f22" strokeWidth="4.5" strokeLinecap="round" fill="none"/>
             <path d="M50 58 C58 54 68 54 76 58" stroke="#4a2f22" strokeWidth="4.5" strokeLinecap="round" fill="none"/>
 
@@ -86,7 +78,6 @@ function Trunk() {
             <path d="M48 38 C44 32 38 28 32 26" stroke="#4a2f22" strokeWidth="2.8" strokeLinecap="round" fill="none"/>
             <path d="M50 36 C54 30 60 26 66 24" stroke="#4a2f22" strokeWidth="2.8" strokeLinecap="round" fill="none"/>
 
-            {/* тонкие веточки */}
             <path d="M26 58 C20 60 16 62 12 62" stroke="#4a2f22" strokeWidth="2" strokeLinecap="round" fill="none"/>
             <path d="M26 58 C22 54 18 52 14 50" stroke="#4a2f22" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
             <path d="M76 58 C82 60 86 62 90 62" stroke="#4a2f22" strokeWidth="2" strokeLinecap="round" fill="none"/>
@@ -98,7 +89,6 @@ function Trunk() {
     )
 }
 
-// Земля с травой и лепестками
 function Ground() {
     return (
         <g>
@@ -108,7 +98,6 @@ function Ground() {
                   stroke="#5c8f4a" strokeWidth="0.7" strokeLinecap="round" fill="none"/>
             <path d="M70 96 L71 91 M74 96 L76 92 M78 96 L78 91"
                   stroke="#5c8f4a" strokeWidth="0.7" strokeLinecap="round" fill="none"/>
-            {/* опавшие лепестки */}
             <ellipse cx="34" cy="94" rx="1.2" ry="0.7" fill="#f9b0cf" opacity="0.8"/>
             <ellipse cx="58" cy="95" rx="1.1" ry="0.6" fill="#f9b0cf" opacity="0.7"/>
             <ellipse cx="44" cy="96" rx="1.3" ry="0.7" fill="#ee88b8" opacity="0.75"/>
@@ -155,7 +144,6 @@ export function MatureSVG() {
             <circle cx="50" cy="45" r="46" fill="url(#sakuraAura)" />
             <Ground />
             <Trunk />
-            {/* основная шапка из облаков цветов — почти весь верх */}
             <FlowerCloud cx={14} cy={50} r={12} seed={100} density={2}/>
             <FlowerCloud cx={88} cy={50} r={12} seed={101} density={2}/>
             <FlowerCloud cx={26} cy={58} r={15} seed={102} density={2.2}/>

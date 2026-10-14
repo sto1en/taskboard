@@ -1,16 +1,32 @@
-/**
- * Кружок-превью акцента.
- * Использует data-accent, чтобы подхватить --accent / --accent-gradient из index.css.
- * Одинаковый вид везде — и в профиле, и в магазине.
- */
 export default function AccentDot({
                                       code,
+                                      hexColor,
+                                      hexColorSecondary,
+                                      isGradient = false,
                                       size = 40,
                                       active = false,
                                       onClick,
                                       title,
                                       className = '',
                                   }) {
+    // Инлайн-стиль если есть кастомные hex
+    let style = {
+        '--accent-dot-size': `${size}px`,
+    }
+
+    if (hexColor) {
+        if (isGradient && hexColorSecondary) {
+            const grad = `linear-gradient(135deg, ${hexColor} 0%, ${hexColorSecondary} 100%)`
+            style.backgroundImage = grad
+            style.background = grad
+            style.backgroundColor = 'transparent'
+        } else {
+            style.background = hexColor
+            style.backgroundColor = hexColor
+            style.backgroundImage = 'none'
+        }
+    }
+
     return (
         <button
             type="button"
@@ -22,9 +38,7 @@ export default function AccentDot({
                 active ? 'accent-dot--active' : '',
                 className,
             ].filter(Boolean).join(' ')}
-            style={{
-                '--accent-dot-size': `${size}px`,
-            }}
+            style={style}
         />
     )
 }

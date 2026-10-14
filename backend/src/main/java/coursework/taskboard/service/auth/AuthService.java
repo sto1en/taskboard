@@ -1,7 +1,11 @@
 package coursework.taskboard.service.auth;
 
 import coursework.taskboard.dto.auth.*;
+import coursework.taskboard.model.shop.TreeSkin;
+import coursework.taskboard.model.shop.UserTreeSkin;
 import coursework.taskboard.model.user.*;
+import coursework.taskboard.repository.shop.TreeSkinRepository;
+import coursework.taskboard.repository.shop.UserTreeSkinRepository;
 import coursework.taskboard.repository.user.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,10 +28,12 @@ public class AuthService {
     private final UserWorkspaceRepository userWorkspaceRepository;
     private final UserDisplayRepository userDisplayRepository;
     private final UserNotificationRepository userNotificationRepository;
+    private final TreeSkinRepository treeSkinRepository;
+    private final UserTreeSkinRepository userTreeSkinRepository;
+
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-
     private final AuthMapper authMapper;
 
     @Transactional
@@ -50,14 +56,17 @@ public class AuthService {
         // 3. UserProfile
         userProfileRepository.save(authMapper.toUserProfile(user, request.getDisplayName()));
 
-        // 4-8. Внешний вид, локаль, рабочее пространство, отображение, уведомления
+        // 4-8. Внешний вид, локаль, workspace, display, notification
         userAppearanceRepository.save(authMapper.toUserAppearance(settings));
         userLocaleRepository.save(authMapper.toUserLocale(settings));
         userWorkspaceRepository.save(authMapper.toUserWorkspace(settings));
         userDisplayRepository.save(authMapper.toUserDisplay(settings));
         userNotificationRepository.save(authMapper.toUserNotification(settings));
 
-        // 9. Токен
+        // 9. Выдать бесплатное дерево «Яблоня» новому пользователю
+        grantDefaultTree(user);
+
+        // 10. Токен
         String token = jwtService.generateToken(user.getId(), user.getUsername());
 
         return authMapper.toAuthResponse(user, request.getDisplayName(), token);
@@ -83,5 +92,25 @@ public class AuthService {
         String token = jwtService.generateToken(user.getId(), user.getUsername());
 
         return authMapper.toAuthResponse(user, displayName, token);
+    }
+
+    // ============================================================
+    // Выдать базовое дерево при регистрации
+    // ============================================================
+    private void grantDefaultTree(User user) {
+        TreeSkin apple = treeSkinRepository.findByCode("apple").orElse(null);
+        if (apple == null) return;
+
+        userTreeSkinRepository.save(UserTreeSkin.builder()
+                .user(user)
+                .treeSkin(apple)
+                .build());
+
+        UserAppearance appearance = userAppearanceRepository.findById(user.getId()).orElse(null);
+        if (appearance != null) {
+            appearance.setActiveTreeSkin(apple);
+            appearance.setTreeKind("apple");
+            userAppearanceRepository.save(appearance);
+        }
     }
 }

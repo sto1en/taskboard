@@ -46,7 +46,7 @@
 }
 
 /* ============================================================
-   ShopPage
+   ShopPage — контейнер
    ============================================================ */
 
 .shop {
@@ -118,7 +118,161 @@
     gap: 16px;
 }
 
+/* ============================================================
+   Toolbar магазина: чипы + сортировка
+   ============================================================ */
+
+.shop__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+
+/* ---------- Чипы категорий ---------- */
+
+.category-chips {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+    position: relative;
+}
+
+.category-chips__scroller {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 2px 0;
+    flex: 1;
+    min-width: 0;
+    scroll-behavior: smooth;
+}
+.category-chips__scroller::-webkit-scrollbar {
+    display: none;
+}
+
+.category-chips__arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s, border-color .15s, color .15s, opacity .15s;
+    font-family: inherit;
+}
+.category-chips__arrow:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
+}
+.category-chips__arrow:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.category-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background .15s, border-color .15s, color .15s, transform .12s;
+}
+
+.category-chip:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 8%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
+}
+
+.category-chip--active {
+    background-color: var(--primary);
+    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    border-color: transparent;
+    color: #fff;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, var(--primary)) 30%, transparent);
+}
+.category-chip--active:hover {
+    filter: brightness(1.08);
+    color: #fff;
+}
+
+/* ---------- Кнопка сортировки ---------- */
+
+.sort-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background .15s, border-color .15s, color .15s;
+}
+
+.sort-toggle:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 8%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
+}
+
+.sort-toggle--active {
+    background-color: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
+}
+
+.sort-toggle__icon {
+    font-size: 14px;
+    line-height: 1;
+    font-weight: 700;
+}
+.sort-toggle__label {
+    line-height: 1;
+}
+
+/* ============================================================
+   Карточка товара
+   ============================================================ */
+
 .shop-card {
+    position: relative;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -169,14 +323,164 @@
     margin-top: 6px;
 }
 
-.shop-card__price { font-size: 13px; font-weight: 700; color: var(--accent, var(--primary)); }
+.shop-card__price {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent, var(--primary));
+}
+
+.shop-card__price-old {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: line-through;
+    opacity: 0.75;
+}
+
+.shop-card__price-current {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent, var(--primary));
+}
+
 .shop-card__btn { padding: 8px 14px !important; font-size: 13px !important; }
+
 .shop-card__badge {
     font-size: 11px;
     font-weight: 700;
     color: var(--accent, var(--primary));
     text-transform: uppercase;
     letter-spacing: 0.3px;
+}
+
+/* ---------- Категории (АКЦЕНТНЫЙ цвет) ---------- */
+
+.shop-card__categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.shop-card__category {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    line-height: 1.4;
+    white-space: nowrap;
+
+    color: var(--accent, var(--primary));
+    background: color-mix(in srgb, var(--accent, var(--primary)) 20%, transparent);
+}
+
+html[data-theme="dark"] .shop-card__category {
+    color: color-mix(in srgb, var(--accent, var(--primary)) 85%, #fff);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 25%, transparent);
+}
+
+/* ---------- Бейджи «Новинка» / «Скидка» ---------- */
+
+.shop-card__badges {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.shop-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    line-height: 1.3;
+    color: #fff;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.shop-badge--new {
+    background-color: #36b37e;
+    background-image: linear-gradient(120deg, #2f9e6c 0%, #4ade80 100%);
+}
+
+.shop-badge--discount {
+    background-color: #ff5630;
+    background-image: linear-gradient(120deg, #b71c1c 0%, #ff8f73 100%);
+}
+
+/* ---------- Превью-картинка (для рамок и акцентов) ---------- */
+
+.shop-card__preview-img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    border-radius: 8px;
+}
+
+/* ---------- Кружок-превью акцента ---------- */
+
+.accent-preview {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+}
+
+/* ============================================================
+   Пустое состояние
+   ============================================================ */
+
+.shop-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 80px 24px;
+    text-align: center;
+    background: var(--surface);
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+}
+
+.shop-empty__icon {
+    font-size: 48px;
+    opacity: 0.4;
+    line-height: 1;
+}
+
+.shop-empty__text {
+    font-size: 15px;
+    color: var(--text-muted);
+    max-width: 400px;
+    line-height: 1.4;
+}
+
+.shop-empty__btn {
+    padding: 10px 20px;
+    font-size: 14px;
 }
 
 /* ============================================================
@@ -191,7 +495,6 @@
     box-sizing: border-box;
     padding: 0;
     margin: 0;
-    /* Обрезает картинку/SVG кругом. Box-shadow рамки снаружи не срезается. */
     overflow: hidden;
     background: linear-gradient(135deg, #4c9aff, #8f6ed5);
     color: #fff;
@@ -201,7 +504,6 @@
     vertical-align: middle;
 }
 
-/* SVG-аватарка — растягивается на весь круг */
 .avatar-frame > svg {
     position: absolute;
     inset: 0;
@@ -211,7 +513,6 @@
     border-radius: 50%;
 }
 
-/* Картинка — растягивается на весь круг, без scale/padding */
 .avatar-frame__img {
     position: absolute;
     inset: 0;
@@ -225,7 +526,6 @@
     -webkit-user-drag: none;
 }
 
-/* Инициал и эмодзи — по центру, font-size задаётся inline через проп size */
 .avatar-frame__initial,
 .avatar-frame__emoji {
     position: absolute;
@@ -238,9 +538,7 @@
     line-height: 1;
 }
 
-.avatar-frame__initial {
-    font-weight: 700;
-}
+.avatar-frame__initial { font-weight: 700; }
 
 .avatar-frame__emoji {
     filter: drop-shadow(0 1px 1px rgba(0,0,0,.25));
@@ -309,8 +607,6 @@
     0%,100% { filter: brightness(1); }
     50%     { filter: brightness(1.25); }
 }
-
-/* Новые рамки */
 
 .frame--paper {
     box-shadow:
@@ -447,9 +743,7 @@
     margin-bottom: 10px;
 }
 
-.profile-picker-title--inline {
-    margin-bottom: 0;
-}
+.profile-picker-title--inline { margin-bottom: 0; }
 
 .profile-picker-toggle {
     display: inline-flex;
@@ -556,9 +850,7 @@
     flex-shrink: 0;
 }
 
-.profile-picker__frame-inner {
-    display: none;
-}
+.profile-picker__frame-inner { display: none; }
 
 .taskboard-logo {
     display: inline-flex;
@@ -571,3 +863,232 @@
     transition: transform .15s;
 }
 .taskboard-logo:hover { transform: scale(1.05); text-decoration: none; }
+
+/* ============================================================
+   Голо-рамка (радуга бежит по кругу)
+   ============================================================ */
+
+.frame--holo {
+    position: relative;
+    box-shadow:
+            0 0 0 2px #0a0620,
+            0 0 14px rgba(255, 120, 196, 0.6),
+            0 0 28px rgba(76, 154, 255, 0.4);
+    animation: frame-holo-hue 6s linear infinite;
+}
+
+.frame--holo::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    background: conic-gradient(
+            from 0deg,
+            #ff0000 0deg,
+            #ff8800 45deg,
+            #ffff00 90deg,
+            #00ff00 135deg,
+            #00ffff 180deg,
+            #0088ff 225deg,
+            #8800ff 270deg,
+            #ff00ff 315deg,
+            #ff0000 360deg
+    );
+    animation: holo-rotate 3s linear infinite;
+    z-index: -1;
+    filter: blur(0.5px);
+}
+
+@keyframes holo-rotate {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes frame-holo-hue {
+    0%   { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+/* ============================================================
+   Аврора-рамка (переливы цветов)
+   ============================================================ */
+
+.frame--aurora {
+    box-shadow:
+            0 0 0 3px #a8d97b,
+            0 0 0 6px #6b3fd6,
+            0 0 16px rgba(168, 217, 123, 0.8),
+            0 0 32px rgba(107, 63, 214, 0.6);
+    animation: frame-aurora 8s ease-in-out infinite;
+}
+
+@keyframes frame-aurora {
+    0%   { filter: hue-rotate(0deg)   brightness(1); }
+    25%  { filter: hue-rotate(90deg)  brightness(1.15); }
+    50%  { filter: hue-rotate(180deg) brightness(1); }
+    75%  { filter: hue-rotate(270deg) brightness(1.15); }
+    100% { filter: hue-rotate(360deg) brightness(1); }
+}
+
+/* ============================================================
+   Свечение-рамка (простое)
+   ============================================================ */
+
+.frame--glow {
+    box-shadow:
+            0 0 0 2px transparent,
+            0 0 14px 4px rgba(76, 154, 255, 0.8),
+            0 0 28px 8px rgba(76, 154, 255, 0.4),
+            inset 0 0 12px rgba(76, 154, 255, 0.6);
+    animation: frame-glow-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes frame-glow-pulse {
+    0%, 100% { filter: brightness(1); }
+    50%      { filter: brightness(1.3); }
+}
+
+/* ============================================================
+   Новые рамки: огонь, молния, кристалл, матрица, пульс,
+   тень, роза, дуб, мрамор, опал
+   ============================================================ */
+
+/* 🔥 Огонь */
+.frame--fire {
+    box-shadow:
+            0 0 0 3px #ff9500,
+            0 0 0 5px #b71c1c,
+            0 0 14px rgba(255, 87, 34, 0.9),
+            0 0 28px rgba(255, 149, 0, 0.5);
+    animation: frame-fire 1.5s ease-in-out infinite;
+}
+@keyframes frame-fire {
+    0%,100% { filter: brightness(1); }
+    50%     { filter: brightness(1.3) saturate(1.2); }
+}
+
+/* ⚡ Молния */
+.frame--thunder {
+    box-shadow:
+            0 0 0 2px #1a1a2e,
+            0 0 0 4px #f9d423,
+            0 0 16px rgba(249, 212, 35, 1),
+            0 0 32px rgba(255, 255, 255, 0.6);
+    animation: frame-thunder 0.8s linear infinite;
+}
+@keyframes frame-thunder {
+    0%, 90%, 100% { filter: brightness(1); }
+    92%           { filter: brightness(2.5); }
+    94%           { filter: brightness(1); }
+    96%           { filter: brightness(2.5); }
+}
+
+/* 💎 Кристалл */
+.frame--crystal {
+    box-shadow:
+            0 0 0 3px #e0ffff,
+            0 0 0 5px #4dd0e1,
+            0 0 16px rgba(0, 188, 212, 0.8),
+            0 0 32px rgba(77, 208, 225, 0.5);
+    animation: frame-crystal 3s ease-in-out infinite;
+}
+@keyframes frame-crystal {
+    0%,100% { filter: brightness(1) hue-rotate(0deg); }
+    50%     { filter: brightness(1.2) hue-rotate(15deg); }
+}
+
+/* 🟢 Матрица */
+.frame--matrix {
+    box-shadow:
+            0 0 0 3px #001a00,
+            0 0 0 5px #00ff41,
+            0 0 14px rgba(0, 255, 65, 0.9),
+            0 0 28px rgba(0, 255, 65, 0.5),
+            inset 0 0 8px rgba(0, 255, 65, 0.3);
+    animation: frame-matrix 2s linear infinite;
+}
+@keyframes frame-matrix {
+    0%,100% { filter: brightness(1); }
+    50%     { filter: brightness(1.4); }
+}
+
+/* 💗 Пульс */
+.frame--pulse {
+    box-shadow:
+            0 0 0 3px #ff1744,
+            0 0 0 5px #880e4f,
+            0 0 16px rgba(255, 23, 68, 0.9);
+    animation: frame-pulse 1.2s ease-in-out infinite;
+}
+@keyframes frame-pulse {
+    0%,100% { transform: scale(1);    filter: brightness(1); }
+    50%     { transform: scale(1.04); filter: brightness(1.3); }
+}
+
+/* 🌑 Тень */
+.frame--shadow {
+    box-shadow:
+            0 0 0 3px #1a0033,
+            0 0 0 6px #4a0080,
+            0 0 18px rgba(74, 0, 128, 0.9),
+            0 0 36px rgba(26, 0, 51, 0.6);
+    animation: frame-shadow 4s ease-in-out infinite;
+}
+@keyframes frame-shadow {
+    0%,100% { filter: brightness(1); }
+    50%     { filter: brightness(1.2) saturate(1.3); }
+}
+
+/* 🌹 Роза */
+.frame--rose {
+    box-shadow:
+            0 0 0 3px #ffb6c1,
+            0 0 0 5px #c2185b,
+            0 0 14px rgba(255, 182, 193, 0.8),
+            0 0 28px rgba(194, 24, 91, 0.5);
+}
+
+/* 🌳 Дуб */
+.frame--oak {
+    box-shadow:
+            0 0 0 3px #d4a574,
+            0 0 0 5px #5d4037,
+            0 0 12px rgba(93, 64, 55, 0.6);
+}
+
+/* ⬜ Мрамор */
+.frame--marble {
+    box-shadow:
+            0 0 0 3px #f5f5f5,
+            0 0 0 5px #9e9e9e,
+            0 3px 12px rgba(0, 0, 0, 0.25),
+            inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* 💠 Опал */
+.frame--opal {
+    box-shadow:
+            0 0 0 3px #b2ebf2,
+            0 0 0 6px #ce93d8,
+            0 0 18px rgba(178, 235, 242, 0.8),
+            0 0 32px rgba(206, 147, 216, 0.6);
+    animation: frame-opal 6s ease-in-out infinite;
+}
+@keyframes frame-opal {
+    0%   { filter: hue-rotate(0deg)   brightness(1); }
+    50%  { filter: hue-rotate(60deg)  brightness(1.15); }
+    100% { filter: hue-rotate(0deg)   brightness(1); }
+}
+
+/* ============================================================
+   AccentDot с инлайн-стилем — убираем box-shadow ring
+   ============================================================ */
+
+.accent-dot[style*="background"] {
+    /* Если инлайн — оставляем как есть */
+}
+
+/* Чтобы активная точка с кастомным градиентом выглядела ровно */
+.accent-dot--active[style*="background"] {
+    border: 4px solid transparent;
+    box-shadow: 0 0 0 1px var(--surface);
+}

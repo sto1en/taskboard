@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { HotkeysProvider } from './context/HotkeysContext'
+import { AchievementsProvider } from './context/AchievementsContext'
 import ThemeApplier from './context/ThemeApplier'
 import AppLayout from './components/Layout/AppLayout'
 import LoginPage from './pages/LoginPage'
@@ -19,32 +20,30 @@ import ProjectSearchPage from './pages/ProjectSearchPage'
 import ShopPage from './pages/ShopPage'
 import AdminShopPage from './pages/AdminShopPage'
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute() {
     const { token, loading } = useAuth()
     if (loading) return <div className="loading">Загрузка...</div>
     if (!token) return <Navigate to="/login" replace />
-    return children
+    return <Outlet />
 }
 
-function PublicRoute({ children }) {
+function PublicRoute() {
     const { token, loading } = useAuth()
     if (loading) return <div className="loading">Загрузка...</div>
     if (token) return <Navigate to="/" replace />
-    return children
+    return <Outlet />
 }
 
-/**
- * Стартовая страница.
- * Если у пользователя включён тумблер «Открывать доску при запуске» (workspace.defaultBoardId),
- * ведём на стартовый проект (если выбран) или на саму доску.
- * Иначе — на календарь.
- */
 function HomeRedirect() {
     const { user, loading } = useAuth()
+    const location = useLocation()
 
     if (loading) return <div className="loading">Загрузка...</div>
 
+    if (location.pathname !== '/') return null
+
     const ws = user?.workspace
+
     if (ws?.defaultBoardId) {
         if (ws?.launchProjectId) {
             return (
@@ -64,31 +63,37 @@ export default function App() {
         <BrowserRouter>
             <AuthProvider>
                 <ThemeApplier>
-                    <HotkeysProvider>
-                        <Routes>
-                            <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-                            <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+                    <AchievementsProvider>
+                        <HotkeysProvider>
+                            <Routes>
+                                <Route element={<PublicRoute />}>
+                                    <Route path="/login" element={<LoginPage />} />
+                                    <Route path="/register" element={<RegisterPage />} />
+                                </Route>
 
-                            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                                <Route path="/" element={<HomeRedirect />} />
-                                <Route path="/calendar" element={<CalendarPage />} />
-                                <Route path="/boards" element={<BoardsPage />} />
-                                <Route path="/boards/:id" element={<BoardDetailPage />} />
-                                <Route path="/boards/:boardId/settings" element={<BoardSettingsPage />} />
-                                <Route path="/boards/:boardId/projects/:projectId" element={<ProjectKanbanPage />} />
-                                <Route path="/stats" element={<StatsPage />} />
-                                <Route path="/shop" element={<ShopPage />} />
-                                <Route path="/profile" element={<ProfilePage />} />
-                                <Route path="/help" element={<HelpPage />} />
-                                <Route path="/settings" element={<SettingsPage />} />
-                                <Route path="/search" element={<SearchPage />} />
-                                <Route path="/boards/:boardId/projects/:projectId/search" element={<ProjectSearchPage />} />
-                                <Route path="/admin/shop" element={<AdminShopPage />} />
-                            </Route>
+                                <Route element={<ProtectedRoute />}>
+                                    <Route element={<AppLayout />}>
+                                        <Route path="/" element={<HomeRedirect />} />
+                                        <Route path="/calendar" element={<CalendarPage />} />
+                                        <Route path="/boards" element={<BoardsPage />} />
+                                        <Route path="/boards/:id" element={<BoardDetailPage />} />
+                                        <Route path="/boards/:boardId/settings" element={<BoardSettingsPage />} />
+                                        <Route path="/boards/:boardId/projects/:projectId" element={<ProjectKanbanPage />} />
+                                        <Route path="/stats" element={<StatsPage />} />
+                                        <Route path="/shop" element={<ShopPage />} />
+                                        <Route path="/profile" element={<ProfilePage />} />
+                                        <Route path="/help" element={<HelpPage />} />
+                                        <Route path="/settings" element={<SettingsPage />} />
+                                        <Route path="/search" element={<SearchPage />} />
+                                        <Route path="/boards/:boardId/projects/:projectId/search" element={<ProjectSearchPage />} />
+                                        <Route path="/admin/shop" element={<AdminShopPage />} />
+                                    </Route>
+                                </Route>
 
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </HotkeysProvider>
+                                <Route path="*" element={<Navigate to="/" replace />} />
+                            </Routes>
+                        </HotkeysProvider>
+                    </AchievementsProvider>
                 </ThemeApplier>
             </AuthProvider>
         </BrowserRouter>

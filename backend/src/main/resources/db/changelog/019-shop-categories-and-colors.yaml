@@ -1,0 +1,402 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 1. AVATARS: many-to-many категории + created_at + old_price
+  # ============================================================
+  - changeSet:
+      id: 019-01-avatar-category-links
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: avatar_category_links }
+      changes:
+        - createTable:
+            tableName: avatar_category_links
+            columns:
+              - column:
+                  name: avatar_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: avatars(id)
+                    foreignKeyName: fk_acl_avatar
+                    deleteCascade: true
+              - column:
+                  name: category_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: avatar_categories(id)
+                    foreignKeyName: fk_acl_category
+                    deleteCascade: true
+        - addPrimaryKey:
+            tableName: avatar_category_links
+            columnNames: avatar_id, category_id
+            constraintName: pk_avatar_category_links
+        - createIndex:
+            tableName: avatar_category_links
+            indexName: idx_acl_category
+            columns:
+              - column: { name: category_id }
+
+  - changeSet:
+      id: 019-02-migrate-avatar-categories
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: avatar_category_links }
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO avatar_category_links (avatar_id, category_id)
+              SELECT id, category_id FROM avatars
+              WHERE category_id IS NOT NULL
+              ON CONFLICT DO NOTHING;
+
+  - changeSet:
+      id: 019-03-avatars-created-at
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: avatars
+                columnName: created_at
+      changes:
+        - addColumn:
+            tableName: avatars
+            columns:
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints: { nullable: false }
+
+  - changeSet:
+      id: 019-04-avatars-old-price
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: avatars
+                columnName: old_price
+      changes:
+        - addColumn:
+            tableName: avatars
+            columns:
+              - column:
+                  name: old_price
+                  type: INT
+                  constraints: { nullable: true }
+
+  # ============================================================
+  # 2. FRAMES: категории + image_url + hex_color + created_at + old_price
+  # ============================================================
+  - changeSet:
+      id: 019-05-frame-categories
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: frame_categories }
+      changes:
+        - createTable:
+            tableName: frame_categories
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: code,       type: VARCHAR(64),  constraints: { nullable: false, unique: true } }
+              - column: { name: title,      type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+
+  - changeSet:
+      id: 019-06-frame-categories-seed
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: frame_categories }
+        - sqlCheck:
+            expectedResult: 0
+            sql: "SELECT count(*) FROM frame_categories"
+      changes:
+        - insert:
+            tableName: frame_categories
+            columns:
+              - column: { name: code, value: 'classic' }
+              - column: { name: title, value: 'Классика' }
+              - column: { name: sort_order, valueNumeric: 10 }
+        - insert:
+            tableName: frame_categories
+            columns:
+              - column: { name: code, value: 'glow' }
+              - column: { name: title, value: 'Свечение' }
+              - column: { name: sort_order, valueNumeric: 20 }
+        - insert:
+            tableName: frame_categories
+            columns:
+              - column: { name: code, value: 'nature' }
+              - column: { name: title, value: 'Природа' }
+              - column: { name: sort_order, valueNumeric: 30 }
+        - insert:
+            tableName: frame_categories
+            columns:
+              - column: { name: code, value: 'special' }
+              - column: { name: title, value: 'Особые' }
+              - column: { name: sort_order, valueNumeric: 40 }
+
+  - changeSet:
+      id: 019-07-frame-category-links
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: frame_category_links }
+      changes:
+        - createTable:
+            tableName: frame_category_links
+            columns:
+              - column:
+                  name: frame_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: frames(id)
+                    foreignKeyName: fk_fcl_frame
+                    deleteCascade: true
+              - column:
+                  name: category_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: frame_categories(id)
+                    foreignKeyName: fk_fcl_category
+                    deleteCascade: true
+        - addPrimaryKey:
+            tableName: frame_category_links
+            columnNames: frame_id, category_id
+            constraintName: pk_frame_category_links
+        - createIndex:
+            tableName: frame_category_links
+            indexName: idx_fcl_category
+            columns:
+              - column: { name: category_id }
+
+  - changeSet:
+      id: 019-08-frames-extra-columns
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: frames }
+      changes:
+        - addColumn:
+            tableName: frames
+            columns:
+              - column:
+                  name: image_url
+                  type: VARCHAR(255)
+                  constraints: { nullable: true }
+              - column:
+                  name: hex_color
+                  type: VARCHAR(9)
+                  constraints: { nullable: true }
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints: { nullable: false }
+              - column:
+                  name: old_price
+                  type: INT
+                  constraints: { nullable: true }
+
+  # ============================================================
+  # 3. ACCENT_SKINS: категории + hex_color + is_gradient + image_url + created_at
+  # ============================================================
+  - changeSet:
+      id: 019-09-accent-categories
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: accent_categories }
+      changes:
+        - createTable:
+            tableName: accent_categories
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: code,       type: VARCHAR(64),  constraints: { nullable: false, unique: true } }
+              - column: { name: title,      type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+
+  - changeSet:
+      id: 019-10-accent-categories-seed
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: accent_categories }
+        - sqlCheck:
+            expectedResult: 0
+            sql: "SELECT count(*) FROM accent_categories"
+      changes:
+        - insert:
+            tableName: accent_categories
+            columns:
+              - column: { name: code, value: 'solid' }
+              - column: { name: title, value: 'Однотонные' }
+              - column: { name: sort_order, valueNumeric: 10 }
+        - insert:
+            tableName: accent_categories
+            columns:
+              - column: { name: code, value: 'gradient' }
+              - column: { name: title, value: 'Градиентные' }
+              - column: { name: sort_order, valueNumeric: 20 }
+        - insert:
+            tableName: accent_categories
+            columns:
+              - column: { name: code, value: 'rare' }
+              - column: { name: title, value: 'Редкие' }
+              - column: { name: sort_order, valueNumeric: 30 }
+
+  - changeSet:
+      id: 019-11-accent-category-links
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: accent_category_links }
+      changes:
+        - createTable:
+            tableName: accent_category_links
+            columns:
+              - column:
+                  name: accent_skin_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: accent_skins(id)
+                    foreignKeyName: fk_accl_skin
+                    deleteCascade: true
+              - column:
+                  name: category_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: accent_categories(id)
+                    foreignKeyName: fk_accl_category
+                    deleteCascade: true
+        - addPrimaryKey:
+            tableName: accent_category_links
+            columnNames: accent_skin_id, category_id
+            constraintName: pk_accent_category_links
+        - createIndex:
+            tableName: accent_category_links
+            indexName: idx_accl_category
+            columns:
+              - column: { name: category_id }
+
+  - changeSet:
+      id: 019-12-accent-skins-extra-columns
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: accent_skins }
+      changes:
+        - addColumn:
+            tableName: accent_skins
+            columns:
+              - column:
+                  name: hex_color
+                  type: VARCHAR(9)
+                  constraints: { nullable: true }
+              - column:
+                  name: hex_color_secondary
+                  type: VARCHAR(9)
+                  constraints: { nullable: true }
+              - column:
+                  name: is_gradient
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+              - column:
+                  name: image_url
+                  type: VARCHAR(255)
+                  constraints: { nullable: true }
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints: { nullable: false }
+              - column:
+                  name: old_price
+                  type: INT
+                  constraints: { nullable: true }
+
+  # Заполняем hex_color для существующих акцентов
+  - changeSet:
+      id: 019-13-fill-hex-colors
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: accent_skins }
+      changes:
+        - sql:
+            sql: |
+              UPDATE accent_skins SET hex_color = CASE code
+                WHEN 'blue'    THEN '#4c9aff'
+                WHEN 'green'   THEN '#36b37e'
+                WHEN 'red'     THEN '#ff5630'
+                WHEN 'purple'  THEN '#a45cd6'
+                WHEN 'orange'  THEN '#ffab00'
+                WHEN 'pink'    THEN '#ff78c4'
+                WHEN 'teal'    THEN '#00b8d9'
+                WHEN 'indigo'  THEN '#5e6cff'
+                WHEN 'violet'  THEN '#8f6ed5'
+                WHEN 'magenta' THEN '#d16bdd'
+                WHEN 'coral'   THEN '#ff8f73'
+                WHEN 'amber'   THEN '#ffc400'
+                WHEN 'mint'    THEN '#57d9a3'
+                WHEN 'cyan'    THEN '#00b8d9'
+                WHEN 'lime'    THEN '#b3d400'
+                WHEN 'navy'    THEN '#0052cc'
+                WHEN 'maroon'  THEN '#ae2e24'
+                WHEN 'olive'   THEN '#877700'
+                WHEN 'brown'   THEN '#9e7c5a'
+                WHEN 'slate'   THEN '#6b778c'
+                WHEN 'sunset'  THEN '#ff8fae'
+                WHEN 'ocean'   THEN '#0081d6'
+                WHEN 'forest'  THEN '#5a9f3a'
+                WHEN 'neon'    THEN '#b100ff'
+                WHEN 'gold'    THEN '#d4a017'
+                ELSE hex_color
+              END
+              WHERE hex_color IS NULL;
+
+  - changeSet:
+      id: 019-14-fill-gradient-colors
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: accent_skins }
+      changes:
+        - sql:
+            sql: |
+              UPDATE accent_skins SET
+                is_gradient = TRUE,
+                hex_color_secondary = CASE code
+                  WHEN 'sunset' THEN '#ff78c4'
+                  WHEN 'ocean'  THEN '#00f0ff'
+                  WHEN 'forest' THEN '#a8c93c'
+                  WHEN 'neon'   THEN '#00f5ff'
+                  WHEN 'gold'   THEN '#d4a017'
+                  ELSE NULL
+                END
+              WHERE code IN ('sunset', 'ocean', 'forest', 'neon', 'gold');

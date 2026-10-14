@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Component
 public class AchievementMapper {
 
-    public AchievementDto toDto(Achievement a, UserAchievement unlocked) {
+    public AchievementDto toDto(Achievement a, UserAchievement unlocked, String rewardItemTitle) {
         return AchievementDto.builder()
                 .id(a.getId())
                 .code(a.getCode())
@@ -18,15 +18,27 @@ public class AchievementMapper {
                 .icon(a.getIcon())
                 .accentCode(a.getAccentCode())
                 .threshold(a.getThreshold())
+                .reward(a.getReward())
+                .rewardItemType(a.getRewardItemType())
+                .rewardItemCode(a.getRewardItemCode())
+                .rewardItemTitle(rewardItemTitle)
                 .unlocked(unlocked != null)
                 .unlockedAt(unlocked != null ? unlocked.getUnlockedAt() : null)
                 .build();
     }
 
-    public AchievementDto toUnlockedDto(Achievement a) {
+    public AchievementDto toDto(Achievement a, UserAchievement unlocked) {
+        return toDto(a, unlocked, null);
+    }
+
+    public AchievementDto toUnlockedDto(Achievement a, String rewardItemTitle) {
         return toDto(a, UserAchievement.builder()
                 .achievement(a)
                 .unlockedAt(LocalDateTime.now())
-                .build());
+                .build(), rewardItemTitle);
+    }
+
+    public AchievementDto toUnlockedDto(Achievement a) {
+        return toUnlockedDto(a, null);
     }
 }

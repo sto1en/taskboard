@@ -1,5 +1,6 @@
 package coursework.taskboard.service.task;
 
+import coursework.taskboard.dto.achievement.AchievementDto;
 import coursework.taskboard.dto.attachment.AttachmentDto;
 import coursework.taskboard.dto.task.*;
 import coursework.taskboard.model.attachment.Attachment;
@@ -45,6 +46,8 @@ import java.util.Objects;
 public class TaskService {
 
     private static final int MAX_SUBTASKS = 20;
+    private static final int LEAVES_PER_TASK = 10;
+    private static final int LEAVES_TREE_BONUS = 50;
 
     private final TaskRepository taskRepository;
     private final TaskSettingsRepository taskSettingsRepository;
@@ -75,6 +78,9 @@ public class TaskService {
     @Value("${app.upload.base-url}")
     private String uploadBaseUrl;
 
+    // ============================================================
+    // СОЗДАНИЕ
+    // ============================================================
     @Transactional
     public TaskDto createTask(Long projectId, CreateTaskRequest request, User user) {
         Project project = getProjectWithAccess(projectId, user);
@@ -141,7 +147,10 @@ public class TaskService {
             }
         }
 
-        checkFunnyAchievementsOnText(user, task.getTitle());
+        List<AchievementDto> newAch = new ArrayList<>();
+
+        // Ачивки на текст
+        newAch.addAll(checkFunnyAchievementsOnText(user, task.getTitle()));
 
         taskAuditService.log(task, user, "CREATED", null);
 
@@ -153,12 +162,21 @@ public class TaskService {
         dto.setLastEditedBy(buildUserShort(task.getLastEditedBy()));
         dto.setLastEditedAt(task.getLastEditedAt());
 
-        // Пересчитываем статус проекта — вдруг задача сразу в финальном статусе
+        // Если задача сразу создана в финальном статусе — начислить листья
+        if (isFinalStatus(status)) {
+            newAch.addAll(onTaskCompleted(user, task, schedule, null, status.getCategoryCode()));
+        }
+
+        dto.setNewlyUnlockedAchievements(newAch);
+
         projectStatusRecalcService.recalc(projectId);
 
         return dto;
     }
 
+    // ============================================================
+    // ПОЛУЧЕНИЕ
+    // ============================================================
     @Transactional(readOnly = true)
     public TaskDto getTask(Long taskId, User user) {
         Task task = getTaskWithAccess(taskId, user);
@@ -267,12 +285,17 @@ public class TaskService {
         return KanbanDto.builder().columns(columns).build();
     }
 
+    // ============================================================
+    // ОБНОВЛЕНИЕ
+    // ============================================================
     @Transactional
     public TaskDto updateTask(Long taskId, UpdateTaskRequest request, User user) {
         Task task = getTaskWithAccess(taskId, user);
         TaskSettings settings = taskSettingsRepository.findById(taskId).orElseThrow();
         TaskSchedule schedule = taskScheduleRepository.findById(taskId).orElseThrow();
         Board board = task.getProject().getBoard();
+
+        List<AchievementDto> newAch = new ArrayList<>();
 
         String oldTitle = task.getTitle();
         String oldDescription = task.getDescription();
@@ -335,9 +358,12 @@ public class TaskService {
         }
 
         if (request.getTitle() != null) {
-            checkFunnyAchievementsOnText(user, task.getTitle());
+            newAch.addAll(checkFunnyAchievementsOnText(user, task.getTitle()));
         }
 
+        // ============================================================
+        // Смена статуса
+        // ============================================================
         if (request.getStatusId() != null) {
             BoardStatus newStatus = boardStatusRepository.findById(request.getStatusId())
                     .orElseThrow(() -> new IllegalArgumentException("Status not found"));
@@ -356,45 +382,84 @@ public class TaskService {
             boolean wasFinal = isFinalStatus(settings.getStatus());
             boolean willBeFinal = isFinalStatus(newStatus);
 
+            long doneBefore = countDoneTasksToday(user);
+
             if (!wasFinal && willBeFinal) {
                 schedule.setCompletedAt(LocalDateTime.now());
+                settings.setStatus(newStatus);
+                taskSettingsRepository.save(settings);
+
+                if (task.getParent() == null) {
+                    for (Task sub : taskRepository.findByParentIdOrderByPositionAsc(task.getId())) {
+                        TaskSettings subSettings = taskSettingsRepository.findById(sub.getId()).orElse(null);
+                        if (subSettings != null) {
+                            subSettings.setStatus(newStatus);
+                            TaskSchedule subSchedule = taskScheduleRepository.findById(sub.getId()).orElse(null);
+                            if (subSchedule != null && subSchedule.getCompletedAt() == null) {
+                                subSchedule.setCompletedAt(LocalDateTime.now());
+                                taskScheduleRepository.save(subSchedule);
+                            }
+                            taskSettingsRepository.save(subSettings);
+                        }
+                    }
+                }
+
+                if (task.getParent() != null) {
+                    newAch.addAll(syncParentStatus(task));
+                }
+
+                newAch.addAll(onTaskCompleted(user, task, schedule, oldCategory, newCategory));
+
             } else if (wasFinal && !willBeFinal) {
                 schedule.setCompletedAt(null);
-            }
+                settings.setStatus(newStatus);
+                taskSettingsRepository.save(settings);
 
-            settings.setStatus(newStatus);
-            taskSettingsRepository.save(settings);
-
-            if (task.getParent() == null) {
-                for (Task sub : taskRepository.findByParentIdOrderByPositionAsc(task.getId())) {
-                    TaskSettings subSettings = taskSettingsRepository.findById(sub.getId()).orElse(null);
-                    if (subSettings != null) {
-                        subSettings.setStatus(newStatus);
-
-                        TaskSchedule subSchedule = taskScheduleRepository.findById(sub.getId()).orElse(null);
-                        if (subSchedule != null) {
-                            if (!wasFinal && willBeFinal && subSchedule.getCompletedAt() == null) {
-                                subSchedule.setCompletedAt(LocalDateTime.now());
-                            } else if (wasFinal && !willBeFinal) {
+                if (task.getParent() == null) {
+                    for (Task sub : taskRepository.findByParentIdOrderByPositionAsc(task.getId())) {
+                        TaskSettings subSettings = taskSettingsRepository.findById(sub.getId()).orElse(null);
+                        if (subSettings != null) {
+                            subSettings.setStatus(newStatus);
+                            TaskSchedule subSchedule = taskScheduleRepository.findById(sub.getId()).orElse(null);
+                            if (subSchedule != null) {
                                 subSchedule.setCompletedAt(null);
+                                taskScheduleRepository.save(subSchedule);
                             }
-                            taskScheduleRepository.save(subSchedule);
+                            taskSettingsRepository.save(subSettings);
                         }
-
-                        taskSettingsRepository.save(subSettings);
                     }
+                }
+
+                if (task.getParent() != null) {
+                    syncParentStatus(task);
+                }
+
+                onTaskReopened(user, task, doneBefore);
+
+            } else {
+                settings.setStatus(newStatus);
+                taskSettingsRepository.save(settings);
+
+                if (task.getParent() == null) {
+                    for (Task sub : taskRepository.findByParentIdOrderByPositionAsc(task.getId())) {
+                        TaskSettings subSettings = taskSettingsRepository.findById(sub.getId()).orElse(null);
+                        if (subSettings != null) {
+                            subSettings.setStatus(newStatus);
+                            taskSettingsRepository.save(subSettings);
+                        }
+                    }
+                }
+
+                if (task.getParent() != null) {
+                    syncParentStatus(task);
                 }
             }
 
-            if (task.getParent() != null) {
-                syncParentStatus(task);
+            if ("EXPIRED".equals(newCategory) && !"EXPIRED".equals(oldCategory)) {
+                AchievementDto dto = achievementService.firstExpired(user);
+                if (dto != null) newAch.add(dto);
             }
 
-            if (!wasFinal && willBeFinal) {
-                onTaskCompleted(user, task, schedule, oldCategory, newCategory);
-            } else if ("EXPIRED".equals(newCategory) && !"EXPIRED".equals(oldCategory)) {
-                achievementService.firstExpired(user);
-            }
         } else {
             taskSettingsRepository.save(settings);
         }
@@ -449,6 +514,7 @@ public class TaskService {
         task.setLastEditedAt(LocalDateTime.now());
         taskRepository.save(task);
 
+        // Аудит
         if (!Objects.equals(oldTitle, task.getTitle())) {
             taskAuditService.log(task, user, "UPDATED", "title", oldTitle, task.getTitle());
         }
@@ -510,109 +576,93 @@ public class TaskService {
         RecurrenceDto rec = recurrenceService.getRule(task);
         dto.setRecurrence(rec);
 
-        // Пересчитываем статус проекта — все задачи могли стать выполненными
+        dto.setNewlyUnlockedAchievements(newAch);
+
         projectStatusRecalcService.recalc(task.getProject().getId());
 
         return dto;
     }
 
-    private void onTaskCompleted(User user, Task task, TaskSchedule schedule,
-                                 String oldCategory, String newCategory) {
+    // ============================================================
+    // НАГРАДА — возвращает список новых ачивок
+    // ============================================================
+    private List<AchievementDto> onTaskCompleted(User user, Task task, TaskSchedule schedule,
+                                                 String oldCategory, String newCategory) {
+
+        List<AchievementDto> result = new ArrayList<>();
 
         if (!"DONE".equals(newCategory) && !"ARCHIVED".equals(newCategory)) {
-            return;
+            return result;
         }
 
-        shopService.addLeaves(user, 1);
+        // +10 за задачу
+        shopService.addLeaves(user, LEAVES_PER_TASK);
 
-        achievementService.firstTask(user);
+        // Бонус за дерево
+        long doneAfter = countDoneTasksToday(user);
+        long doneBefore = doneAfter - 1;
+        int bonusDelta = (int) ((doneAfter / 10 - doneBefore / 10) * LEAVES_TREE_BONUS);
+        if (bonusDelta > 0) {
+            shopService.addLeaves(user, bonusDelta);
+        }
+
+        // Ачивки
+        AchievementDto a1 = achievementService.firstTask(user);
+        if (a1 != null) result.add(a1);
 
         long totalDone = countDoneTasksForUser(user);
-        achievementService.checkTotalTasks(user, totalDone);
-
-        long doneToday = countDoneTasksToday(user);
-        achievementService.checkDayTasks(user, doneToday);
+        result.addAll(achievementService.checkTotalTasks(user, totalDone));
+        result.addAll(achievementService.checkDayTasks(user, doneAfter));
 
         int hour = LocalDateTime.now().getHour();
         if (hour >= 23 || hour < 5) {
-            achievementService.nightOwl(user);
+            AchievementDto a = achievementService.nightOwl(user);
+            if (a != null) result.add(a);
         }
 
         if (schedule != null && schedule.getDeadline() != null
                 && LocalDateTime.now().isBefore(schedule.getDeadline())) {
             long onTimeCount = countOnTimeForUser(user);
-            achievementService.checkOnTime(user, onTimeCount);
+            result.addAll(achievementService.checkOnTime(user, onTimeCount));
         }
 
         long last10min = countDoneLastMinutes(user, 10);
         if (last10min >= 5) {
-            achievementService.ninja(user);
+            AchievementDto a = achievementService.ninja(user);
+            if (a != null) result.add(a);
+        }
+
+        return result;
+    }
+
+    // ============================================================
+    // СПИСАНИЕ ПРИ ОТМЕНЕ
+    // ============================================================
+    private void onTaskReopened(User user, Task task, long doneBeforeOverride) {
+        shopService.deductLeavesSafe(user, LEAVES_PER_TASK);
+
+        long doneBefore = doneBeforeOverride;
+        long doneAfter = doneBefore - 1;
+        int bonusDelta = (int) ((doneAfter / 10 - doneBefore / 10) * LEAVES_TREE_BONUS);
+        if (bonusDelta < 0) {
+            shopService.deductLeavesSafe(user, -bonusDelta);
         }
     }
 
-    private void checkFunnyAchievementsOnText(User user, String title) {
-        if (title == null) return;
-        String low = title.toLowerCase();
-        if (low.contains("утка") || low.contains("duck")) {
-            achievementService.duck(user);
-        }
-        if (low.contains("лол") || low.contains(":d") || low.contains(":д") || low.contains("lol")) {
-            achievementService.joker(user);
-        }
-    }
+    // ============================================================
+    // СИНХРОНИЗАЦИЯ РОДИТЕЛЯ — возвращает список новых ачивок
+    // ============================================================
+    private List<AchievementDto> syncParentStatus(Task task) {
+        List<AchievementDto> result = new ArrayList<>();
 
-    private long countDoneTasksForUser(User user) {
-        return taskRepository.findAllByOwnerId(user.getId()).stream()
-                .filter(t -> {
-                    TaskSettings s = taskSettingsRepository.findById(t.getId()).orElse(null);
-                    if (s == null || s.getStatus() == null) return false;
-                    String c = s.getStatus().getCategoryCode();
-                    return "DONE".equals(c) || "ARCHIVED".equals(c);
-                })
-                .count();
-    }
-
-    private long countDoneTasksToday(User user) {
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        return taskRepository.findAllByOwnerId(user.getId()).stream()
-                .filter(t -> {
-                    TaskSchedule sch = taskScheduleRepository.findById(t.getId()).orElse(null);
-                    if (sch == null || sch.getCompletedAt() == null) return false;
-                    return sch.getCompletedAt().isAfter(startOfDay);
-                })
-                .count();
-    }
-
-    private long countOnTimeForUser(User user) {
-        return taskRepository.findAllByOwnerId(user.getId()).stream()
-                .filter(t -> {
-                    TaskSchedule sch = taskScheduleRepository.findById(t.getId()).orElse(null);
-                    if (sch == null || sch.getDeadline() == null || sch.getCompletedAt() == null) return false;
-                    return sch.getCompletedAt().isBefore(sch.getDeadline());
-                })
-                .count();
-    }
-
-    private long countDoneLastMinutes(User user, int minutes) {
-        LocalDateTime threshold = LocalDateTime.now().minusMinutes(minutes);
-        return taskRepository.findAllByOwnerId(user.getId()).stream()
-                .filter(t -> {
-                    TaskSchedule sch = taskScheduleRepository.findById(t.getId()).orElse(null);
-                    if (sch == null || sch.getCompletedAt() == null) return false;
-                    return sch.getCompletedAt().isAfter(threshold);
-                })
-                .count();
-    }
-
-    private void syncParentStatus(Task task) {
         Task parent = task.getParent();
-        if (parent == null) return;
+        if (parent == null) return result;
 
         List<Task> siblings = taskRepository.findByParentIdOrderByPositionAsc(parent.getId());
-        if (siblings.isEmpty()) return;
+        if (siblings.isEmpty()) return result;
 
         TaskSettings parentSettings = taskSettingsRepository.findById(parent.getId()).orElse(null);
-        if (parentSettings == null) return;
+        if (parentSettings == null) return result;
 
         boolean allDone = true;
         BoardStatus doneStatus = null;
@@ -631,8 +681,10 @@ public class TaskService {
             }
         }
 
+        boolean parentWasFinal = isFinalStatus(parentSettings.getStatus());
+
         if (allDone && doneStatus != null) {
-            if (!"DONE".equals(parentSettings.getStatus().getCategoryCode())) {
+            if (!parentWasFinal) {
                 parentSettings.setStatus(doneStatus);
                 taskSettingsRepository.save(parentSettings);
 
@@ -642,10 +694,13 @@ public class TaskService {
                     taskScheduleRepository.save(parentSchedule);
                 }
 
-                syncParentStatus(parent);
+                User owner = parent.getProject().getBoard().getOwner();
+                result.addAll(onTaskCompleted(owner, parent, parentSchedule, null, "DONE"));
+
+                result.addAll(syncParentStatus(parent));
             }
         } else {
-            if ("DONE".equals(parentSettings.getStatus().getCategoryCode())) {
+            if (parentWasFinal) {
                 BoardStatus activeStatus = boardStatusRepository
                         .findByBoardIdAndScopeAndCode(
                                 parent.getProject().getBoard().getId(),
@@ -655,6 +710,9 @@ public class TaskService {
                         .orElse(null);
 
                 if (activeStatus != null) {
+                    long doneBefore = countDoneTasksToday(
+                            parent.getProject().getBoard().getOwner());
+
                     parentSettings.setStatus(activeStatus);
                     taskSettingsRepository.save(parentSettings);
 
@@ -664,22 +722,42 @@ public class TaskService {
                         taskScheduleRepository.save(parentSchedule);
                     }
 
+                    User owner = parent.getProject().getBoard().getOwner();
+                    onTaskReopened(owner, parent, doneBefore);
+
                     syncParentStatus(parent);
                 }
             }
         }
+
+        return result;
     }
 
+    // ============================================================
+    // УДАЛЕНИЕ
+    // ============================================================
     @Transactional
     public void deleteTask(Long taskId, User user) {
         Task task = getTaskWithAccess(taskId, user);
         Long projectId = task.getProject().getId();
+
+        TaskSettings settings = taskSettingsRepository.findById(taskId).orElse(null);
+
+        boolean wasFinal = settings != null && isFinalStatus(settings.getStatus());
+        long doneBefore = wasFinal ? countDoneTasksToday(user) : 0;
+
         taskRepository.delete(task);
 
-        // Мог измениться общий прогресс проекта
+        if (wasFinal) {
+            onTaskReopened(user, task, doneBefore);
+        }
+
         projectStatusRecalcService.recalc(projectId);
     }
 
+    // ============================================================
+    // RESCHEDULE
+    // ============================================================
     @Transactional(readOnly = true)
     public List<TaskShortDto> getRescheduleCandidates(User user) {
         List<Long> projectIds = projectRepository.findAll().stream()
@@ -711,6 +789,9 @@ public class TaskService {
         taskScheduleRepository.save(schedule);
     }
 
+    // ============================================================
+    // ВЛОЖЕНИЯ
+    // ============================================================
     @Transactional
     public void attachAttachment(Long taskId, Long attachmentId, User user) {
         Task task = getTaskWithAccess(taskId, user);
@@ -769,6 +850,9 @@ public class TaskService {
         taskRepository.save(task);
     }
 
+    // ============================================================
+    // ВСПОМОГАТЕЛЬНЫЕ
+    // ============================================================
     private List<TaskShortDto> toShortDtos(List<Task> tasks) {
         List<TaskShortDto> result = new ArrayList<>();
 
@@ -994,5 +1078,70 @@ public class TaskService {
     @Transactional(readOnly = true)
     public List<LocalDateTime> previewRecurrence(RecurrenceRequestDto req) {
         return recurrenceService.preview(req, 10);
+    }
+
+    // ============================================================
+    // Ачивки на текст — возвращает список
+    // ============================================================
+    private List<AchievementDto> checkFunnyAchievementsOnText(User user, String title) {
+        List<AchievementDto> result = new ArrayList<>();
+        if (title == null) return result;
+
+        String low = title.toLowerCase();
+        if (low.contains("утка") || low.contains("duck")) {
+            AchievementDto a = achievementService.duck(user);
+            if (a != null) result.add(a);
+        }
+        if (low.contains("лол") || low.contains(":d") || low.contains(":д") || low.contains("lol")) {
+            AchievementDto a = achievementService.joker(user);
+            if (a != null) result.add(a);
+        }
+        return result;
+    }
+
+    // ============================================================
+    // Подсчёты
+    // ============================================================
+    private long countDoneTasksForUser(User user) {
+        return taskRepository.findAllByOwnerId(user.getId()).stream()
+                .filter(t -> {
+                    TaskSettings s = taskSettingsRepository.findById(t.getId()).orElse(null);
+                    if (s == null || s.getStatus() == null) return false;
+                    String c = s.getStatus().getCategoryCode();
+                    return "DONE".equals(c) || "ARCHIVED".equals(c);
+                })
+                .count();
+    }
+
+    private long countDoneTasksToday(User user) {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        return taskRepository.findAllByOwnerId(user.getId()).stream()
+                .filter(t -> {
+                    TaskSchedule sch = taskScheduleRepository.findById(t.getId()).orElse(null);
+                    if (sch == null || sch.getCompletedAt() == null) return false;
+                    return sch.getCompletedAt().isAfter(startOfDay);
+                })
+                .count();
+    }
+
+    private long countOnTimeForUser(User user) {
+        return taskRepository.findAllByOwnerId(user.getId()).stream()
+                .filter(t -> {
+                    TaskSchedule sch = taskScheduleRepository.findById(t.getId()).orElse(null);
+                    if (sch == null || sch.getDeadline() == null || sch.getCompletedAt() == null) return false;
+                    return sch.getCompletedAt().isBefore(sch.getDeadline());
+                })
+                .count();
+    }
+
+    private long countDoneLastMinutes(User user, int minutes) {
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(minutes);
+        return taskRepository.findAllByOwnerId(user.getId()).stream()
+                .filter(t -> {
+                    TaskSchedule sch = taskScheduleRepository.findById(t.getId()).orElse(null);
+                    if (sch == null || sch.getCompletedAt() == null) return false;
+                    return sch.getCompletedAt().isAfter(threshold);
+                })
+                .count();
     }
 }

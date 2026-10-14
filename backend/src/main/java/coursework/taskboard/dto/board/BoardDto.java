@@ -1,7 +1,10 @@
 package coursework.taskboard.dto.board;
 
+import coursework.taskboard.dto.achievement.AchievementDto;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+
+import java.util.List;
 
 @Data
 @SuperBuilder
@@ -27,4 +30,9 @@ public class BoardDto {
     private long projectCount;
     private long taskCount;
     private Long ownerId;
+
+    // ============================================================
+    // Ачивки, разблокированные в результате этого действия
+    // ============================================================
+    private List<AchievementDto> newlyUnlockedAchievements;
 }

@@ -2,6 +2,9 @@ package coursework.taskboard.dto.shop;
 
 import lombok.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -15,9 +18,8 @@ public class AdminAvatarDto {
     private String imageUrl;
     private String cssClass;
     private Integer price;
+    private Integer oldPrice;
     private Integer sortOrder;
-
-    private Long categoryId;
-    private String categoryCode;
-    private String categoryTitle;
+    private LocalDateTime createdAt;
+    private List<CategoryDto> categories;
 }

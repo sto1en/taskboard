@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { adminApi } from '../api/api'
 import useT from '../hooks/useT'
 import AdminAvatarTab from '../components/admin/AdminAvatarTab'
+import AdminFrameTab from '../components/admin/AdminFrameTab'
+import AdminAccentTab from '../components/admin/AdminAccentTab'
 
 export default function AdminShopPage() {
     const { user } = useAuth()
@@ -12,7 +13,6 @@ export default function AdminShopPage() {
 
     const [tab, setTab] = useState('avatars')
 
-    // Простая защита на фронте. На бэке — отдельная проверка.
     useEffect(() => {
         if (user && !user.isAdmin) {
             nav('/', { replace: true })
@@ -39,16 +39,14 @@ export default function AdminShopPage() {
                 <button
                     className={`admin-tab ${tab === 'frames' ? 'admin-tab--active' : ''}`}
                     onClick={() => setTab('frames')}
-                    disabled
                 >
-                    Рамки (скоро)
+                    Рамки
                 </button>
                 <button
                     className={`admin-tab ${tab === 'accents' ? 'admin-tab--active' : ''}`}
                     onClick={() => setTab('accents')}
-                    disabled
                 >
-                    Цвета (скоро)
+                    Цвета
                 </button>
                 <button
                     className={`admin-tab ${tab === 'trees' ? 'admin-tab--active' : ''}`}
@@ -61,6 +59,8 @@ export default function AdminShopPage() {
 
             <div className="admin-page__body">
                 {tab === 'avatars' && <AdminAvatarTab />}
+                {tab === 'frames' && <AdminFrameTab />}
+                {tab === 'accents' && <AdminAccentTab />}
             </div>
         </div>
     )

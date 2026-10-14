@@ -80,7 +80,7 @@ public class UserService {
         List<UserSearchDto> result = new ArrayList<>();
         for (UserProfile p : profiles) {
             if (p.getUser() == null) continue;
-            if (p.getUser().getId().equals(requester.getId())) continue;   // не показываем себя
+            if (p.getUser().getId().equals(requester.getId())) continue;
 
             String avatarUrl = null;
             if (p.getAvatar() != null) {
@@ -182,7 +182,10 @@ public class UserService {
             appearance.setTreeEnabled(request.getTreeEnabled());
         }
         if (request.getTreeKind() != null) {
-            if (!java.util.Set.of("sakura", "birch", "palm", "apple", "xmas").contains(request.getTreeKind())) {
+            if (!java.util.Set.of(
+                    "sakura", "birch", "palm", "apple", "xmas",
+                    "oak", "cherry"
+            ).contains(request.getTreeKind())) {
                 throw new IllegalArgumentException("Invalid treeKind");
             }
             appearance.setTreeKind(request.getTreeKind());

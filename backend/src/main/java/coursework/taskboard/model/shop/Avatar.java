@@ -3,6 +3,10 @@ package coursework.taskboard.model.shop;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "avatars")
 @Getter
@@ -38,11 +42,27 @@ public class Avatar {
     @Builder.Default
     private Integer price = 0;
 
+    @Column(name = "old_price")
+    private Integer oldPrice;
+
     @Column(name = "sort_order", nullable = false)
     @Builder.Default
     private Integer sortOrder = 0;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
-    private AvatarCategory category;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.createdAt == null) this.createdAt = LocalDateTime.now();
+    }
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "avatar_category_links",
+            joinColumns = @JoinColumn(name = "avatar_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    @Builder.Default
+    private Set<AvatarCategory> categories = new HashSet<>();
 }

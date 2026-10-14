@@ -194,10 +194,10 @@ export default function Sidebar() {
 
                 <nav className="sidebar__nav">
                     <div className="sidebar__group-row">
-                        <Link to="/boards" className="sidebar__group-link" title={t.boards}>
+                        <NavLink to="/boards" className="sidebar__group-link" title={t.boards}>
                             <span className="sidebar__group-icon">📋</span>
                             {!collapsed && <span>{t.boards}</span>}
-                        </Link>
+                        </NavLink>
                         {!collapsed && hasPinned && (
                             <button
                                 className="sidebar__group-toggle"
@@ -264,12 +264,22 @@ export default function Sidebar() {
 
                     <div className="sidebar__divider" />
 
-                    <NavLink to="/calendar" className="sidebar__link" title={t.calendar}>
+                    <NavLink
+                        to="/calendar"
+                        end
+                        className={({ isActive }) => `sidebar__link ${isActive ? 'active' : ''}`}
+                        title={t.calendar}
+                    >
                         <span>📅</span>
                         {!collapsed && <span>{t.calendar}</span>}
                     </NavLink>
 
-                    <NavLink to="/stats" className="sidebar__link" title={t.stats}>
+                    <NavLink
+                        to="/stats"
+                        end
+                        className={({ isActive }) => `sidebar__link ${isActive ? 'active' : ''}`}
+                        title={t.stats}
+                    >
                         <span>📊</span>
                         {!collapsed && <span>{t.stats}</span>}
                     </NavLink>

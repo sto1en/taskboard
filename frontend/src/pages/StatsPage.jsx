@@ -7,7 +7,6 @@ import { statsApi, achievementsApi } from '../api/api'
 import useT from '../hooks/useT'
 import { useAuth } from '../context/AuthContext'
 import AchievementCard from '../components/Achievement/AchievementCard'
-import AchievementToast from '../components/Achievement/AchievementToast'
 
 const RU_MONTHS_GEN = [
     'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
@@ -27,11 +26,6 @@ function formatDayLabel(iso, lang) {
     return `${d} ${RU_MONTHS_GEN[m - 1]}`
 }
 
-/**
- * Читает актуальный акцент из <html> (CSS-переменные) и возвращает
- * пару цветов для градиента бара. Для однотонных акцентов оба цвета
- * будут одинаковыми — бар станет однотонным (это ок).
- */
 function useAccentColors() {
     const { user } = useAuth()
     const [colors, setColors] = useState(['#a45cd6', '#a45cd6'])
@@ -73,7 +67,6 @@ export default function StatsPage() {
 
     const [achievements, setAchievements] = useState([])
     const [achLoading, setAchLoading] = useState(false)
-    const [toastQueue] = useState([])
 
     const [accentFrom, accentTo] = useAccentColors()
 
@@ -328,8 +321,6 @@ export default function StatsPage() {
                     )}
                 </>
             )}
-
-            <AchievementToast queue={toastQueue} onDismiss={() => {}} />
         </div>
     )
 }

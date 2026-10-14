@@ -35,3 +35,7 @@ databaseChangeLog:
       file: db/changelog/017-add-project-manual-position.yaml
   - include:
       file: db/changelog/018-admin-and-avatar-categories.yaml
+  - include:
+      file: db/changelog/019-shop-categories-and-colors.yaml
+  - include:
+      file: db/changelog/020-add-achievement-rewards.yaml

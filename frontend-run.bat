@@ -22,20 +22,31 @@ if not exist "%FRONTEND_DIR%\package.json" (
     echo [ОШИБКА] Не найден %FRONTEND_DIR%\package.json
     goto :error
 )
-
 if not exist "%NGINX_EXE%" (
     echo [ОШИБКА] Не найден Nginx: %NGINX_EXE%
     goto :error
 )
+if not exist "%NGINX_DIR%\conf\nginx.conf" (
+    echo [ОШИБКА] Не найден конфиг Nginx: %NGINX_DIR%\conf\nginx.conf
+    goto :error
+)
 
-echo [1/5] Очистка dist...
+echo [0/6] Убиваем старые процессы Nginx...
+taskkill /F /IM nginx.exe >nul 2>&1
+echo       OK
+echo.
+
+echo [1/6] Очистка dist и кэша Vite...
 if exist "%FRONTEND_DIR%\dist" (
     rmdir /s /q "%FRONTEND_DIR%\dist"
+)
+if exist "%FRONTEND_DIR%\node_modules\.vite" (
+    rmdir /s /q "%FRONTEND_DIR%\node_modules\.vite"
 )
 echo       OK
 echo.
 
-echo [2/5] Сборка React...
+echo [2/6] Сборка React...
 cd /d "%FRONTEND_DIR%"
 call npm run build
 if errorlevel 1 (
@@ -46,34 +57,38 @@ if errorlevel 1 (
 echo       OK
 echo.
 
-echo [3/5] Проверка dist\index.html...
+echo [3/6] Проверка dist\index.html...
 if not exist "%FRONTEND_DIR%\dist\index.html" (
     echo [ОШИБКА] Не найден %FRONTEND_DIR%\dist\index.html
     goto :error
 )
 echo       OK
+
+echo       Файлы в dist\assets:
+dir /b "%FRONTEND_DIR%\dist\assets"
 echo.
 
-echo [4/5] Перезапуск Nginx...
-cd /d "%NGINX_DIR%"
-
-tasklist /FI "IMAGENAME eq nginx.exe" 2>NUL | find /I "nginx.exe" >NUL
+echo [4/6] Проверка конфига Nginx...
+REM ВАЖНО: указываем -p (prefix) и -c (конфиг) явно
+"%NGINX_EXE%" -p "%NGINX_DIR%" -c "%NGINX_DIR%\conf\nginx.conf" -t
 if errorlevel 1 (
-    echo       Nginx не запущен, стартуем
-    start "" /B "%NGINX_EXE%"
-    ping -n 3 127.0.0.1 >nul
-) else (
-    echo       Nginx работает, полный рестарт
-    "%NGINX_EXE%" -s stop
-    ping -n 2 127.0.0.1 >nul
-    start "" /B "%NGINX_EXE%"
-    ping -n 3 127.0.0.1 >nul
+    echo [ОШИБКА] Конфиг Nginx некорректен
+    goto :error
 )
 echo       OK
 echo.
 
-echo [5/5] Проверка конфига Nginx...
-"%NGINX_EXE%" -t
+echo [5/6] Старт Nginx...
+cd /d "%NGINX_DIR%"
+start "" /B "%NGINX_EXE%" -p "%NGINX_DIR%" -c "%NGINX_DIR%\conf\nginx.conf"
+ping -n 3 127.0.0.1 >nul
+echo       OK
+echo.
+
+echo [6/6] Проверка HTTP:
+curl -s -o nul -w "  /          %%{http_code}\n" http://localhost:8081/
+curl -s -o nul -w "  /calendar  %%{http_code}\n" http://localhost:8081/calendar
+curl -s -o nul -w "  /api/ping  %%{http_code}\n" http://localhost:8081/api/ping
 echo.
 
 echo ============================================================
@@ -82,8 +97,8 @@ echo ============================================================
 start "" "%TASKBOARD_URL%"
 
 echo.
-echo Всё готово. Окно закроется через 2 секунды.
-timeout /t 2 /nobreak >nul
+echo Всё готово. Окно закроется через 3 секунды.
+timeout /t 3 /nobreak >nul
 exit /b 0
 
 :error

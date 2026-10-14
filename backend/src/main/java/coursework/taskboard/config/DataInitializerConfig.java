@@ -46,7 +46,7 @@ public class DataInitializerConfig implements CommandLineRunner {
     }
 
     // ============================================================
-    // ACCENTS (справочник общих цветов для UI)
+    // ACCENTS
     // ============================================================
     private void initAccents() {
         if (accentRepository.count() > 0) return;
@@ -111,99 +111,88 @@ public class DataInitializerConfig implements CommandLineRunner {
         ));
     }
 
+    // ============================================================
+    // ACHIEVEMENTS
+    // ============================================================
     private void initAchievements() {
         if (achievementRepository.count() > 0) return;
         achievementRepository.saveAll(List.of(
-                ach("FIRST_TASK",     "🌱 Росток",            "Закрыта первая задача",                          "🌱", "green",  "TASKS_DONE_TOTAL",   1,   10,  5),
-                ach("TEN_TASKS",      "🌿 Первые шаги",        "Закрыто 10 задач",                               "🌿", "green",  "TASKS_DONE_TOTAL",   10,  20,  10),
-                ach("FIFTY_TASKS",    "🌳 Полтинник",          "Закрыто 50 задач",                               "🌳", "green",  "TASKS_DONE_TOTAL",   50,  30,  25),
-                ach("HUNDRED_TASKS",  "🏆 Сотня",              "Закрыто 100 задач",                              "🏆", "amber",  "TASKS_DONE_TOTAL",   100, 40,  50),
-                ach("FIVE_HUNDRED",   "🚀 Пятьсот",            "Закрыто 500 задач",                              "🚀", "purple", "TASKS_DONE_TOTAL",   500, 50,  200),
-                ach("MARATHON_10",    "⚡ Марафонец",          "10 задач за один день",                          "⚡", "amber",  "TASKS_DONE_DAY",     10,  60,  15),
-                ach("FIRE_25",        "🔥 Огонь",              "25 задач за один день",                          "🔥", "red",    "TASKS_DONE_DAY",     25,  70,  40),
-                ach("WEEK_STREAK",    "📅 Стабильность",       "Задачи закрывались 7 дней подряд",               "📅", "blue",   "STREAK_DAYS",        7,   80,  30),
-                ach("MONTH_STREAK",   "💪 Дисциплина",         "30 дней подряд с закрытыми задачами",            "💪", "purple", "STREAK_DAYS",        30,  90,  100),
-                ach("FIVE_BOARDS",    "📋 Хранитель досок",    "Создано 5 досок",                                "📋", "blue",   "BOARDS_CREATED",     5,   100, 20),
-                ach("TEN_PROJECTS",   "🗂️ Стратег",            "Создано 10 проектов",                            "🗂️", "indigo", "PROJECTS_CREATED",   10,  110, 40),
-                ach("COVER_SET",      "🎨 Оформитель",         "У доски установлена обложка",                    "🎨", "pink",   "BOARD_COVER_SET",    1,   120, 10),
-                ach("FIRST_EXPIRED",  "⏰ Первый просроченный", "Первая просроченная задача. Ничего страшного!",  "⏰", "slate",  "EXPIRED_FIRST",      1,   130, 1),
-                ach("DEBTOR",         "💀 Должник",            "10 просроченных задач",                          "💀", "maroon", "EXPIRED_TOTAL",      10,  140, 5),
-                ach("ON_TIME_10",     "🎯 В срок",             "10 задач закрыто до дедлайна",                   "🎯", "teal",   "ON_TIME_TOTAL",      10,  150, 30),
-                ach("NIGHT_OWL",      "🦉 Ночной сторож",      "Задача закрыта после 23:00",                     "🦉", "violet", "NIGHT_TASK",         1,   160, 10),
-                ach("TREE_YOUNG",     "🌸 Сакура цветёт",      "Дерево выросло до стадии «молодое»",             "🌸", "pink",   "TREE_STAGE",         1,   170, 20),
-                ach("TREE_MATURE",    "🌳 Могучий дуб",        "Дерево выросло до стадии «взрослое»",            "🌳", "green",  "TREE_STAGE",         2,   180, 50),
-                ach("TREE_HARVEST",   "🍎 Урожай",             "Взрослое дерево и 100 закрытых задач",           "🍎", "red",    "TREE_HARVEST",       1,   190, 75),
-                ach("DUCK",           "🦆 Утка-программист",   "Задача с текстом «утка»",                        "🦆", "yellow", "TEXT_CONTAINS",      1,   200, 5),
-                ach("NINJA",          "🥷 Ниндзя",             "5 задач за 10 минут",                            "🥷", "slate",  "NINJA_10MIN",        1,   210, 20),
-                ach("CLEAN_WEEK",     "🧹 Чистюля",            "Неделя без просроченных задач",                  "🧹", "mint",   "CLEAN_WEEK",         1,   220, 30),
-                ach("JOKER",          "🎭 Шутник",             "Задача со словом «лол» или «:D»",                "🎭", "magenta","TEXT_CONTAINS",      1,   230, 5),
-                ach("XMAS_TREE",      "🎄 Новый год!",         "Ёлка полностью наряжена и гирлянда горит",       "🎄", "red",    "XMAS_TREE_DONE",     1,   240, 100)
+                ach("FIRST_TASK",     "🌱 Росток",            "Закрыта первая задача",                          "🌱", "green",  "TASKS_DONE_TOTAL",   1,   10,  50,   null,   null),
+                ach("TEN_TASKS",      "🌿 Первые шаги",        "Закрыто 10 задач",                               "🌿", "green",  "TASKS_DONE_TOTAL",   10,  20,  200,  null,   null),
+                ach("FIFTY_TASKS",    "🌳 Полтинник",          "Закрыто 50 задач",                               "🌳", "green",  "TASKS_DONE_TOTAL",   50,  30,  700,  null,   null),
+                ach("HUNDRED_TASKS",  "🏆 Сотня",              "Закрыто 100 задач",                              "🏆", "amber",  "TASKS_DONE_TOTAL",   100, 40,  1500, "ACCENT", "forest"),
+                ach("FIVE_HUNDRED",   "🚀 Пятьсот",            "Закрыто 500 задач",                              "🚀", "purple", "TASKS_DONE_TOTAL",   500, 50,  5000, "FRAME",  "oak"),
+                ach("MARATHON_10",    "⚡ Марафонец",          "10 задач за один день",                          "⚡", "amber",  "TASKS_DONE_DAY",     10,  60,  300,  null,   null),
+                ach("FIRE_25",        "🔥 Огонь",              "25 задач за один день",                          "🔥", "red",    "TASKS_DONE_DAY",     25,  70,  1000, null,   null),
+                ach("WEEK_STREAK",    "📅 Стабильность",       "Задачи закрывались 7 дней подряд",               "📅", "blue",   "STREAK_DAYS",        7,   80,  500,  null,   null),
+                ach("MONTH_STREAK",   "💪 Дисциплина",         "30 дней подряд с закрытыми задачами",            "💪", "purple", "STREAK_DAYS",        30,  90,  3000, "FRAME",  "pulse"),
+                ach("FIVE_BOARDS",    "📋 Хранитель досок",    "Создано 5 досок",                                "📋", "blue",   "BOARDS_CREATED",     5,   100, 300,  null,   null),
+                ach("TEN_PROJECTS",   "🗂️ Стратег",            "Создано 10 проектов",                            "🗂️", "indigo", "PROJECTS_CREATED",   10,  110, 600,  null,   null),
+                ach("COVER_SET",      "🎨 Оформитель",         "У доски установлена обложка",                    "🎨", "pink",   "BOARD_COVER_SET",    1,   120, 100,  null,   null),
+                ach("FIRST_EXPIRED",  "⏰ Первый просроченный", "Первая просроченная задача. Ничего страшного!",  "⏰", "slate",  "EXPIRED_FIRST",      1,   130, 20,   null,   null),
+                ach("DEBTOR",         "💀 Должник",            "10 просроченных задач",                          "💀", "maroon", "EXPIRED_TOTAL",      10,  140, 50,   null,   null),
+                ach("ON_TIME_10",     "🎯 В срок",             "10 задач закрыто до дедлайна",                   "🎯", "teal",   "ON_TIME_TOTAL",      10,  150, 400,  null,   null),
+                ach("NIGHT_OWL",      "🦉 Ночной сторож",      "Задача закрыта после 23:00",                     "🦉", "violet", "NIGHT_TASK",         1,   160, 100,  null,   null),
+                ach("TREE_YOUNG",     "🌸 Сакура цветёт",      "Дерево выросло до стадии «молодое»",             "🌸", "pink",   "TREE_STAGE",         1,   170, 250,  null,   null),
+                ach("TREE_MATURE",    "🌳 Могучий дуб",        "Дерево выросло до стадии «взрослое»",            "🌳", "green",  "TREE_STAGE",         2,   180, 600,  "TREE",  "oak"),
+                ach("TREE_HARVEST",   "🍎 Урожай",             "Взрослое дерево и 100 закрытых задач",           "🍎", "red",    "TREE_HARVEST",       1,   190, 1000, "TREE",  "cherry"),
+                ach("DUCK",           "🦆 Утка-программист",   "Задача с текстом «утка»",                        "🦆", "yellow", "TEXT_CONTAINS",      1,   200, 30,   null,   null),
+                ach("NINJA",          "🥷 Ниндзя",             "5 задач за 10 минут",                            "🥷", "slate",  "NINJA_10MIN",        1,   210, 300,  null,   null),
+                ach("CLEAN_WEEK",     "🧹 Чистюля",            "Неделя без просроченных задач",                  "🧹", "mint",   "CLEAN_WEEK",         1,   220, 500,  null,   null),
+                ach("JOKER",          "🎭 Шутник",             "Задача со словом «лол» или «:D»",                "🎭", "magenta","TEXT_CONTAINS",      1,   230, 30,   null,   null),
+                ach("XMAS_TREE",      "🎄 Новый год!",         "Ёлка полностью наряжена и гирлянда горит",       "🎄", "red",    "XMAS_TREE_DONE",     1,   240, 2000, "TREE",  "xmas")
         ));
     }
 
     // ============================================================
-    // AVATARS — оставим как было (не меняем)
+    // AVATARS — оставим как было
     // ============================================================
     private void initAvatars() {
         if (avatarRepository.count() > 0) return;
-        // ... оставляем существующий код
+        // ...
     }
 
     // ============================================================
-    // FRAMES — оставим как было (не меняем)
+    // FRAMES — оставим как было
     // ============================================================
     private void initFrames() {
         if (frameRepository.count() > 0) return;
-        // ... оставляем существующий код
+        // ...
     }
 
     // ============================================================
-    // TREE SKINS — оставим как было (не меняем)
+    // TREE SKINS
     // ============================================================
     private void initTreeSkins() {
         if (treeSkinRepository.count() > 0) return;
-        // ... оставляем существующий код
+        treeSkinRepository.saveAll(List.of(
+                treeSkin("sakura", "Сакура",  "Нежная цветущая сакура",        2000, 10),
+                treeSkin("birch",  "Берёза",  "Стройная белоствольная берёза", 200,  20),
+                treeSkin("palm",   "Пальма",  "Тропическая пальма",            500,  30),
+                treeSkin("apple",  "Яблоня",  "Яблоня с красными плодами",     1000, 40),
+                treeSkin("oak",    "Дуб",     "Могучий вековой дуб",           2500, 50),
+                treeSkin("cherry", "Вишня",   "Цветущая вишня",                1500, 60),
+                treeSkin("xmas",   "Ёлка",    "Новогодняя ёлка",               4000, 70)
+        ));
+    }
+
+    private TreeSkin treeSkin(String code, String title, String description,
+                              int price, int sortOrder) {
+        return TreeSkin.builder()
+                .code(code)
+                .title(title)
+                .description(description)
+                .price(price)
+                .sortOrder(sortOrder)
+                .build();
     }
 
     // ============================================================
-    // ACCENT SKINS — цветовые схемы, которые покупаются в магазине
+    // ACCENT SKINS — оставим как было
     // ============================================================
     private void initAccentSkins() {
         if (accentSkinRepository.count() > 0) return;
-        accentSkinRepository.saveAll(List.of(
-                // Базовые
-                skin("blue",    "Синий",       "Классический синий",           30,  10),
-                skin("green",   "Зелёный",     "Свежий зелёный",               30,  20),
-                skin("red",     "Красный",     "Яркий красный",                30,  30),
-                skin("purple",  "Пурпурный",   "Насыщенный пурпур",            40,  40),
-                skin("orange",  "Оранжевый",   "Тёплый оранжевый",             40,  50),
-                skin("pink",    "Розовый",     "Мягкий розовый",               40,  60),
-                skin("teal",    "Бирюзовый",   "Морской бирюзовый",            50,  70),
-                skin("indigo",  "Индиго",      "Глубокий индиго",              50,  80),
-
-                // Средние
-                skin("violet",  "Фиолетовый",  "Яркий фиолетовый",             75,  90),
-                skin("magenta", "Маджента",    "Кричащая маджента",            75,  100),
-                skin("coral",   "Коралловый",  "Тёплый коралл",                75,  110),
-                skin("amber",   "Янтарный",    "Золотисто-янтарный",           75,  120),
-                skin("mint",    "Мятный",      "Прохладный мятный",            75,  130),
-                skin("cyan",    "Голубой",     "Небесно-голубой",              75,  140),
-                skin("lime",    "Лаймовый",    "Кислотный лайм",               75,  150),
-
-                // Дорогие
-                skin("navy",    "Тёмно-синий", "Глубокий тёмно-синий",         150, 160),
-                skin("maroon",  "Бордовый",    "Тёмный бордовый",              150, 170),
-                skin("olive",   "Оливковый",   "Спокойный оливковый",          150, 180),
-                skin("brown",   "Коричневый",  "Землистый коричневый",         150, 190),
-                skin("slate",   "Графит",      "Строгий графит",               150, 200),
-
-                // Редкие
-                skin("sunset",  "Закат",       "Оранжево-розовый градиент",    300, 210),
-                skin("ocean",   "Океан",       "Сине-бирюзовый градиент",      300, 220),
-                skin("forest",  "Лес",         "Зелёно-оливковый градиент",    300, 230),
-                skin("neon",    "Неон",        "Розово-голубое свечение",      500, 240),
-                skin("gold",    "Золото",      "Роскошный золотой",            500, 250)
-        ));
+        // ...
     }
 
     // ============================================================
@@ -211,22 +200,14 @@ public class DataInitializerConfig implements CommandLineRunner {
     // ============================================================
     private Achievement ach(String code, String title, String description, String icon,
                             String accent, String conditionType, int threshold,
-                            int sortOrder, int reward) {
+                            int sortOrder, int reward,
+                            String rewardItemType, String rewardItemCode) {
         return Achievement.builder()
                 .code(code).title(title).description(description).icon(icon)
                 .accentCode(accent).conditionType(conditionType)
                 .threshold(threshold).sortOrder(sortOrder).reward(reward)
-                .build();
-    }
-
-    private AccentSkin skin(String code, String title, String description,
-                            int price, int sortOrder) {
-        return AccentSkin.builder()
-                .code(code)
-                .title(title)
-                .description(description)
-                .price(price)
-                .sortOrder(sortOrder)
+                .rewardItemType(rewardItemType)
+                .rewardItemCode(rewardItemCode)
                 .build();
     }
 }

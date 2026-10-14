@@ -1,0 +1,51 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 020-01-achievement-reward-item-type
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: achievements
+                columnName: reward_item_type
+      changes:
+        - addColumn:
+            tableName: achievements
+            columns:
+              - column:
+                  name: reward_item_type
+                  type: VARCHAR(30)
+                  constraints: { nullable: true }
+              - column:
+                  name: reward_item_code
+                  type: VARCHAR(64)
+                  constraints: { nullable: true }
+
+  # Заполняем предметы для особых ачивок
+  - changeSet:
+      id: 020-02-fill-reward-items
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: achievements }
+      changes:
+        - sql:
+            sql: |
+              UPDATE achievements SET reward_item_type = 'ACCENT', reward_item_code = 'forest'
+              WHERE code = 'HUNDRED_TASKS';
+
+              UPDATE achievements SET reward_item_type = 'FRAME', reward_item_code = 'oak'
+              WHERE code = 'FIVE_HUNDRED';
+
+              UPDATE achievements SET reward_item_type = 'FRAME', reward_item_code = 'pulse'
+              WHERE code = 'MONTH_STREAK';
+
+              UPDATE achievements SET reward_item_type = 'TREE', reward_item_code = 'oak'
+              WHERE code = 'TREE_MATURE';
+
+              UPDATE achievements SET reward_item_type = 'TREE', reward_item_code = 'cherry'
+              WHERE code = 'TREE_HARVEST';
+
+              UPDATE achievements SET reward_item_type = 'TREE', reward_item_code = 'xmas'
+              WHERE code = 'XMAS_TREE';

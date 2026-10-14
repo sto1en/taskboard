@@ -1,5 +1,6 @@
 package coursework.taskboard.service.board;
 
+import coursework.taskboard.dto.achievement.AchievementDto;
 import coursework.taskboard.dto.board.*;
 import coursework.taskboard.dto.project.ProjectMapper;
 import coursework.taskboard.model.attachment.Attachment;
@@ -88,11 +89,13 @@ public class BoardService {
         });
 
         long boardsCount = boardRepository.countByOwnerId(user.getId());
-        achievementService.checkBoards(user, boardsCount);
+        List<AchievementDto> newAch = achievementService.checkBoards(user, boardsCount);
 
         long projectCount = projectRepository.countByBoardId(board.getId());
-        return boardMapper.toBoardDto(board, appearance, settings, member,
+        BoardDto dto = boardMapper.toBoardDto(board, appearance, settings, member,
                 mainProject, projectCount, 0L, null);
+        dto.setNewlyUnlockedAchievements(newAch);
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -164,6 +167,7 @@ public class BoardService {
         if (request.getPosition() != null) board.setPosition(request.getPosition());
         boardRepository.save(board);
 
+        List<AchievementDto> newAch = new ArrayList<>();
         boolean coverSetNow = false;
 
         if (request.getAccentCode() != null
@@ -194,7 +198,8 @@ public class BoardService {
         }
 
         if (coverSetNow) {
-            achievementService.boardCoverSet(user);
+            AchievementDto a = achievementService.boardCoverSet(user);
+            if (a != null) newAch.add(a);
         }
 
         if (request.getIsPinned() != null || request.getIsPublic() != null) {
@@ -212,8 +217,10 @@ public class BoardService {
 
         String coverUrl = resolveCoverUrl(appearance);
 
-        return boardMapper.toBoardDto(board, appearance, settings, member,
+        BoardDto dto = boardMapper.toBoardDto(board, appearance, settings, member,
                 main, projectCount, taskCount, coverUrl);
+        dto.setNewlyUnlockedAchievements(newAch);
+        return dto;
     }
 
     @Transactional

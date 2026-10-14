@@ -1,5 +1,6 @@
 package coursework.taskboard.dto.task;
 
+import coursework.taskboard.dto.achievement.AchievementDto;
 import coursework.taskboard.dto.attachment.AttachmentDto;
 import lombok.*;
 
@@ -46,7 +47,6 @@ public class TaskDto {
     // ============================================================
     // Авторы / редакторы
     // ============================================================
-
     private UserShortDto startedBy;
     private UserShortDto lastEditedBy;
     private LocalDateTime lastEditedAt;
@@ -54,9 +54,13 @@ public class TaskDto {
     // ============================================================
     // Повторения
     // ============================================================
-
     private Boolean isRecurrenceInstance;
     private Long recurrenceParentId;
     private java.time.LocalDate occurrenceDate;
     private RecurrenceDto recurrence;
+
+    // ============================================================
+    // Ачивки, разблокированные в результате этого действия
+    // ============================================================
+    private List<AchievementDto> newlyUnlockedAchievements;
 }

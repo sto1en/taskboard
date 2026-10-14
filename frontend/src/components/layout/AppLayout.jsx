@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import useHotkeys from '../../hooks/useHotkeys'
 import { useHotkeysContext } from '../../context/HotkeysContext'
@@ -12,6 +12,8 @@ export default function AppLayout() {
     const location = useLocation()
     const { openHelp, helpOpen } = useHotkeysContext()
     const [gPressed, setGPressed] = useState(false)
+
+    console.log('[AppLayout] rendered, pathname =', location.pathname)
 
     const focusSearch = () => {
         const input = document.querySelector('.topbar__search')
@@ -134,52 +136,42 @@ export default function AppLayout() {
         return false
     }
 
-    // ============================================================
-    // N — создать новое в зависимости от страницы
-    // ============================================================
     const handleNew = () => {
         if (document.querySelector('.modal-overlay')) return
 
         const path = location.pathname
 
-        // /calendar → новая задача на день под курсором
         if (path === '/calendar' || path.startsWith('/calendar?')) {
             window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'calendar-day' }))
             return
         }
 
-        // /boards/:boardId/projects/:projectId → новая задача
         if (/^\/boards\/\d+\/projects\/\d+/.test(path)) {
             window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'task' }))
             return
         }
-        // /boards/:boardId → новый проект
         if (/^\/boards\/\d+\/?$/.test(path)) {
             window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'project' }))
             return
         }
-        // /boards → новая доска
         if (/^\/boards\/?$/.test(path)) {
             window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'board' }))
             return
         }
     }
 
-    useHotkeys([
+    const hotkeys = useMemo(() => [
         {
             combo: 'escape',
             when: () => !helpOpen,
             handler: handleEscape,
             allowInInput: true,
         },
-
         { combo: 'h', handler: () => openHelp() },
         { combo: '/', handler: focusSearch },
         { combo: 'ctrl+k', handler: focusSearch, allowInInput: true },
         { combo: 'n', handler: handleNew, allowInInput: false },
-
         { combo: 't', handler: toggleTree },
-
         {
             combo: 'g',
             handler: () => {
@@ -192,7 +184,6 @@ export default function AppLayout() {
         { combo: 'c', when: () => gPressed, handler: () => nav('/calendar') },
         { combo: 's', when: () => gPressed, handler: () => nav('/stats') },
         { combo: 'p', when: () => gPressed, handler: () => nav('/profile') },
-
         {
             combo: '1',
             when: () => !isInsideProject(),
@@ -211,7 +202,10 @@ export default function AppLayout() {
             handler: () => openPinned(3),
             allowInInput: false,
         },
-    ])
+        // eslint-disable-next-line
+    ], [helpOpen, gPressed, location.pathname])
+
+    useHotkeys(hotkeys)
 
     return (
         <div className="layout">

@@ -2,6 +2,7 @@ package coursework.taskboard.service.shop;
 
 import coursework.taskboard.dto.shop.AdminAvatarDto;
 import coursework.taskboard.dto.shop.AvatarCategoryDto;
+import coursework.taskboard.dto.shop.CategoryDto;
 import coursework.taskboard.model.shop.Avatar;
 import coursework.taskboard.model.shop.AvatarCategory;
 import coursework.taskboard.repository.shop.AvatarCategoryRepository;
@@ -17,9 +18,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,22 +34,28 @@ public class AdminAvatarService {
     private String uploadDir;
 
     // ============================================================
-    // Категории
+    // Категории (типы аватарок)
     // ============================================================
     @Transactional(readOnly = true)
     public List<AvatarCategoryDto> listCategories() {
         List<AvatarCategory> list = categoryRepository.findAllByOrderBySortOrderAsc();
         List<AvatarCategoryDto> result = new ArrayList<>();
+
+        // Считаем количество аватарок на категорию ОДНИМ запросом
+        Map<Long, Long> counts = new HashMap<>();
+        for (Avatar a : avatarRepository.findAll()) {
+            for (AvatarCategory c : a.getCategories()) {
+                counts.merge(c.getId(), 1L, Long::sum);
+            }
+        }
+
         for (AvatarCategory c : list) {
-            long count = avatarRepository.findAll().stream()
-                    .filter(a -> a.getCategory() != null && a.getCategory().getId().equals(c.getId()))
-                    .count();
             result.add(AvatarCategoryDto.builder()
                     .id(c.getId())
                     .code(c.getCode())
                     .title(c.getTitle())
                     .sortOrder(c.getSortOrder())
-                    .avatarCount(count)
+                    .avatarCount(counts.getOrDefault(c.getId(), 0L))
                     .build());
         }
         return result;
@@ -57,12 +63,18 @@ public class AdminAvatarService {
 
     @Transactional
     public AvatarCategoryDto createCategory(AvatarCategoryDto dto) {
+        if (dto.getTitle() == null || dto.getTitle().isBlank()) {
+            throw new IllegalArgumentException("Укажи название типа");
+        }
+
         String code = dto.getCode() != null && !dto.getCode().isBlank()
                 ? dto.getCode().trim().toLowerCase()
                 : slugify(dto.getTitle());
+
         if (categoryRepository.existsByCode(code)) {
             throw new IllegalArgumentException("Тип с таким code уже есть");
         }
+
         int sortOrder = dto.getSortOrder() != null
                 ? dto.getSortOrder()
                 : (int) categoryRepository.count() * 10 + 10;
@@ -87,13 +99,18 @@ public class AdminAvatarService {
     public AvatarCategoryDto updateCategory(Long id, AvatarCategoryDto dto) {
         AvatarCategory c = categoryRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Тип не найден"));
+
         if (dto.getTitle() != null) c.setTitle(dto.getTitle());
         if (dto.getSortOrder() != null) c.setSortOrder(dto.getSortOrder());
         categoryRepository.save(c);
 
-        long count = avatarRepository.findAll().stream()
-                .filter(a -> a.getCategory() != null && a.getCategory().getId().equals(c.getId()))
-                .count();
+        long count = 0;
+        for (Avatar a : avatarRepository.findAll()) {
+            if (a.getCategories().stream().anyMatch(cat -> cat.getId().equals(c.getId()))) {
+                count++;
+            }
+        }
+
         return AvatarCategoryDto.builder()
                 .id(c.getId())
                 .code(c.getCode())
@@ -107,10 +124,10 @@ public class AdminAvatarService {
     public void deleteCategory(Long id) {
         AvatarCategory c = categoryRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Тип не найден"));
-        // Отвязываем аватарки, чтобы FK не блокировал удаление
+
+        // Отвязываем от всех аватарок (many-to-many сам разберётся с links, но лучше явно)
         for (Avatar a : avatarRepository.findAll()) {
-            if (a.getCategory() != null && a.getCategory().getId().equals(c.getId())) {
-                a.setCategory(null);
+            if (a.getCategories().removeIf(cat -> cat.getId().equals(c.getId()))) {
                 avatarRepository.save(a);
             }
         }
@@ -122,34 +139,26 @@ public class AdminAvatarService {
     // ============================================================
     @Transactional(readOnly = true)
     public List<AdminAvatarDto> listAvatars() {
-        List<Avatar> list = avatarRepository.findAllByOrderBySortOrderAsc();
-        List<AdminAvatarDto> result = new ArrayList<>();
-        for (Avatar a : list) {
-            result.add(toDto(a));
-        }
-        return result;
+        return avatarRepository.findAllByOrderBySortOrderAsc().stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
     }
 
     @Transactional
     public AdminAvatarDto createAvatar(String title, String description, String code,
-                                       String emoji, Integer price, Integer sortOrder,
-                                       Long categoryId, MultipartFile file) {
+                                       String emoji, Integer price, Integer oldPrice,
+                                       Integer sortOrder, List<Long> categoryIds,
+                                       MultipartFile file) {
         if (title == null || title.isBlank()) {
             throw new IllegalArgumentException("Укажи название");
         }
 
-        // code: сгенерировать или из формы
         String finalCode = code != null && !code.isBlank()
                 ? code.trim().toLowerCase()
                 : "a-" + UUID.randomUUID().toString().substring(0, 8);
+
         if (avatarRepository.existsByCode(finalCode)) {
             throw new IllegalArgumentException("Аватарка с таким code уже есть");
-        }
-
-        AvatarCategory category = null;
-        if (categoryId != null) {
-            category = categoryRepository.findById(categoryId)
-                    .orElseThrow(() -> new IllegalArgumentException("Тип не найден"));
         }
 
         String imageUrl = null;
@@ -165,9 +174,10 @@ public class AdminAvatarService {
                 .description(description != null ? description : "")
                 .emoji(emoji != null && !emoji.isBlank() ? emoji : null)
                 .price(price != null ? price : 0)
+                .oldPrice(oldPrice)
                 .sortOrder(order)
                 .imageUrl(imageUrl)
-                .category(category)
+                .categories(resolveCategories(categoryIds))
                 .build();
         avatarRepository.save(a);
 
@@ -176,8 +186,9 @@ public class AdminAvatarService {
 
     @Transactional
     public AdminAvatarDto updateAvatar(Long id, String title, String description,
-                                       String emoji, Integer price, Integer sortOrder,
-                                       Long categoryId, MultipartFile file, Boolean clearImage) {
+                                       String emoji, Integer price, Integer oldPrice,
+                                       Integer sortOrder, List<Long> categoryIds,
+                                       MultipartFile file, Boolean clearImage) {
         Avatar a = avatarRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Аватарка не найдена"));
 
@@ -185,32 +196,22 @@ public class AdminAvatarService {
         if (description != null) a.setDescription(description);
         if (emoji != null) a.setEmoji(emoji.isBlank() ? null : emoji);
         if (price != null) a.setPrice(price);
+        if (oldPrice != null) a.setOldPrice(oldPrice);
         if (sortOrder != null) a.setSortOrder(sortOrder);
 
-        if (categoryId != null) {
-            AvatarCategory category = categoryRepository.findById(categoryId)
-                    .orElseThrow(() -> new IllegalArgumentException("Тип не найден"));
-            a.setCategory(category);
-        } else if (Boolean.TRUE.equals(clearImage) && categoryId == null) {
-            // categoryId не передан — не меняем
+        // Категории — только если явно переданы (не null)
+        if (categoryIds != null) {
+            a.setCategories(resolveCategories(categoryIds));
         }
 
         if (Boolean.TRUE.equals(clearImage)) {
-            // Удаляем файл
             if (a.getImageUrl() != null) {
-                try {
-                    Path p = Paths.get(uploadDir, a.getImageUrl());
-                    Files.deleteIfExists(p);
-                } catch (IOException ignored) {}
+                try { Files.deleteIfExists(Paths.get(uploadDir, a.getImageUrl())); } catch (IOException ignored) {}
             }
             a.setImageUrl(null);
         } else if (file != null && !file.isEmpty()) {
-            // Удаляем старый файл
             if (a.getImageUrl() != null) {
-                try {
-                    Path p = Paths.get(uploadDir, a.getImageUrl());
-                    Files.deleteIfExists(p);
-                } catch (IOException ignored) {}
+                try { Files.deleteIfExists(Paths.get(uploadDir, a.getImageUrl())); } catch (IOException ignored) {}
             }
             a.setImageUrl(saveAvatarFile(a.getCode(), file));
         }
@@ -225,10 +226,7 @@ public class AdminAvatarService {
                 .orElseThrow(() -> new IllegalArgumentException("Аватарка не найдена"));
 
         if (a.getImageUrl() != null) {
-            try {
-                Path p = Paths.get(uploadDir, a.getImageUrl());
-                Files.deleteIfExists(p);
-            } catch (IOException ignored) {}
+            try { Files.deleteIfExists(Paths.get(uploadDir, a.getImageUrl())); } catch (IOException ignored) {}
         }
         avatarRepository.delete(a);
     }
@@ -236,6 +234,41 @@ public class AdminAvatarService {
     // ============================================================
     // Helpers
     // ============================================================
+    private Set<AvatarCategory> resolveCategories(List<Long> ids) {
+        Set<AvatarCategory> set = new HashSet<>();
+        if (ids != null && !ids.isEmpty()) {
+            set.addAll(categoryRepository.findAllById(ids));
+        }
+        return set;
+    }
+
+    private AdminAvatarDto toDto(Avatar a) {
+        List<CategoryDto> cats = a.getCategories().stream()
+                .sorted(Comparator.comparingInt(AvatarCategory::getSortOrder))
+                .map(c -> CategoryDto.builder()
+                        .id(c.getId())
+                        .code(c.getCode())
+                        .title(c.getTitle())
+                        .sortOrder(c.getSortOrder())
+                        .build())
+                .collect(Collectors.toList());
+
+        return AdminAvatarDto.builder()
+                .id(a.getId())
+                .code(a.getCode())
+                .title(a.getTitle())
+                .description(a.getDescription())
+                .emoji(a.getEmoji())
+                .imageUrl(a.getImageUrl())
+                .cssClass(a.getCssClass())
+                .price(a.getPrice())
+                .oldPrice(a.getOldPrice())
+                .sortOrder(a.getSortOrder())
+                .createdAt(a.getCreatedAt())
+                .categories(cats)
+                .build();
+    }
+
     private String saveAvatarFile(String code, MultipartFile file) {
         String original = file.getOriginalFilename();
         String ext = "png";
@@ -246,7 +279,6 @@ public class AdminAvatarService {
             throw new IllegalArgumentException("Недопустимый формат: " + ext);
         }
 
-        // uploads/avatars/<code>.<ext>
         String relativePath = "avatars/" + code + "." + ext;
         Path target = Paths.get(uploadDir, relativePath);
         try {
@@ -258,27 +290,10 @@ public class AdminAvatarService {
         return relativePath;
     }
 
-    private AdminAvatarDto toDto(Avatar a) {
-        return AdminAvatarDto.builder()
-                .id(a.getId())
-                .code(a.getCode())
-                .title(a.getTitle())
-                .description(a.getDescription())
-                .emoji(a.getEmoji())
-                .imageUrl(a.getImageUrl())
-                .cssClass(a.getCssClass())
-                .price(a.getPrice())
-                .sortOrder(a.getSortOrder())
-                .categoryId(a.getCategory() != null ? a.getCategory().getId() : null)
-                .categoryCode(a.getCategory() != null ? a.getCategory().getCode() : null)
-                .categoryTitle(a.getCategory() != null ? a.getCategory().getTitle() : null)
-                .build();
-    }
-
     private String slugify(String s) {
         if (s == null) return "cat-" + UUID.randomUUID().toString().substring(0, 6);
         return s.trim().toLowerCase()
-                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("[^a-z0-9а-яё]+", "-")
                 .replaceAll("^-|-$", "");
     }
 }

@@ -3,6 +3,22 @@ import * as Sakura from './trees/SakuraTree'
 import * as Birch from './trees/BirchTree'
 import * as Palm from './trees/PalmTree'
 import * as Apple from './trees/AppleTree.jsx'
+import * as Oak from './trees/OakTree'
+import * as Cherry from './trees/CherryTree'
+import * as Xmas from './trees/XmasTree'
+import * as Neon from './trees/NeonTree'
+import * as Crystal from './trees/CrystalTree'
+import * as Maple from './trees/MapleTree'
+import * as Willow from './trees/WillowTree'
+import * as Coconut from './trees/CoconutTree'
+import * as Mango from './trees/MangoTree'
+import * as Orange from './trees/OrangeTree'
+import * as Lemon from './trees/LemonTree'
+import * as Cypress from './trees/CypressTree'
+import * as Banyan from './trees/BanyanTree'
+import * as Jacaranda from './trees/JacarandaTree'
+import * as Fir from './trees/FirTree'
+import * as Eucalyptus from './trees/EucalyptusTree'
 import useT from '../../hooks/useT'
 
 const STAGES = {
@@ -12,10 +28,26 @@ const STAGES = {
 }
 
 const TREES = {
-    sakura: Sakura,
-    birch:  Birch,
-    palm:   Palm,
-    apple:  Apple,
+    sakura:     Sakura,
+    birch:      Birch,
+    palm:       Palm,
+    apple:      Apple,
+    oak:        Oak,
+    cherry:     Cherry,
+    xmas:       Xmas,
+    neon:       Neon,
+    crystal:    Crystal,
+    maple:      Maple,
+    willow:     Willow,
+    coconut:    Coconut,
+    mango:      Mango,
+    orange:     Orange,
+    lemon:      Lemon,
+    cypress:    Cypress,
+    banyan:     Banyan,
+    jacaranda:  Jacaranda,
+    fir:        Fir,
+    eucalyptus: Eucalyptus,
 }
 
 const LEAVES_BY_KIND = {
@@ -38,6 +70,86 @@ const LEAVES_BY_KIND = {
         sprout: ['🌱', '🍃'],
         young:  ['🍎', '🍏', '🍃'],
         mature: ['🍎', '🍏', '🌸', '🍃'],
+    },
+    oak: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🍃', '🌿', '🌰'],
+        mature: ['🍃', '🌿', '🌰', '🍂'],
+    },
+    cherry: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🌸', '🌷', '🍃'],
+        mature: ['🌸', '🌷', '💮', '🍃'],
+    },
+    xmas: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🎄', '⭐', '🍃'],
+        mature: ['🎄', '⭐', '🎁', '❄️'],
+    },
+    neon: {
+        sprout: ['✨', '💫'],
+        young:  ['✨', '💫', '⚡'],
+        mature: ['✨', '💫', '⚡', '🌟', '💠'],
+    },
+    crystal: {
+        sprout: ['💎', '✨'],
+        young:  ['💎', '✨', '💠'],
+        mature: ['💎', '✨', '💠', '🔮', '❄️'],
+    },
+    maple: {
+        sprout: ['🌱', '🍂'],
+        young:  ['🍁', '🍂', '🍃'],
+        mature: ['🍁', '🍂', '🍃', '🌰'],
+    },
+    willow: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🍃', '🌿'],
+        mature: ['🍃', '🌿', '🍂'],
+    },
+    coconut: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🌴', '🥥', '🍃'],
+        mature: ['🌴', '🥥', '🥥', '🍃'],
+    },
+    mango: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🥭', '🍃'],
+        mature: ['🥭', '🥭', '🍃'],
+    },
+    orange: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🍊', '🍃'],
+        mature: ['🍊', '🍊', '🍃'],
+    },
+    lemon: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🍋', '🍃'],
+        mature: ['🍋', '🍋', '🍃'],
+    },
+    cypress: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🌲', '🍃'],
+        mature: ['🌲', '🌲', '🍃'],
+    },
+    banyan: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🌳', '🍃'],
+        mature: ['🌳', '🍃', '🍂'],
+    },
+    jacaranda: {
+        sprout: ['🌱', '🍃'],
+        young:  ['💜', '🌸', '🍃'],
+        mature: ['💜', '🌸', '🌺', '🍃'],
+    },
+    fir: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🌲', '🍃'],
+        mature: ['🌲', '🍃', '❄️'],
+    },
+    eucalyptus: {
+        sprout: ['🌱', '🍃'],
+        young:  ['🌿', '🍃'],
+        mature: ['🌿', '🍃', '🍂'],
     },
 }
 
@@ -132,11 +244,11 @@ function ProgressBar({ done, target, label }) {
     )
 }
 
-export default function TreeAvatar({ done = 0, kind = 'sakura', maxHeight = 400 }) {
+export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }) {
     const t = useT()
     const stage = getStage(done)
     const progress = getProgress(done)
-    const treeModule = TREES[kind] || TREES.sakura
+    const treeModule = TREES[kind] || TREES.apple
 
     const [grown, setGrown] = useState(false)
     const [bounce, setBounce] = useState(false)
@@ -171,7 +283,7 @@ export default function TreeAvatar({ done = 0, kind = 'sakura', maxHeight = 400 
     const handleTreeClick = useCallback(() => {
         if (stage !== 'mature') return
 
-        const byKind = LEAVES_BY_KIND[kind] || LEAVES_BY_KIND.sakura
+        const byKind = LEAVES_BY_KIND[kind] || LEAVES_BY_KIND.apple
         const pool = byKind[stage] || byKind.mature
         const count = 18
 
@@ -216,7 +328,7 @@ export default function TreeAvatar({ done = 0, kind = 'sakura', maxHeight = 400 
     return (
         <div className="tree-avatar-wrap">
 
-            {/* ====== Кнопка «?» — ВНЕ дерева, справа от него ====== */}
+            {/* Кнопка «?» */}
             <div
                 className="tree-help"
                 onClick={(e) => { e.stopPropagation(); setTipOpen(v => !v) }}

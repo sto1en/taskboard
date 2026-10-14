@@ -46,4 +46,15 @@ public class Achievement {
     @Column(nullable = false)
     @Builder.Default
     private Integer reward = 0;
+
+    // ============================================================
+    // Предмет-награда (опционально)
+    // ============================================================
+    /** ACCENT | FRAME | AVATAR | TREE — null, если предмета нет */
+    @Column(name = "reward_item_type", length = 30)
+    private String rewardItemType;
+
+    /** code предмета, например 'oak', 'forest', 'frame--pulse' */
+    @Column(name = "reward_item_code", length = 64)
+    private String rewardItemCode;
 }

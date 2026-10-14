@@ -2,16 +2,20 @@ import { useState, useEffect, useRef } from 'react'
 import Modal from '../Modal/Modal'
 import { adminApi } from '../../api/api'
 import { resolveUrl } from '../../utils/format'
+import CategoryMultiSelect from './CategoryMultiSelect'
 
-export default function AdminAvatarEditorModal({ open, onClose, avatar, categories, onSaved }) {
+export default function AdminAvatarEditorModal({
+                                                   open, onClose, avatar, categories, onSaved,
+                                               }) {
     const isEdit = !!avatar
 
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
     const [emoji, setEmoji] = useState('')
     const [price, setPrice] = useState(0)
+    const [oldPrice, setOldPrice] = useState('')
     const [sortOrder, setSortOrder] = useState(0)
-    const [categoryId, setCategoryId] = useState('')
+    const [categoryIds, setCategoryIds] = useState([])
     const [file, setFile] = useState(null)
     const [preview, setPreview] = useState(null)
     const [clearImage, setClearImage] = useState(false)
@@ -26,16 +30,18 @@ export default function AdminAvatarEditorModal({ open, onClose, avatar, categori
             setDescription(avatar.description || '')
             setEmoji(avatar.emoji || '')
             setPrice(avatar.price || 0)
+            setOldPrice(avatar.oldPrice != null ? String(avatar.oldPrice) : '')
             setSortOrder(avatar.sortOrder || 0)
-            setCategoryId(avatar.categoryId || '')
+            setCategoryIds((avatar.categories || []).map(c => c.id))
             setPreview(avatar.imageUrl ? resolveUrl(avatar.imageUrl) : null)
         } else {
             setTitle('')
             setDescription('')
             setEmoji('')
             setPrice(0)
+            setOldPrice('')
             setSortOrder(0)
-            setCategoryId('')
+            setCategoryIds([])
             setPreview(null)
         }
         setFile(null)
@@ -70,8 +76,9 @@ export default function AdminAvatarEditorModal({ open, onClose, avatar, categori
             fd.append('description', description.trim())
             fd.append('emoji', emoji.trim())
             fd.append('price', String(Number(price) || 0))
+            if (oldPrice !== '') fd.append('oldPrice', String(Number(oldPrice) || 0))
             fd.append('sortOrder', String(Number(sortOrder) || 0))
-            if (categoryId) fd.append('categoryId', String(categoryId))
+            categoryIds.forEach(id => fd.append('categoryIds', String(id)))
             if (file) fd.append('file', file)
             if (clearImage) fd.append('clearImage', 'true')
 
@@ -112,7 +119,7 @@ export default function AdminAvatarEditorModal({ open, onClose, avatar, categori
             footer={
                 <>
                     {isEdit && (
-                        <button className="btn btn-icon btn-icon--danger" onClick={remove} disabled={saving} title="Удалить">
+                        <button className="btn btn-icon btn-icon--danger" onClick={remove} disabled={saving}>
                             🗑
                         </button>
                     )}
@@ -125,7 +132,6 @@ export default function AdminAvatarEditorModal({ open, onClose, avatar, categori
             }
         >
             <div className="admin-avatar-editor">
-                {/* Превью */}
                 <div className="admin-avatar-editor__preview">
                     {preview ? (
                         <img src={preview} alt="" />
@@ -155,7 +161,6 @@ export default function AdminAvatarEditorModal({ open, onClose, avatar, categori
                     />
                 </div>
 
-                {/* Поля */}
                 <div className="admin-avatar-editor__fields">
                     <div className="modal__field">
                         <label className="modal__label">Название</label>
@@ -168,29 +173,35 @@ export default function AdminAvatarEditorModal({ open, onClose, avatar, categori
                         />
                     </div>
 
-                    <div className="modal__field">
-                        <label className="modal__label">Тип</label>
-                        <select
-                            className="input"
-                            value={categoryId}
-                            onChange={(e) => setCategoryId(e.target.value)}
-                        >
-                            <option value="">— Без типа —</option>
-                            {categories.map(c => (
-                                <option key={c.id} value={c.id}>{c.title}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="modal__field">
-                        <label className="modal__label">Цена (листьев)</label>
-                        <input
-                            className="input"
-                            type="number"
-                            min="0"
-                            value={price}
-                            onChange={(e) => setPrice(e.target.value)}
-                        />
+                    <div className="modal__row modal__row--price">
+                        <div className="modal__field">
+                            <label className="modal__label">
+                                Обычная цена
+                                <span className="modal__label-hint">зачёркнутая, если есть скидка</span>
+                            </label>
+                            <input
+                                className="input"
+                                type="number"
+                                min="0"
+                                value={oldPrice}
+                                onChange={(e) => setOldPrice(e.target.value)}
+                                placeholder="напр. 200"
+                            />
+                        </div>
+                        <div className="modal__field">
+                            <label className="modal__label">
+                                Цена со скидкой
+                                <span className="modal__label-hint">актуальная</span>
+                            </label>
+                            <input
+                                className="input"
+                                type="number"
+                                min="0"
+                                value={price}
+                                onChange={(e) => setPrice(e.target.value)}
+                                placeholder="напр. 100"
+                            />
+                        </div>
                     </div>
 
                     <div className="modal__field">
@@ -200,6 +211,15 @@ export default function AdminAvatarEditorModal({ open, onClose, avatar, categori
                             type="number"
                             value={sortOrder}
                             onChange={(e) => setSortOrder(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="modal__field">
+                        <label className="modal__label">Типы (можно выбрать несколько)</label>
+                        <CategoryMultiSelect
+                            categories={categories}
+                            selectedIds={categoryIds}
+                            onChange={setCategoryIds}
                         />
                     </div>
 

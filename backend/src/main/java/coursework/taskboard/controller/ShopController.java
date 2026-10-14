@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/shop")
 @RequiredArgsConstructor
@@ -17,9 +19,18 @@ public class ShopController {
     private final CurrentUserService currentUserService;
 
     @GetMapping
-    public ResponseEntity<UserShopDto> get() {
+    public ResponseEntity<UserShopDto> get(
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir,
+            @RequestParam(required = false) List<Long> avatarCategoryIds,
+            @RequestParam(required = false) List<Long> frameCategoryIds,
+            @RequestParam(required = false) List<Long> accentCategoryIds) {
+
         User user = currentUserService.getCurrentUser();
-        return ResponseEntity.ok(shopService.getShop(user));
+        return ResponseEntity.ok(shopService.getShop(
+                user, sortBy, sortDir,
+                avatarCategoryIds, frameCategoryIds, accentCategoryIds
+        ));
     }
 
     // Аватарки

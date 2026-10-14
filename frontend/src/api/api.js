@@ -1,5 +1,27 @@
 import axios from 'axios'
 
+// ============================================================
+// Глобальный обработчик ачивок — регистрируется из контекста
+// ============================================================
+let achievementsHandler = null
+
+export function setAchievementsHandler(fn) {
+    achievementsHandler = fn
+}
+
+function fireAchievements(list) {
+    if (!achievementsHandler) return
+    if (!Array.isArray(list) || list.length === 0) return
+    try {
+        achievementsHandler(list)
+    } catch (e) {
+        console.error('[achievements] handler error', e)
+    }
+}
+
+// ============================================================
+// Axios instance
+// ============================================================
 const api = axios.create({
     baseURL: 'http://localhost:8082/api',
     headers: { 'Content-Type': 'application/json' },
@@ -14,7 +36,27 @@ api.interceptors.request.use((config) => {
 })
 
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        const data = response?.data
+        const url = response?.config?.url || ''
+        const method = (response?.config?.method || '').toLowerCase()
+
+        // 1. Новые ачивки → toast
+        if (data && Array.isArray(data.newlyUnlockedAchievements) && data.newlyUnlockedAchievements.length > 0) {
+            fireAchievements(data.newlyUnlockedAchievements)
+        }
+
+        // 2. Любая мутация по задачам/доскам/проектам → обновить баланс листьев
+        if (method === 'post' || method === 'patch' || method === 'delete') {
+            if (url.includes('/tasks') ||
+                url.includes('/boards') ||
+                url.includes('/projects')) {
+                window.dispatchEvent(new Event('shop:refresh'))
+            }
+        }
+
+        return response
+    },
     (error) => {
         if (error.response?.status === 401) {
             localStorage.removeItem('token')
@@ -24,11 +66,17 @@ api.interceptors.response.use(
     }
 )
 
+// ============================================================
+// Auth
+// ============================================================
 export const authApi = {
     register: (data) => api.post('/auth/register', data),
     login: (data) => api.post('/auth/login', data),
 }
 
+// ============================================================
+// Boards
+// ============================================================
 export const boardsApi = {
     list: () => api.get('/boards'),
     get: (id) => api.get(`/boards/${id}`),
@@ -45,6 +93,9 @@ export const boardMembersApi = {
     remove: (boardId, userId) => api.delete(`/boards/${boardId}/members/${userId}`),
 }
 
+// ============================================================
+// Projects
+// ============================================================
 export const projectsApi = {
     listByBoard: (boardId) => api.get(`/boards/${boardId}/projects`),
     get: (id) => api.get(`/projects/${id}`),
@@ -60,6 +111,9 @@ export const projectFiltersApi = {
     clear: (projectId) => api.delete(`/projects/${projectId}/filters`),
 }
 
+// ============================================================
+// Tasks
+// ============================================================
 export const tasksApi = {
     listByProject: (projectId) => api.get(`/projects/${projectId}/tasks`),
     kanban: (projectId) => api.get(`/projects/${projectId}/kanban`),
@@ -96,6 +150,9 @@ export const recurrenceApi = {
     preview: (data) => api.post('/tasks/recurrence/preview', data),
 }
 
+// ============================================================
+// Tags
+// ============================================================
 export const tagsApi = {
     listByBoard: (boardId) => api.get(`/boards/${boardId}/tags`),
     search: (boardId, q) => api.get(`/boards/${boardId}/tags/search`, { params: { q } }),
@@ -104,6 +161,9 @@ export const tagsApi = {
     delete: (id) => api.delete(`/tags/${id}`),
 }
 
+// ============================================================
+// Statuses
+// ============================================================
 export const statusesApi = {
     list: (boardId, scope) =>
         api.get(`/boards/${boardId}/statuses`, { params: scope ? { scope } : {} }),
@@ -114,6 +174,9 @@ export const statusesApi = {
         api.delete(`/boards/${boardId}/statuses/${statusId}`),
 }
 
+// ============================================================
+// Attachments
+// ============================================================
 export const attachmentsApi = {
     upload: (file) => {
         const formData = new FormData()
@@ -126,6 +189,9 @@ export const attachmentsApi = {
     delete: (id) => api.delete(`/attachments/${id}`),
 }
 
+// ============================================================
+// Users
+// ============================================================
 export const usersApi = {
     me: () => api.get('/users/me'),
     search: (q) => api.get('/users/search', { params: { q } }),
@@ -137,9 +203,11 @@ export const usersApi = {
     updateNotification: (data) => api.patch('/users/me/notification', data),
 }
 
-/* Алиас для обратной совместимости */
 export const userApi = usersApi
 
+// ============================================================
+// Search
+// ============================================================
 export const searchApi = {
     global: (q) => api.get('/search', { params: { q } }),
     suggestions: (q) => api.get('/search/suggestions', { params: { q } }),
@@ -148,22 +216,34 @@ export const searchApi = {
         api.get(`/search/projects/${projectId}`, { params: { q } }),
 }
 
+// ============================================================
+// Stats
+// ============================================================
 export const statsApi = {
     get: (period) => api.get('/stats', { params: { period } }),
     overview: (period) => api.get('/stats/overview', { params: { period } }),
     dailyLoad: (from, to) => api.get('/stats/daily-load', { params: { from, to } }),
 }
 
+// ============================================================
+// Calendar
+// ============================================================
 export const calendarApi = {
     get: (from, to) => api.get('/calendar', { params: { from, to } }),
 }
 
+// ============================================================
+// Achievements
+// ============================================================
 export const achievementsApi = {
     list: () => api.get('/achievements'),
 }
 
+// ============================================================
+// Shop
+// ============================================================
 export const shopApi = {
-    get: () => api.get('/shop'),
+    get: (params = {}) => api.get('/shop', { params }),
     buyAvatar: (id) => api.post(`/shop/avatars/${id}/buy`),
     equipAvatar: (id) => api.post(`/shop/avatars/${id}/equip`),
     buyFrame: (id) => api.post(`/shop/frames/${id}/buy`),
@@ -177,27 +257,63 @@ export const shopApi = {
     unequipAccent: () => api.post('/shop/accents/unequip'),
 }
 
+// ============================================================
+// Admin
+// ============================================================
 export const adminApi = {
-    // Категории аватарок
+    // Аватарки — категории
     listAvatarCategories: () => api.get('/admin/shop/avatar-categories'),
     createAvatarCategory: (data) => api.post('/admin/shop/avatar-categories', data),
     updateAvatarCategory: (id, data) => api.patch(`/admin/shop/avatar-categories/${id}`, data),
     deleteAvatarCategory: (id) => api.delete(`/admin/shop/avatar-categories/${id}`),
 
-    // Аватарки
+    // Аватарки — элементы
     listAvatars: () => api.get('/admin/shop/avatars'),
-
     createAvatar: (formData) =>
         api.post('/admin/shop/avatars', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
-
     updateAvatar: (id, formData) =>
         api.patch(`/admin/shop/avatars/${id}`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
-
     deleteAvatar: (id) => api.delete(`/admin/shop/avatars/${id}`),
+
+    // Рамки — категории
+    listFrameCategories: () => api.get('/admin/shop/frame-categories'),
+    createFrameCategory: (data) => api.post('/admin/shop/frame-categories', data),
+    updateFrameCategory: (id, data) => api.patch(`/admin/shop/frame-categories/${id}`, data),
+    deleteFrameCategory: (id) => api.delete(`/admin/shop/frame-categories/${id}`),
+
+    // Рамки — элементы
+    listFrames: () => api.get('/admin/shop/frames'),
+    createFrame: (formData) =>
+        api.post('/admin/shop/frames', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    updateFrame: (id, formData) =>
+        api.patch(`/admin/shop/frames/${id}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    deleteFrame: (id) => api.delete(`/admin/shop/frames/${id}`),
+
+    // Акценты — категории
+    listAccentCategories: () => api.get('/admin/shop/accent-categories'),
+    createAccentCategory: (data) => api.post('/admin/shop/accent-categories', data),
+    updateAccentCategory: (id, data) => api.patch(`/admin/shop/accent-categories/${id}`, data),
+    deleteAccentCategory: (id) => api.delete(`/admin/shop/accent-categories/${id}`),
+
+    // Акценты — элементы
+    listAccents: () => api.get('/admin/shop/accents'),
+    createAccent: (formData) =>
+        api.post('/admin/shop/accents', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    updateAccent: (id, formData) =>
+        api.patch(`/admin/shop/accents/${id}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    deleteAccent: (id) => api.delete(`/admin/shop/accents/${id}`),
 }
 
 export default api
