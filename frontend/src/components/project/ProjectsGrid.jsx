@@ -18,6 +18,7 @@ import { projectsApi, boardsApi } from '../../api/api'
 import useT from '../../hooks/useT'
 import useConfirmDelete from '../../hooks/useConfirmDelete'
 import { useAuth } from '../../context/AuthContext'
+import { resolveUrl } from '../../utils/format'
 import SortableProjectCard from './SortableProjectCard'
 import CreateProjectModal from './CreateProjectModal'
 import EditProjectModal from './EditProjectModal'
@@ -51,12 +52,12 @@ export default function ProjectsGrid({
         })
     )
 
-    const sorted = localOrder || [...projects].sort((a, b) => {
-        const pinA = a.isPinned ? 0 : 1
-        const pinB = b.isPinned ? 0 : 1
-        if (pinA !== pinB) return pinA - pinB
-        return (a.position || 0) - (b.position || 0)
-    })
+    // Порядок задаёт бэк:
+    //  - закреплённые сверху;
+    //  - внутри блока завершённые уезжают в конец,
+    //    если проект не переставляли вручную;
+    //  - если перетаскивали — сохраняется ручная позиция.
+    const sorted = localOrder || projects
 
     useEffect(() => {
         const handler = (e) => {
@@ -161,7 +162,10 @@ export default function ProjectsGrid({
             await Promise.all(
                 updated.map(p => projectsApi.move(p.id, { position: p.position }))
             )
-            updated.forEach(p => onProjectUpdated && onProjectUpdated(p))
+            updated.forEach(p => onProjectUpdated && onProjectUpdated({
+                ...p,
+                isManualPosition: true,
+            }))
             setLocalOrder(null)
             window.dispatchEvent(new Event('sidebar:refresh'))
         } catch (err) {
@@ -251,7 +255,10 @@ function ProjectCard({ project, onClick, onDeleteClick, onEdit, onTogglePin }) {
     const total = project.taskTotal || 0
     const done = project.taskDone || 0
     const pct = total > 0 ? Math.round((done / total) * 100) : 0
-    const hasCover = !!project.coverUrl
+    const coverUrl = resolveUrl(project.coverUrl)
+    const [coverBroken, setCoverBroken] = useState(false)
+    const hasCover = !!coverUrl && !coverBroken
+    const initial = (project.title || '?').trim().charAt(0).toUpperCase()
 
     const handleDelete = (e) => {
         e.stopPropagation()
@@ -276,23 +283,13 @@ function ProjectCard({ project, onClick, onDeleteClick, onEdit, onTogglePin }) {
             <div className={`project-card__cover project-card__cover--${accent}`}>
                 {hasCover ? (
                     <img
-                        src={project.coverUrl}
+                        src={coverUrl}
                         alt=""
                         className="project-card__cover-img"
-                        onError={(e) => { e.target.style.display = 'none' }}
+                        onError={() => setCoverBroken(true)}
                     />
                 ) : (
-                    <>
-                        <div className="project-card__pattern" />
-                        <div className="project-card__cover-title">
-                            {project.title}
-                        </div>
-                        {project.statusTitle && (
-                            <div className="project-card__cover-status">
-                                {project.statusTitle}
-                            </div>
-                        )}
-                    </>
+                    <div className="project-card__cover-letter">{initial}</div>
                 )}
 
                 <div className="project-card__actions">

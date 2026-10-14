@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 017-01-project-manual-position
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: project_settings
+                columnName: is_manual_position
+      changes:
+        - addColumn:
+            tableName: project_settings
+            columns:
+              - column:
+                  name: is_manual_position
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }

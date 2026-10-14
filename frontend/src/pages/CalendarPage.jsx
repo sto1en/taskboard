@@ -6,7 +6,7 @@ import useHotkeys from '../hooks/useHotkeys'
 import useConfirmDelete from '../hooks/useConfirmDelete'
 import { useAuth } from '../context/AuthContext'
 import DayTasksModal from '../components/Calendar/DayTasksModal'
-import CreateTaskModal from '../components/Task/CreateTaskModal'
+import TaskFormModal from '../components/task/TaskFormModal'
 import TaskDetailModal from '../components/Task/TaskDetailModal'
 import AttachmentsModal from '../components/Task/AttachmentsModal'
 import ConfirmModal from '../components/common/ConfirmModal'
@@ -413,14 +413,12 @@ export default function CalendarPage() {
             when: () => !openDay && !openTaskId && !createDate && !!hoveredTaskId && !modalProps.open,
             handler: handleCalendarOpen,
         },
-        // Delete — удалить
         {
             combo: 'delete',
             allowInInput: false,
             when: () => !openDay && !openTaskId && !createDate && !!hoveredTaskId && !modalProps.open,
             handler: handleCalendarDeleteWithConfirm,
         },
-        // Backspace — перенести в отменённые
         {
             combo: 'backspace',
             allowInInput: false,
@@ -577,12 +575,14 @@ export default function CalendarPage() {
                 onAddTask={handleAddTask}
             />
 
-            <CreateTaskModal
+            {/* Единая модалка создания задачи — режим календаря */}
+            <TaskFormModal
                 open={!!createDate}
                 onClose={() => setCreateDate(null)}
                 onCreated={handleCreated}
                 boards={boards}
                 presetDeadline={createDate}
+                mode="calendar"
             />
 
             <TaskDetailModal

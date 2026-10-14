@@ -177,4 +177,27 @@ export const shopApi = {
     unequipAccent: () => api.post('/shop/accents/unequip'),
 }
 
+export const adminApi = {
+    // Категории аватарок
+    listAvatarCategories: () => api.get('/admin/shop/avatar-categories'),
+    createAvatarCategory: (data) => api.post('/admin/shop/avatar-categories', data),
+    updateAvatarCategory: (id, data) => api.patch(`/admin/shop/avatar-categories/${id}`, data),
+    deleteAvatarCategory: (id) => api.delete(`/admin/shop/avatar-categories/${id}`),
+
+    // Аватарки
+    listAvatars: () => api.get('/admin/shop/avatars'),
+
+    createAvatar: (formData) =>
+        api.post('/admin/shop/avatars', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+
+    updateAvatar: (id, formData) =>
+        api.patch(`/admin/shop/avatars/${id}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+
+    deleteAvatar: (id) => api.delete(`/admin/shop/avatars/${id}`),
+}
+
 export default api

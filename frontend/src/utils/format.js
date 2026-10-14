@@ -41,8 +41,11 @@ export function buildDeadline(date, time, hasTime) {
 
 export function resolveUrl(url) {
     if (!url) return null
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
         return url
     }
-    return `/uploads/${url}`
+    if (url.startsWith('/')) {
+        return url
+    }
+    return `http://localhost:8082/uploads/${url}`
 }

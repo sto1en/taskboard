@@ -31,3 +31,7 @@ databaseChangeLog:
       file: db/changelog/015-add-task-audit.yaml
   - include:
       file: db/changelog/016-add-task-messages.yaml
+  - include:
+      file: db/changelog/017-add-project-manual-position.yaml
+  - include:
+      file: db/changelog/018-admin-and-avatar-categories.yaml

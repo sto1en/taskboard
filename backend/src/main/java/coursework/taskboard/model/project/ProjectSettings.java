@@ -35,6 +35,10 @@ public class ProjectSettings {
     @Builder.Default
     private Boolean isTemplate = false;
 
+    @Column(name = "is_manual_position", nullable = false)
+    @Builder.Default
+    private Boolean isManualPosition = false;
+
     @Column(name = "accent_code", length = 30)
     private String accentCode;
 

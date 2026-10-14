@@ -4,7 +4,14 @@ import { attachmentsApi, tasksApi } from '../../api/api'
 import { resolveUrl } from '../../utils/format'
 
 export default function AttachmentsModal({
-                                             open, attachments, taskId, onClose, onUpdated,
+                                             open,
+                                             attachments,
+                                             taskId,
+                                             onClose,
+                                             onUpdated,
+                                             pendingMode = false,
+                                             pendingAttachments = [],
+                                             onPendingChange,
                                          }) {
     const [preview, setPreview] = useState(null)
     const [items, setItems] = useState([])
@@ -12,18 +19,23 @@ export default function AttachmentsModal({
     const [error, setError] = useState(null)
     const fileInputRef = useRef(null)
 
+    // Собираем отображаемый список:
+    //  - уже привязанные к задаче (attachments)
+    //  - плюс «черновики» (pendingAttachments) в pendingMode
     useEffect(() => {
-        setItems(
-            (attachments || []).map(a => ({
-                ...a,
-                url: resolveUrl(a.url),
-            }))
-        )
-    }, [attachments])
+        const already = (attachments || []).map(a => ({
+            ...a,
+            url: resolveUrl(a.url),
+            _pending: false,
+        }))
+        const pending = (pendingAttachments || []).map(a => ({
+            ...a,
+            url: resolveUrl(a.url),
+            _pending: true,
+        }))
+        setItems([...already, ...pending])
+    }, [attachments, pendingAttachments])
 
-    // ============================================================
-    // Escape закрывает: сначала превью, потом модалку
-    // ============================================================
     useEffect(() => {
         if (!open) {
             setPreview(null)
@@ -40,12 +52,6 @@ export default function AttachmentsModal({
         return () => window.removeEventListener('keydown', onKey)
     }, [open, preview, onClose])
 
-    // ============================================================
-    // N / Т — открыть выбор файла, если модалка вложений открыта.
-    // Используем e.code ('KeyN'), чтобы работало в русской раскладке.
-    // Перехватываем событие через capture, чтобы Sidebar не открыл
-    // CreateTaskModal поверх.
-    // ============================================================
     useEffect(() => {
         if (!open) return
 
@@ -98,22 +104,37 @@ export default function AttachmentsModal({
     const handleUpload = async (e) => {
         const file = e.target.files?.[0]
         if (!file) return
-        if (!taskId) {
-            setError('Нельзя загрузить: нет id задачи')
-            return
-        }
         setUploading(true)
         setError(null)
         try {
             const { data: attachment } = await attachmentsApi.upload(file)
-            await tasksApi.attach(taskId, attachment.id)
-            setItems(prev => [...prev, {
+
+            const newItem = {
                 id: attachment.id,
-                url: resolveUrl(attachment.url),
+                url: attachment.url,
                 originalName: attachment.originalName,
                 mimeCode: attachment.mimeCode,
-            }])
-            onUpdated && onUpdated()
+            }
+
+            if (pendingMode) {
+                // Не привязываем к задаче — ждём кнопки «Сохранить»
+                onPendingChange && onPendingChange([
+                    ...(pendingAttachments || []),
+                    newItem,
+                ])
+            } else {
+                if (!taskId) {
+                    setError('Нельзя загрузить: нет id задачи')
+                    return
+                }
+                await tasksApi.attach(taskId, attachment.id)
+                setItems(prev => [...prev, {
+                    ...newItem,
+                    url: resolveUrl(newItem.url),
+                    _pending: false,
+                }])
+                onUpdated && onUpdated()
+            }
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка загрузки')
         } finally {
@@ -122,9 +143,11 @@ export default function AttachmentsModal({
         }
     }
 
-    // ============================================================
-    // Портал для превью: ищем .layout__content
-    // ============================================================
+    const handleRemovePending = (item) => {
+        if (!pendingMode || !onPendingChange) return
+        onPendingChange((pendingAttachments || []).filter(x => x.id !== item.id))
+    }
+
     const contentEl = typeof document !== 'undefined'
         ? document.querySelector('.layout__content')
         : null
@@ -161,7 +184,6 @@ export default function AttachmentsModal({
         )
         : null
 
-    // Если открыто превью — рендерим только его, модалку прячем.
     if (preview) {
         return previewPortal
     }
@@ -187,8 +209,8 @@ export default function AttachmentsModal({
                                 const isImage = a.mimeCode?.startsWith('image/')
                                 return (
                                     <div
-                                        key={a.id}
-                                        className="attachments-modal__item"
+                                        key={`${a.id}-${a._pending ? 'p' : 'a'}`}
+                                        className={`attachments-modal__item ${a._pending ? 'attachments-modal__item--pending' : ''}`}
                                         onClick={() => isImage && setPreview(a)}
                                     >
                                         {isImage ? (
@@ -203,26 +225,45 @@ export default function AttachmentsModal({
                                                 <div className="attachments-modal__file-name">
                                                     {a.originalName}
                                                 </div>
-                                                {/* MIME-подпись убрана */}
                                             </div>
                                         )}
 
                                         <div className="attachments-modal__item-actions">
-                                            <button
-                                                type="button"
-                                                className="attachments-modal__btn"
-                                                onClick={(e) => handleDownload(e, a)}
-                                                title="Скачать"
-                                            >⬇</button>
-                                            <a
-                                                href={a.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="attachments-modal__btn"
-                                                onClick={(e) => e.stopPropagation()}
-                                                title="Открыть в новой вкладке"
-                                            >↗</a>
+                                            {a._pending && pendingMode ? (
+                                                <button
+                                                    type="button"
+                                                    className="attachments-modal__btn"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleRemovePending(a)
+                                                    }}
+                                                    title="Убрать (не сохранено)"
+                                                >×</button>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        className="attachments-modal__btn"
+                                                        onClick={(e) => handleDownload(e, a)}
+                                                        title="Скачать"
+                                                    >⬇</button>
+                                                    <a
+                                                        href={a.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="attachments-modal__btn"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        title="Открыть в новой вкладке"
+                                                    >↗</a>
+                                                </>
+                                            )}
                                         </div>
+
+                                        {a._pending && (
+                                            <span className="attachments-modal__pending-badge">
+                                                черновик
+                                            </span>
+                                        )}
                                     </div>
                                 )
                             })}

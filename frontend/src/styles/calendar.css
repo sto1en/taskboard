@@ -129,16 +129,21 @@
     text-transform: uppercase;
     letter-spacing: 0.7px;
     color: var(--text);
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--accent, var(--primary)) 45%, var(--border));
     border-radius: 10px;
     user-select: none;
 }
+
 .calendar__weekday--weekend {
     color: var(--danger);
+    background: transparent;
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
 }
+
 html[data-theme="dark"] .calendar__weekday--weekend {
     color: #f87171;
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
 }
 
 /* ---------- Ячейки ---------- */
@@ -177,9 +182,7 @@ html[data-theme="dark"] .calendar__cell--weekend {
     background: color-mix(in srgb, #ffffff 4%, var(--surface));
 }
 
-/* ---------- Активный день — мягкое выделение ----------
-   Раньше была градиентная рамка по периметру — слишком агрессивно.
-   Теперь: обычная рамка в акцент + тонкая градиентная полоска сверху. */
+/* ---------- Активный день — мягкое выделение ---------- */
 
 .calendar__cell--today {
     border-color: color-mix(in srgb, var(--accent, var(--primary)) 55%, var(--border));
@@ -240,21 +243,20 @@ html[data-theme="dark"] .calendar__cell--weekend .calendar__daynum {
     color: #f87171;
 }
 
-/* Активное число — градиентный кружок */
+/* Активное число — просто акцентный цвет текста, без заливки */
 .calendar__cell--today .calendar__daynum {
-    background-color: var(--primary);
-    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    color: #fff;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    background-color: transparent;
+    background-image: none;
+    color: var(--accent, var(--primary));
+    font-weight: 900;
+    text-shadow: none;
 }
 
 .calendar__cell:hover .calendar__daynum {
     color: var(--text);
 }
 .calendar__cell--today:hover .calendar__daynum {
-    color: #fff;
+    color: var(--accent, var(--primary));
 }
 .calendar__cell--weekend:hover .calendar__daynum {
     color: var(--danger);
@@ -387,8 +389,7 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
     transition: background .15s;
 }
 
-/* ---------- Drag&drop задач между днями ----------
-   Мягче: полупрозрачный акцентный фон вместо жирной рамки. */
+/* ---------- Drag&drop задач между днями ---------- */
 
 .calendar__cell--drop-over {
     background: color-mix(in srgb, var(--accent, var(--primary)) 10%, var(--surface)) !important;

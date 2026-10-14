@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { tasksApi } from '../../api/api'
 import Subtask from './Subtask'
@@ -20,10 +20,31 @@ export default function TaskCard({
     const [expanded, setExpanded] = useState(false)
     const [fullTask, setFullTask] = useState(null)
     const [loadingFull, setLoadingFull] = useState(false)
+    const lastAttachCountRef = useRef(task.attachmentNames?.length || 0)
 
     const isDone = checkIsDone(task)
     const isCancelled = checkIsCancelled(task)
     const isExpired = checkIsExpired(task)
+
+    // 1) Если число вложений изменилось (например, добавили через модалку) —
+    //    сбрасываем кэш fullTask, чтобы при следующем разворачивании
+    //    данные подтянулись заново. Плюс если карточка развёрнута — сразу
+    //    перечитываем.
+    useEffect(() => {
+        const current = task.attachmentNames?.length || 0
+        if (current === lastAttachCountRef.current) return
+        lastAttachCountRef.current = current
+
+        if (expanded) {
+            // карточка уже открыта — сразу перечитываем
+            tasksApi.get(task.id)
+                .then(({ data }) => setFullTask(data))
+                .catch(() => {})
+        } else {
+            // карточка закрыта — просто сбрасываем кэш
+            setFullTask(null)
+        }
+    }, [task.attachmentNames?.length, expanded, task.id])
 
     const handleCheck = (e) => {
         e.stopPropagation()
@@ -35,6 +56,8 @@ export default function TaskCard({
         onOpenTask && onOpenTask(task.id)
     }
 
+    // 2) При разворачивании ВСЕГДА перечитываем fullTask с сервера,
+    //    чтобы получить актуальный список вложений и редактора.
     const handleToggleExpand = async (e) => {
         e.stopPropagation()
         if (expanded) {
@@ -42,16 +65,16 @@ export default function TaskCard({
             return
         }
         setExpanded(true)
-        if (!fullTask && !loadingFull) {
-            setLoadingFull(true)
-            try {
-                const { data } = await tasksApi.get(task.id)
-                setFullTask(data)
-            } catch (err) {
-                console.error('Failed to load full task:', err)
-            } finally {
-                setLoadingFull(false)
-            }
+
+        if (loadingFull) return
+        setLoadingFull(true)
+        try {
+            const { data } = await tasksApi.get(task.id)
+            setFullTask(data)
+        } catch (err) {
+            console.error('Failed to load full task:', err)
+        } finally {
+            setLoadingFull(false)
         }
     }
 
@@ -116,11 +139,6 @@ export default function TaskCard({
         ? `var(--accent-${task.statusAccentCode}, var(--primary))`
         : 'var(--primary)'
 
-    const authorsTooltip = [
-        task.startedBy && `Начал: ${task.startedBy.displayName}`,
-        task.lastEditedBy && `Последний редактор: ${task.lastEditedBy.displayName}`,
-    ].filter(Boolean).join('\n')
-
     return (
         <div
             className={`task-card ${isDone ? 'task-card--done' : ''}`}
@@ -148,45 +166,6 @@ export default function TaskCard({
                     onSave={saveTitle}
                     title={t.edit}
                 />
-
-                {(task.startedBy || task.lastEditedBy) && (
-                    <div className="task-card__authors" title={authorsTooltip}>
-                        {task.startedBy && (
-                            <div className="task-card__author">
-                                <AvatarWithFrame
-                                    avatar={{
-                                        code: task.startedBy.avatarCode || undefined,
-                                        emoji: task.startedBy.avatarEmoji || undefined,
-                                        imageUrl: task.startedBy.avatarImageUrl || task.startedBy.avatarUrl || undefined,
-                                    }}
-                                    frame={task.startedBy.frameCssClass
-                                        ? { cssClass: task.startedBy.frameCssClass }
-                                        : null}
-                                    displayName={task.startedBy.displayName}
-                                    username={task.startedBy.username}
-                                    size={22}
-                                />
-                            </div>
-                        )}
-                        {task.lastEditedBy && task.lastEditedBy.id !== task.startedBy?.id && (
-                            <div className="task-card__author task-card__author--editor">
-                                <AvatarWithFrame
-                                    avatar={{
-                                        code: task.lastEditedBy.avatarCode || undefined,
-                                        emoji: task.lastEditedBy.avatarEmoji || undefined,
-                                        imageUrl: task.lastEditedBy.avatarImageUrl || task.lastEditedBy.avatarUrl || undefined,
-                                    }}
-                                    frame={task.lastEditedBy.frameCssClass
-                                        ? { cssClass: task.lastEditedBy.frameCssClass }
-                                        : null}
-                                    displayName={task.lastEditedBy.displayName}
-                                    username={task.lastEditedBy.username}
-                                    size={22}
-                                />
-                            </div>
-                        )}
-                    </div>
-                )}
 
                 {task.priority > 0 && (
                     <span className="task-card__priority task-card__priority--big">
@@ -290,20 +269,37 @@ export default function TaskCard({
                                     </span>
                                 </div>
                             )}
-                            {(fullTask.startedBy || fullTask.lastEditedBy) && (
-                                <div className="task-card__details-authors">
-                                    {fullTask.startedBy && (
-                                        <div className="task-card__details-author-row">
-                                            <span className="task-card__details-label">Начал:</span>
-                                            <span>{fullTask.startedBy.displayName}</span>
-                                        </div>
-                                    )}
-                                    {fullTask.lastEditedBy && (
-                                        <div className="task-card__details-author-row">
-                                            <span className="task-card__details-label">Последний редактор:</span>
-                                            <span>{fullTask.lastEditedBy.displayName}</span>
-                                        </div>
-                                    )}
+
+                            {/* Только последний редактор — с аватаркой */}
+                            {fullTask.lastEditedBy && (
+                                <div className="task-card__details-editor">
+                                    <span className="task-card__details-label">
+                                        Последний редактор:
+                                    </span>
+                                    <span className="task-card__details-editor-info">
+                                        <AvatarWithFrame
+                                            avatar={{
+                                                code: fullTask.lastEditedBy.avatarCode || undefined,
+                                                emoji: fullTask.lastEditedBy.avatarEmoji || undefined,
+                                                imageUrl: fullTask.lastEditedBy.avatarImageUrl || fullTask.lastEditedBy.avatarUrl || undefined,
+                                            }}
+                                            frame={fullTask.lastEditedBy.frameCssClass
+                                                ? { cssClass: fullTask.lastEditedBy.frameCssClass }
+                                                : null}
+                                            displayName={fullTask.lastEditedBy.displayName}
+                                            username={fullTask.lastEditedBy.username}
+                                            size={22}
+                                        />
+                                        <span className="task-card__details-editor-name">
+                                            {fullTask.lastEditedBy.displayName}
+                                        </span>
+                                        {fullTask.lastEditedAt && (
+                                            <span className="task-card__details-editor-date">
+                                                {' · '}
+                                                {new Date(fullTask.lastEditedAt).toLocaleString('ru-RU')}
+                                            </span>
+                                        )}
+                                    </span>
                                 </div>
                             )}
                         </>

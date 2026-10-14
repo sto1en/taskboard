@@ -80,6 +80,12 @@ export default function TaskDetailModal({
     const [recurrence, setRecurrence] = useState(null)
     const [recurrenceDirty, setRecurrenceDirty] = useState(false)
 
+    // === Вложения ===
+    // Новые, ещё не привязанные к задаче (черновики на добавление)
+    const [pendingAttachments, setPendingAttachments] = useState([])
+    // Id уже привязанных вложений, помеченных на удаление (черновики на удаление)
+    const [pendingRemovals, setPendingRemovals] = useState([])
+
     const load = async () => {
         if (!taskId) return
         setLoading(true)
@@ -105,6 +111,8 @@ export default function TaskDetailModal({
             setDirty(false)
             setRecurrence(taskData.recurrence || null)
             setRecurrenceDirty(false)
+            setPendingAttachments([])
+            setPendingRemovals([])
 
             let bid = boardIdProp
             let cols = columnsProp || []
@@ -178,6 +186,8 @@ export default function TaskDetailModal({
             setRecurrence(null)
             setRecurrenceDirty(false)
             setDetailTab('details')
+            setPendingAttachments([])
+            setPendingRemovals([])
         }
     }, [open, boardIdProp, columnsProp])
 
@@ -201,6 +211,30 @@ export default function TaskDetailModal({
                 statusId: form.statusId || null,
                 tagIds,
             })
+
+            // === Привязываем новые черновики ===
+            if (pendingAttachments.length > 0) {
+                for (const a of pendingAttachments) {
+                    try {
+                        await tasksApi.attach(taskId, a.id)
+                    } catch (err) {
+                        console.error('Attach error:', err)
+                    }
+                }
+                setPendingAttachments([])
+            }
+
+            // === Удаляем помеченные вложения ===
+            if (pendingRemovals.length > 0) {
+                for (const attachmentId of pendingRemovals) {
+                    try {
+                        await tasksApi.detach(taskId, attachmentId)
+                    } catch (err) {
+                        console.error('Detach error:', err)
+                    }
+                }
+                setPendingRemovals([])
+            }
 
             if (recurrenceDirty) {
                 if (recurrence && recurrence.rule) {
@@ -266,16 +300,20 @@ export default function TaskDetailModal({
         })
     }
 
+    // Загрузка файла — просто кладём в «черновики», не привязываем
     const uploadAttachment = async (e) => {
         const file = e.target.files?.[0]
         if (!file) return
         setUploading(true)
         try {
             const { data: attachment } = await attachmentsApi.upload(file)
-            await tasksApi.attach(taskId, attachment.id)
-            const { data } = await tasksApi.get(taskId)
-            setTask(data)
-            onUpdated && onUpdated()
+            setPendingAttachments(prev => [...prev, {
+                id: attachment.id,
+                url: attachment.url,
+                originalName: attachment.originalName,
+                mimeCode: attachment.mimeCode,
+            }])
+            setDirty(true)
         } catch (err) {
             setError(err.response?.data?.message || 'Error')
         } finally {
@@ -284,15 +322,25 @@ export default function TaskDetailModal({
         }
     }
 
-    const detachAttachment = async (attachmentId) => {
-        try {
-            await tasksApi.detach(taskId, attachmentId)
-            const { data } = await tasksApi.get(taskId)
-            setTask(data)
-            onUpdated && onUpdated()
-        } catch (err) {
-            setError(err.response?.data?.message || 'Error')
+    // === «Удалить вложение»: только помечаем, на сервере — при сохранении ===
+    const detachAttachment = (attachmentId) => {
+        // 1. Если это черновик (ещё не привязан) — просто убираем из списка
+        const isPending = pendingAttachments.some(a => a.id === attachmentId)
+        if (isPending) {
+            setPendingAttachments(prev => prev.filter(a => a.id !== attachmentId))
+            return
         }
+
+        // 2. Если это уже привязанное вложение — помечаем на удаление
+        setPendingRemovals(prev =>
+            prev.includes(attachmentId) ? prev : [...prev, attachmentId]
+        )
+        setDirty(true)
+    }
+
+    // === Отменить пометку на удаление ===
+    const undoRemoveAttachment = (attachmentId) => {
+        setPendingRemovals(prev => prev.filter(id => id !== attachmentId))
     }
 
     const toggleTag = (tagId) => {
@@ -887,31 +935,107 @@ export default function TaskDetailModal({
 
                                 <div className="task-detail__group">
                                     <div className="task-detail__label">
-                                        {t.attachmentsLabel} {task.attachments?.length ? `(${task.attachments.length})` : ''}
+                                        {t.attachmentsLabel} {
+                                        (
+                                            (task.attachments?.length || 0)
+                                            - pendingRemovals.length
+                                            + pendingAttachments.length
+                                        ) > 0
+                                            ? `(${(task.attachments?.length || 0) - pendingRemovals.length + pendingAttachments.length})`
+                                            : ''
+                                    }
                                     </div>
                                     <div className="task-detail__attachments">
-                                        {(task.attachments || []).map(a => {
+                                        {/* Уже привязанные вложения, кроме помеченных на удаление */}
+                                        {(task.attachments || [])
+                                            .filter(a => !pendingRemovals.includes(a.id))
+                                            .map(a => {
+                                                const url = resolveUrl(a.url)
+                                                const isImage = a.mimeCode?.startsWith('image/')
+                                                return (
+                                                    <div key={a.id} className="task-detail__attachment">
+                                                        {isImage && url ? (
+                                                            <img
+                                                                src={url}
+                                                                alt={a.originalName || ''}
+                                                                onClick={() => handleAttachmentClick(a)}
+                                                                style={{ cursor: 'zoom-in' }}
+                                                                onError={(e) => {
+                                                                    e.target.style.display = 'none'
+                                                                    e.target.parentNode.classList.add('task-detail__attachment--broken')
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className="task-detail__file"
+                                                                onClick={() => handleAttachmentClick(a)}
+                                                                style={{ cursor: 'pointer' }}
+                                                            >
+                                                                📎 {a.originalName}
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            className="task-detail__attachment-remove"
+                                                            onClick={() => detachAttachment(a.id)}
+                                                        >×</button>
+                                                    </div>
+                                                )
+                                            })}
+
+                                        {/* Помеченные на удаление — показываем с бейджем «на удаление» и кнопкой отмены */}
+                                        {(task.attachments || [])
+                                            .filter(a => pendingRemovals.includes(a.id))
+                                            .map(a => {
+                                                const url = resolveUrl(a.url)
+                                                const isImage = a.mimeCode?.startsWith('image/')
+                                                return (
+                                                    <div
+                                                        key={`removed-${a.id}`}
+                                                        className="task-detail__attachment task-detail__attachment--removing"
+                                                    >
+                                                        {isImage && url ? (
+                                                            <img
+                                                                src={url}
+                                                                alt={a.originalName || ''}
+                                                                style={{ opacity: 0.5 }}
+                                                            />
+                                                        ) : (
+                                                            <div className="task-detail__file">
+                                                                📎 {a.originalName}
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            className="task-detail__attachment-remove task-detail__attachment-remove--undo"
+                                                            onClick={() => undoRemoveAttachment(a.id)}
+                                                            title="Отменить удаление"
+                                                        >↺</button>
+                                                        <span className="task-detail__attachment-badge task-detail__attachment-badge--removing">
+                                                            на удаление
+                                                        </span>
+                                                    </div>
+                                                )
+                                            })}
+
+                                        {/* Новые черновики */}
+                                        {pendingAttachments.map(a => {
                                             const url = resolveUrl(a.url)
                                             const isImage = a.mimeCode?.startsWith('image/')
                                             return (
-                                                <div key={a.id} className="task-detail__attachment">
+                                                <div
+                                                    key={`pending-${a.id}`}
+                                                    className="task-detail__attachment task-detail__attachment--pending"
+                                                >
                                                     {isImage && url ? (
                                                         <img
                                                             src={url}
                                                             alt={a.originalName || ''}
-                                                            onClick={() => handleAttachmentClick(a)}
+                                                            onClick={() => setPreviewAttachment({ ...a, url })}
                                                             style={{ cursor: 'zoom-in' }}
-                                                            onError={(e) => {
-                                                                e.target.style.display = 'none'
-                                                                e.target.parentNode.classList.add('task-detail__attachment--broken')
-                                                            }}
                                                         />
                                                     ) : (
-                                                        <div
-                                                            className="task-detail__file"
-                                                            onClick={() => handleAttachmentClick(a)}
-                                                            style={{ cursor: 'pointer' }}
-                                                        >
+                                                        <div className="task-detail__file">
                                                             📎 {a.originalName}
                                                         </div>
                                                     )}
@@ -920,6 +1044,7 @@ export default function TaskDetailModal({
                                                         className="task-detail__attachment-remove"
                                                         onClick={() => detachAttachment(a.id)}
                                                     >×</button>
+                                                    <span className="task-detail__attachment-badge">черновик</span>
                                                 </div>
                                             )
                                         })}

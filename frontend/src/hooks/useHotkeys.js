@@ -69,6 +69,7 @@ function matches(e, combo) {
 
     const key = parts[parts.length - 1]
 
+    // Ctrl и Meta (Cmd) — взаимозаменяемы для удобства на macOS.
     if (needCtrl !== (e.ctrlKey || e.metaKey)) return false
     if (needShift !== e.shiftKey) return false
     if (needAlt !== e.altKey) return false

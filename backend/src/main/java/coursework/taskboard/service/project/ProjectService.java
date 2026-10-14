@@ -71,9 +71,27 @@ public class ProjectService {
                     coverUrl, null));
         }
 
-        result.sort(Comparator
-                .comparing((ProjectDto p) -> p.getIsPinned() != null && p.getIsPinned() ? 0 : 1)
-                .thenComparing(p -> p.getPosition() == null ? 0 : p.getPosition()));
+        // Сортировка: закреплённые сверху; внутри блока завершённые —
+        // в конец, если проект не переставляли вручную.
+        result.sort((a, b) -> {
+            int pinA = Boolean.TRUE.equals(a.getIsPinned()) ? 0 : 1;
+            int pinB = Boolean.TRUE.equals(b.getIsPinned()) ? 0 : 1;
+            if (pinA != pinB) return pinA - pinB;
+
+            boolean doneA = a.getTaskTotal() > 0 && a.getTaskDone() == a.getTaskTotal();
+            boolean doneB = b.getTaskTotal() > 0 && b.getTaskDone() == b.getTaskTotal();
+
+            boolean manualA = Boolean.TRUE.equals(a.getIsManualPosition());
+            boolean manualB = Boolean.TRUE.equals(b.getIsManualPosition());
+
+            if (!manualA && !manualB && doneA != doneB) {
+                return doneA ? 1 : -1;
+            }
+
+            int posA = a.getPosition() == null ? 0 : a.getPosition();
+            int posB = b.getPosition() == null ? 0 : b.getPosition();
+            return Integer.compare(posA, posB);
+        });
 
         return result;
     }
@@ -138,7 +156,12 @@ public class ProjectService {
 
         if (request.getTitle() != null) project.setTitle(request.getTitle());
         if (request.getDescription() != null) project.setDescription(request.getDescription());
-        if (request.getPosition() != null) project.setPosition(request.getPosition());
+        if (request.getPosition() != null) {
+            project.setPosition(request.getPosition());
+            // Ручная перестановка — фиксируем, чтобы автозавершение
+            // не утаскивало проект в конец.
+            settings.setIsManualPosition(true);
+        }
         projectRepository.save(project);
 
         if (request.getAccentCode() != null) settings.setAccentCode(request.getAccentCode());

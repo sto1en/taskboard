@@ -169,22 +169,20 @@ export default function Sidebar() {
         <>
             <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
                 <div className="sidebar__user">
-                    {/* Аватар — размер задаётся родителем через CSS */}
                     <Link to="/profile" className="sidebar__user-avatar" title="Настройки профиля">
                         <AvatarWithFrame
                             avatar={activeAvatar}
                             frame={activeFrame}
                             displayName={displayName}
                             username={user?.username}
+                            size={56}
                         />
                     </Link>
 
-                    {/* Ник — крупнее */}
                     {!collapsed && (
                         <div className="sidebar__name" title={displayName}>{displayName}</div>
                     )}
 
-                    {/* Свернуть */}
                     <button
                         className="sidebar__icon-btn"
                         onClick={() => setCollapsed(v => !v)}
@@ -294,7 +292,13 @@ export default function Sidebar() {
                         {!collapsed && <span>{t.settings}</span>}
                     </Link>
 
-                    {/* Выйти — в самом низу, красная */}
+                    {user?.isAdmin && (
+                        <Link to="/admin/shop" className="sidebar__link" title="Админка магазина">
+                            <span>🛠</span>
+                            {!collapsed && <span>Админка</span>}
+                        </Link>
+                    )}
+
                     <button
                         className="sidebar__logout"
                         onClick={() => setShowLogout(true)}

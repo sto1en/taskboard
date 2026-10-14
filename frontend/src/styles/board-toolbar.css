@@ -1,58 +1,232 @@
 /* ============================================================
-   BoardToolbar
+   BoardToolbar — шапка доски
    ============================================================ */
 
 .board-toolbar {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px 24px;
     margin-bottom: 20px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 14px;
     box-shadow: var(--shadow-sm);
     font-size: 13px;
-    flex-wrap: wrap;
     position: relative;
 }
 
-.board-toolbar__title {
-    color: var(--text);
-    font-weight: 600;
-    cursor: pointer;
-    padding: 6px 10px;
-    border-radius: 6px;
-    transition: background .15s, color .15s;
-    user-select: none;
-}
-.board-toolbar__title:hover {
-    background: rgba(76, 154, 255, 0.08);
-    color: var(--primary);
+/* ---------- Обложка ---------- */
+
+.board-toolbar__cover {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+    background: linear-gradient(135deg, #4c9aff 0%, #6554c0 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.board-toolbar__input {
-    padding: 6px 10px;
-    border: 2px solid var(--primary);
-    border-radius: 6px;
-    font-size: 13px;
-    outline: none;
-    width: 240px;
+.board-toolbar__cover--blue   { background: linear-gradient(135deg, #4c9aff 0%, #6554c0 100%); }
+.board-toolbar__cover--purple { background: linear-gradient(135deg, #8f6ed5 0%, #d16bdd 100%); }
+.board-toolbar__cover--green  { background: linear-gradient(135deg, #36b37e 0%, #4c9aff 100%); }
+.board-toolbar__cover--orange { background: linear-gradient(135deg, #ffab00 0%, #ff5630 100%); }
+.board-toolbar__cover--red    { background: linear-gradient(135deg, #ff5630 0%, #ff8f73 100%); }
+.board-toolbar__cover--pink   { background: linear-gradient(135deg, #ff78c4 0%, #d16bdd 100%); }
+.board-toolbar__cover--gray   { background: linear-gradient(135deg, #97a0af 0%, #6b778c 100%); }
+
+.board-toolbar__cover-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    z-index: 1;
+}
+
+/* Заглушка — первая буква названия, по центру */
+.board-toolbar__cover-letter {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+    font-size: 48px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -1.5px;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+    user-select: none;
+    pointer-events: none;
+}
+
+/* ---------- Кнопки поверх обложки ---------- */
+
+.board-toolbar__cover-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    z-index: 3;
+    opacity: 0;
+    transition: opacity .15s;
+    pointer-events: none;
+}
+
+/* Показываем при наведении на обложку */
+.board-toolbar__cover:hover .board-toolbar__cover-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.board-toolbar__cover-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    transition: background .15s, color .15s, transform .12s;
+    box-sizing: border-box;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    line-height: 1;
     font-family: inherit;
-    font-weight: 600;
-    color: var(--text);
-    background: #fff;
 }
-html[data-theme="dark"] .board-toolbar__input {
-    background: #2c333a;
-    color: var(--text);
+.board-toolbar__cover-btn:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.75);
+    color: var(--accent, var(--primary));
+    transform: scale(1.05);
 }
+.board-toolbar__cover-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ---------- Текстовый блок ---------- */
+
+.board-toolbar__title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+    max-width: 720px;
+    padding-top: 4px;
+}
+
+/* Eyebrow — «Доска», акцентным цветом */
+.board-toolbar__eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--accent, var(--primary));
+    padding-left: 6px;
+    margin-bottom: 2px;
+}
+
+.board-toolbar__title {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.6px;
+    color: var(--text);
+    line-height: 1.15;
+    flex-shrink: 0;
+}
+
+.board-toolbar__title-text {
+    cursor: text;
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin-left: -6px;
+    transition: background .15s;
+}
+.board-toolbar__title-text:hover {
+    background: rgba(9, 30, 66, 0.05);
+}
+html[data-theme="dark"] .board-toolbar__title-text:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.board-toolbar__title-input {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.6px;
+    padding: 4px 8px;
+    height: auto;
+    min-width: 320px;
+    max-width: 720px;
+}
+
+.board-toolbar__subtitle {
+    display: block;
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: text;
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin-left: -6px;
+    transition: background .15s;
+    min-height: 20px;
+    max-width: 720px;
+    word-break: break-word;
+    line-height: 1.4;
+}
+.board-toolbar__subtitle:hover {
+    background: rgba(9, 30, 66, 0.05);
+}
+html[data-theme="dark"] .board-toolbar__subtitle:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.board-toolbar__subtitle-input {
+    font-size: 14px;
+    padding: 6px 10px;
+    min-height: 60px;
+    width: 100%;
+    max-width: 720px;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+/* Сообщение об ошибке загрузки обложки */
+.board-toolbar__error {
+    margin-top: 6px;
+    padding: 8px 12px;
+    background: rgba(255, 86, 48, 0.1);
+    color: var(--danger);
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    cursor: pointer;
+    border-left: 3px solid var(--danger);
+    max-width: 720px;
+    word-break: break-word;
+}
+.board-toolbar__error:hover {
+    background: rgba(255, 86, 48, 0.15);
+}
+
+/* ---------- Спацер и кнопки ---------- */
 
 .board-toolbar__spacer {
     flex: 1;
+    min-width: 8px;
 }
 
-/* Кнопки */
 .board-toolbar__btn {
     display: flex;
     align-items: center;
@@ -61,26 +235,25 @@ html[data-theme="dark"] .board-toolbar__input {
     height: 40px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    cursor: pointer;
+    border-radius: 10px;
+    color: var(--text-muted);
     font-size: 18px;
-    transition: all .15s;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s, transform .12s;
     position: relative;
     padding: 0;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 4px;
 }
 .board-toolbar__btn:hover {
-    background: rgba(76, 154, 255, 0.08);
-    border-color: var(--primary);
-    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
 }
 
-.board-toolbar__btn--danger {
-    width: 32px;
-    height: 32px;
-    font-size: 14px;
-}
 .board-toolbar__btn--danger:hover {
-    background: rgba(220, 38, 38, 0.1);
+    background: rgba(255, 86, 48, 0.12);
     border-color: var(--danger);
     color: var(--danger);
 }
@@ -109,198 +282,32 @@ html[data-theme="dark"] .board-toolbar__input {
     opacity: 1;
 }
 
-.board-toolbar__color-wrap {
-    position: relative;
-}
+/* ---------- Адаптив ---------- */
 
-.board-toolbar__colors {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 8px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: var(--shadow-md);
-    padding: 10px;
-    display: flex;
-    gap: 8px;
-    z-index: 100;
-}
-
-.board-toolbar__color {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    cursor: pointer;
-    transition: transform .15s, border-color .15s;
-    padding: 0;
-}
-.board-toolbar__color:hover {
-    transform: scale(1.15);
-    border-color: var(--text);
-}
-
-.board-toolbar__color[data-accent="blue"]   { background: linear-gradient(135deg, #4c9aff, #6554c0); }
-.board-toolbar__color[data-accent="purple"] { background: linear-gradient(135deg, #8f6ed5, #d16bdd); }
-.board-toolbar__color[data-accent="green"]  { background: linear-gradient(135deg, #36b37e, #4c9aff); }
-.board-toolbar__color[data-accent="orange"] { background: linear-gradient(135deg, #ffab00, #ff5630); }
-.board-toolbar__color[data-accent="red"]    { background: linear-gradient(135deg, #ff5630, #ff8f73); }
-.board-toolbar__color[data-accent="pink"]   { background: linear-gradient(135deg, #ff78c4, #d16bdd); }
-.board-toolbar__color[data-accent="gray"]   { background: linear-gradient(135deg, #97a0af, #6b778c); }
-
-.board-toolbar__error {
-    color: var(--danger);
-    font-size: 12px;
-    padding: 4px 8px;
-}
-
-/* Описание */
-.board-toolbar__desc-edit {
-    flex-basis: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 10px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
-}
-
-.board-toolbar__desc-actions {
-    display: flex;
-    gap: 8px;
-}
-
-/* Заголовок-текст */
-/* Обёртка для названия + описания в тулбаре */
-.board-toolbar__title-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 0 1 auto;
-    max-width: 480px;
-}
-
-/* Название — текст */
-.board-toolbar__title-text {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text);
-    cursor: text;
-    border-radius: 4px;
-    padding: 4px 6px;
-    transition: background .15s;
-    line-height: 1.2;
-}
-.board-toolbar__title-text:hover {
-    background: rgba(9, 30, 66, 0.05);
-}
-html[data-theme="dark"] .board-toolbar__title-text:hover {
-    background: rgba(255, 255, 255, 0.06);
-}
-
-/* Инпут названия */
-.board-toolbar__title-input {
-    font-size: 16px;
-    font-weight: 700;
-    padding: 4px 8px;
-    height: auto;
-    min-width: 240px;
-    max-width: 480px;
-}
-
-/* Описание — текст */
-.board-toolbar__subtitle {
-    display: block;
-    font-size: 13px;
-    color: var(--text-muted);
-    cursor: text;
-    border-radius: 4px;
-    padding: 2px 6px;
-    transition: background .15s;
-    min-height: 18px;
-    max-width: 480px;
-    word-break: break-word;
-    line-height: 1.3;
-}
-.board-toolbar__subtitle:hover {
-    background: rgba(9, 30, 66, 0.05);
-}
-html[data-theme="dark"] .board-toolbar__subtitle:hover {
-    background: rgba(255, 255, 255, 0.06);
-}
-
-/* Инпут описания */
-.board-toolbar__subtitle-input {
-    font-size: 13px;
-    padding: 6px 10px;
-    min-height: 50px;
-    width: 100%;
-    max-width: 480px;
-    box-sizing: border-box;
-    resize: vertical;
-}
-
-.board-toolbar__btn--danger:hover {
-    background: rgba(220, 38, 38, 0.1);
-    border-color: var(--danger);
-    color: var(--danger);
-}
-
-/* Яркие кнопки в шапке доски */
-.board-toolbar__btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    transition: all .15s;
-    position: relative;
-    padding: 0;
-    cursor: pointer;
-}
-.board-toolbar__btn:hover {
-    background: rgba(76, 154, 255, 0.12);
-    border-color: var(--primary);
-    color: var(--primary);
-    transform: translateY(-1px);
-}
-
-/* Редактировать — синий */
-.board-toolbar__btn--edit {
-    border-color: var(--primary);
-    color: var(--primary);
-}
-.board-toolbar__btn--edit:hover {
-    background: var(--primary);
-    color: #fff;
-}
-
-/* Настройки — фиолетовый */
-.board-toolbar__btn--settings {
-    border-color: var(--accent-purple, #a45cd6);
-    color: var(--accent-purple, #a45cd6);
-}
-.board-toolbar__btn--settings:hover {
-    background: var(--accent-purple, #a45cd6);
-    color: #fff;
-}
-
-/* Удалить — красный */
-.board-toolbar__btn--danger {
-    border-color: var(--danger);
-    color: var(--danger);
-}
-.board-toolbar__btn--danger:hover {
-    background: var(--danger);
-    color: #fff;
-    border-color: var(--danger);
-    transform: translateY(-1px);
+@media (max-width: 720px) {
+    .board-toolbar {
+        flex-wrap: wrap;
+        padding: 16px;
+    }
+    .board-toolbar__cover {
+        width: 96px;
+        height: 96px;
+        border-radius: 10px;
+    }
+    .board-toolbar__cover-letter {
+        font-size: 36px;
+    }
+    .board-toolbar__title {
+        font-size: 22px;
+    }
+    .board-toolbar__title-input {
+        font-size: 22px;
+        min-width: 200px;
+    }
+    .board-toolbar__subtitle {
+        font-size: 13px;
+    }
+    .board-toolbar__spacer {
+        display: none;
+    }
 }

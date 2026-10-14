@@ -1,0 +1,313 @@
+/* ============================================================
+   AdminShopPage
+   ============================================================ */
+
+.admin-page {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 0 48px;
+}
+
+.admin-page__head {
+    margin-bottom: 20px;
+}
+
+.admin-page__title {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text);
+}
+
+.admin-page__tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.admin-tab {
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+}
+.admin-tab:hover:not(:disabled) { color: var(--text); }
+.admin-tab--active { color: var(--primary); border-bottom-color: var(--primary); }
+.admin-tab:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.admin-page__body { width: 100%; }
+
+/* ============================================================
+   Секции админки
+   ============================================================ */
+
+.admin-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+}
+
+.admin-section__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.admin-section__title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.admin-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    background: var(--bg);
+    border-radius: 8px;
+}
+
+/* ============================================================
+   Типы аватарок
+   ============================================================ */
+
+.admin-categories-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.admin-category-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg);
+    border-radius: 8px;
+    min-height: 44px;
+}
+
+.admin-category-row--editing {
+    background: rgba(76, 154, 255, 0.06);
+    border: 1px solid var(--primary);
+}
+
+.admin-category-row__title {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.admin-category-row__code {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(9, 30, 66, 0.08);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-family: ui-monospace, monospace;
+}
+
+.admin-category-row__count {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.admin-category-row__order {
+    max-width: 90px;
+}
+
+.admin-category-row__btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background .15s, color .15s;
+}
+.admin-category-row__btn:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    color: var(--accent, var(--primary));
+}
+.admin-category-row__btn--danger:hover {
+    background: rgba(255, 86, 48, 0.12);
+    color: var(--danger);
+}
+
+/* ============================================================
+   Сетка аватарок в админке
+   ============================================================ */
+
+.admin-avatars-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.admin-avatar-card {
+    position: relative;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-avatar-card__preview {
+    height: 130px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--bg), color-mix(in srgb, var(--accent, var(--primary)) 6%, var(--bg)));
+    overflow: hidden;
+}
+.admin-avatar-card__preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.admin-avatar-card__emoji { font-size: 52px; }
+.admin-avatar-card__placeholder { font-size: 40px; color: var(--text-muted); }
+
+.admin-avatar-card__body {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.admin-avatar-card__title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-avatar-card__meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.admin-avatar-card__code {
+    font-family: ui-monospace, monospace;
+    background: rgba(9, 30, 66, 0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.admin-avatar-card__cat {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
+    color: var(--accent, var(--primary));
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.admin-avatar-card__price {
+    font-weight: 700;
+    color: var(--accent, var(--primary));
+    font-size: 13px;
+    margin-top: auto;
+}
+
+.admin-avatar-card__actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    opacity: 0;
+    transition: opacity .15s;
+}
+.admin-avatar-card:hover .admin-avatar-card__actions { opacity: 1; }
+
+.admin-avatar-card__btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+}
+.admin-avatar-card__btn:hover { background: var(--primary); }
+
+/* ============================================================
+   Модалка редактора аватарки
+   ============================================================ */
+
+.admin-avatar-editor {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.admin-avatar-editor__preview {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-avatar-editor__preview img,
+.admin-avatar-editor__preview-empty {
+    width: 200px;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+}
+
+.admin-avatar-editor__preview-empty {
+    display: grid;
+    place-items: center;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.admin-avatar-editor__preview-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.admin-avatar-editor__fields {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
+
+@media (max-width: 640px) {
+    .admin-avatar-editor {
+        grid-template-columns: 1fr;
+    }
+}

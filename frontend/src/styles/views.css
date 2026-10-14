@@ -26,11 +26,18 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text);
     font-family: inherit;
     cursor: pointer;
     transition: background .15s, border-color .15s, color .15s;
+    min-height: 38px;
+    box-sizing: border-box;
+}
+.view-switcher__btn:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
 }
 
 .view-switcher__icon { font-size: 16px; }
@@ -68,7 +75,6 @@
 .view-switcher__item:hover { background: rgba(9, 30, 66, 0.04); }
 html[data-theme="dark"] .view-switcher__item:hover { background: rgba(255,255,255,0.06); }
 
-/* Активный пункт — плавный градиентный фон */
 .view-switcher__item--active {
     background-color: var(--primary);
     background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
@@ -112,6 +118,13 @@ html[data-theme="dark"] .view-switcher__item:hover { background: rgba(255,255,25
     font-family: inherit;
     cursor: pointer;
     transition: background .15s, border-color .15s, color .15s;
+    min-height: 38px;
+    box-sizing: border-box;
+}
+.sort-switcher__btn:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
 }
 
 .sort-switcher__label { font-size: 13px; }
@@ -128,6 +141,13 @@ html[data-theme="dark"] .view-switcher__item:hover { background: rgba(255,255,25
     font-family: inherit;
     cursor: pointer;
     transition: background .15s, border-color .15s, color .15s;
+    min-height: 38px;
+    box-sizing: border-box;
+}
+.sort-switcher__dir:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
 }
 
 .sort-switcher__menu {
@@ -160,7 +180,6 @@ html[data-theme="dark"] .view-switcher__item:hover { background: rgba(255,255,25
 .sort-switcher__item:hover { background: rgba(9, 30, 66, 0.04); }
 html[data-theme="dark"] .sort-switcher__item:hover { background: rgba(255,255,255,0.06); }
 
-/* Активный пункт — плавный градиентный фон */
 .sort-switcher__item--active {
     background-color: var(--primary);
     background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
@@ -213,6 +232,12 @@ html[data-theme="dark"] .sort-switcher__item:hover { background: rgba(255,255,25
     cursor: pointer;
     transition: background .15s, border-color .15s, color .15s;
     box-sizing: border-box;
+    min-height: 38px;
+}
+.filters-bar__btn:hover {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
 }
 
 .filters-bar__btn-icon {
@@ -246,7 +271,6 @@ html[data-theme="dark"] .sort-switcher__item:hover { background: rgba(255,255,25
     transition: background .15s, color .15s;
 }
 
-/* Активный бейдж — плавный градиентный фон */
 .filters-bar__badge-slot--visible {
     color: #fff;
     background-color: var(--primary);
@@ -260,8 +284,9 @@ html[data-theme="dark"] .sort-switcher__item:hover { background: rgba(255,255,25
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    min-width: 36px;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
     flex-shrink: 0;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -271,9 +296,14 @@ html[data-theme="dark"] .sort-switcher__item:hover { background: rgba(255,255,25
     color: var(--text);
     font-family: inherit;
     cursor: pointer;
-    transition: background .15s, color .15s, border-color .15s, opacity .15s, filter .15s;
+    transition: background .15s, color .15s, border-color .15s, opacity .15s;
     padding: 0;
     box-sizing: border-box;
+}
+.filters-bar__action:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
 }
 
 .filters-bar__action:disabled {
@@ -289,26 +319,10 @@ html[data-theme="dark"] .sort-switcher__item:hover { background: rgba(255,255,25
     border-color: var(--danger);
 }
 
-.filters-bar__action--pin:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
-    color: var(--accent, var(--primary));
-    border-color: var(--accent, var(--primary));
-}
-
-/* Активная кнопка «пин» — плавный градиентный фон */
 .filters-bar__action--pin-active {
-    background-color: var(--primary);
-    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    border-color: transparent;
-    color: #fff;
-    opacity: 1;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
-}
-.filters-bar__action--pin-active:hover:not(:disabled) {
-    filter: brightness(1.08);
-    color: #fff;
+    background: color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
 }
 
 .filters-bar__panel {
@@ -1193,26 +1207,22 @@ html[data-theme="dark"] .compact-task__subtask-count {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     color: var(--text);
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
     line-height: 1;
     cursor: pointer;
     font-family: inherit;
-    transition: background .15s, border-color .15s, color .15s, filter .15s;
+    transition: background .15s, border-color .15s, color .15s;
     white-space: nowrap;
     min-width: 44px;
     min-height: 38px;
+    box-sizing: border-box;
 }
 .reorder-btn:hover {
-    background: color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
     border-color: var(--accent, var(--primary));
     color: var(--accent, var(--primary));
 }
-html[data-theme="dark"] .reorder-btn:hover {
-    background: color-mix(in srgb, var(--accent, var(--primary)) 25%, transparent);
-}
-
-/* Активная кнопка — плавный градиентный фон */
 .reorder-btn--active {
     background-color: var(--primary);
     background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
@@ -1242,7 +1252,7 @@ html[data-theme="dark"] .reorder-btn:hover {
 .sort-switcher__btn:hover,
 .sort-switcher__dir:hover,
 .filters-bar__btn:hover {
-    background: color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent);
     border-color: var(--accent, var(--primary));
     color: var(--accent, var(--primary));
 }
@@ -1250,7 +1260,7 @@ html[data-theme="dark"] .view-switcher__btn:hover,
 html[data-theme="dark"] .sort-switcher__btn:hover,
 html[data-theme="dark"] .sort-switcher__dir:hover,
 html[data-theme="dark"] .filters-bar__btn:hover {
-    background: color-mix(in srgb, var(--accent, var(--primary)) 25%, transparent);
+    background: color-mix(in srgb, var(--accent, var(--primary)) 20%, transparent);
     border-color: var(--accent, var(--primary));
     color: var(--accent, var(--primary));
 }

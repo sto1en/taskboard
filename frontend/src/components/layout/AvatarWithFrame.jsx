@@ -1,11 +1,22 @@
 import { SvgAvatar } from './SvgAvatars'
 
+/**
+ * Единый компонент аватарки с рамкой.
+ *
+ * props:
+ *   avatar      — { code?, emoji?, imageUrl? }
+ *   frame       — { cssClass? }
+ *   displayName — имя для подсказки и инициала
+ *   username    — fallback-имя
+ *   size        — число, размер квадрата (по умолчанию 36)
+ *   className   — доп. классы
+ */
 export default function AvatarWithFrame({
                                             avatar,
                                             frame,
                                             displayName,
                                             username,
-                                            size,
+                                            size = 36,
                                             className = '',
                                         }) {
     const initial = (displayName || username || 'U').charAt(0).toUpperCase()
@@ -17,27 +28,28 @@ export default function AvatarWithFrame({
 
     const svgNode = code ? SvgAvatar({ code }) : null
 
-    const outerStyle = size
-        ? { width: size, height: size }
-        : undefined
+    const outerStyle = { width: size, height: size }
+    const textStyle = { fontSize: Math.round(size * 0.45) }
+    const emojiStyle = { fontSize: Math.round(size * 0.6) }
 
     let content = null
 
     if (svgNode) {
         content = svgNode
     } else if (emoji) {
-        content = <span className="avatar-frame__emoji">{emoji}</span>
+        content = <span className="avatar-frame__emoji" style={emojiStyle}>{emoji}</span>
     } else if (imageUrl) {
         content = (
             <img
                 src={imageUrl}
-                alt={displayName || username}
-                className={`avatar-frame__img avatar-frame__img--${code || 'default'}`}
+                alt={displayName || username || ''}
+                className="avatar-frame__img"
+                data-code={code || undefined}
                 draggable={false}
             />
         )
     } else {
-        content = <span className="avatar-frame__initial">{initial}</span>
+        content = <span className="avatar-frame__initial" style={textStyle}>{initial}</span>
     }
 
     return (
@@ -46,9 +58,7 @@ export default function AvatarWithFrame({
             style={outerStyle}
             title={displayName || username}
         >
-            <div className="avatar-frame__inner">
-                {content}
-            </div>
+            {content}
         </div>
     )
 }

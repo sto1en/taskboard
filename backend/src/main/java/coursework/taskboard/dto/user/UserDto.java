@@ -14,6 +14,8 @@ public class UserDto {
     private String email;
     private LocalDateTime createdAt;
 
+    private Boolean isAdmin;
+
     private UserProfileDto profile;
     private UserAppearanceDto appearance;
     private UserLocaleDto locale;

@@ -1,8 +1,12 @@
-import { plural } from '../../utils/format'
+import { useState } from 'react'
+import { plural, resolveUrl } from '../../utils/format'
 
 export default function BoardCard({ board, onClick, onEdit, onTogglePin }) {
     const accent = board.accentCode || board.accent || 'blue'
-    const hasCover = !!board.coverUrl
+    const coverUrl = resolveUrl(board.coverUrl)
+    const [coverBroken, setCoverBroken] = useState(false)
+    const hasCover = !!coverUrl && !coverBroken
+    const initial = (board.title || '?').trim().charAt(0).toUpperCase()
 
     const handleEdit = (e) => {
         e.stopPropagation()
@@ -17,15 +21,16 @@ export default function BoardCard({ board, onClick, onEdit, onTogglePin }) {
     return (
         <div className={`board-card ${board.isPinned ? 'board-card--pinned' : ''}`} onClick={onClick}>
             <div className={`board-card__cover board-card__cover--${accent}`}>
-                {hasCover && (
+                {hasCover ? (
                     <img
-                        src={board.coverUrl}
+                        src={coverUrl}
                         alt={board.title}
                         className="board-card__cover-img"
+                        onError={() => setCoverBroken(true)}
                     />
+                ) : (
+                    <div className="board-card__cover-letter">{initial}</div>
                 )}
-                <div className="board-card__pattern" />
-                <div className="board-card__cover-title">{board.title}</div>
 
                 <div className="board-card__actions">
                     {onTogglePin && (

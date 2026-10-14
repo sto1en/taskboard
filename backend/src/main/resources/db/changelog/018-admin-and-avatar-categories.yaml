@@ -1,0 +1,122 @@
+databaseChangeLog:
+
+  # ============================================================
+  # Флаг администратора
+  # ============================================================
+  - changeSet:
+      id: 018-01-user-is-admin
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: users
+                columnName: is_admin
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: is_admin
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+
+  # Первому пользователю выдаём админку, чтобы было с чего начать.
+  # Потом вручную поменяешь.
+  - changeSet:
+      id: 018-02-first-user-admin
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: users }
+      changes:
+        - sql:
+            sql: |
+              UPDATE users
+              SET is_admin = TRUE
+              WHERE id = (SELECT MIN(id) FROM users)
+
+  # ============================================================
+  # Справочник типов аватарок
+  # ============================================================
+  - changeSet:
+      id: 018-03-avatar-categories
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: avatar_categories }
+      changes:
+        - createTable:
+            tableName: avatar_categories
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: code,       type: VARCHAR(64),  constraints: { nullable: false, unique: true } }
+              - column: { name: title,      type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+
+  # Стартовые типы
+  - changeSet:
+      id: 018-04-avatar-categories-seed
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: avatar_categories }
+        - sqlCheck:
+            expectedResult: 0
+            sql: "SELECT count(*) FROM avatar_categories"
+      changes:
+        - insert:
+            tableName: avatar_categories
+            columns:
+              - column: { name: code, value: 'anime' }
+              - column: { name: title, value: 'Аниме' }
+              - column: { name: sort_order, valueNumeric: 10 }
+        - insert:
+            tableName: avatar_categories
+            columns:
+              - column: { name: code, value: 'genshin' }
+              - column: { name: title, value: 'Геншин' }
+              - column: { name: sort_order, valueNumeric: 20 }
+        - insert:
+            tableName: avatar_categories
+            columns:
+              - column: { name: code, value: 'pixel' }
+              - column: { name: title, value: 'Пиксель-арт' }
+              - column: { name: sort_order, valueNumeric: 30 }
+        - insert:
+            tableName: avatar_categories
+            columns:
+              - column: { name: code, value: 'abstract' }
+              - column: { name: title, value: 'Абстракция' }
+              - column: { name: sort_order, valueNumeric: 40 }
+
+  # ============================================================
+  # FK у avatars на avatar_categories
+  # ============================================================
+  - changeSet:
+      id: 018-05-avatars-category-id
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: avatars }
+        - not:
+            - columnExists:
+                tableName: avatars
+                columnName: category_id
+      changes:
+        - addColumn:
+            tableName: avatars
+            columns:
+              - column:
+                  name: category_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: avatar_categories(id)
+                    foreignKeyName: fk_avatars_category

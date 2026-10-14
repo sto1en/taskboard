@@ -24,6 +24,7 @@ import './styles/search.css'
 import './styles/shop.css'
 import './styles/recurrence.css'
 import './styles/create-task.css'
+import './styles/admin.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>

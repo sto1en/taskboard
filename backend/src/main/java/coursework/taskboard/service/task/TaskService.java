@@ -27,6 +27,7 @@ import coursework.taskboard.repository.task.*;
 import coursework.taskboard.repository.user.UserAppearanceRepository;
 import coursework.taskboard.repository.user.UserProfileRepository;
 import coursework.taskboard.service.achievement.AchievementService;
+import coursework.taskboard.service.project.ProjectStatusRecalcService;
 import coursework.taskboard.service.shop.ShopService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -69,6 +70,7 @@ public class TaskService {
     private final ShopService shopService;
     private final RecurrenceService recurrenceService;
     private final TaskAuditService taskAuditService;
+    private final ProjectStatusRecalcService projectStatusRecalcService;
 
     @Value("${app.upload.base-url}")
     private String uploadBaseUrl;
@@ -150,6 +152,9 @@ public class TaskService {
         dto.setStartedBy(buildUserShort(task.getStartedBy()));
         dto.setLastEditedBy(buildUserShort(task.getLastEditedBy()));
         dto.setLastEditedAt(task.getLastEditedAt());
+
+        // Пересчитываем статус проекта — вдруг задача сразу в финальном статусе
+        projectStatusRecalcService.recalc(projectId);
 
         return dto;
     }
@@ -505,6 +510,9 @@ public class TaskService {
         RecurrenceDto rec = recurrenceService.getRule(task);
         dto.setRecurrence(rec);
 
+        // Пересчитываем статус проекта — все задачи могли стать выполненными
+        projectStatusRecalcService.recalc(task.getProject().getId());
+
         return dto;
     }
 
@@ -665,7 +673,11 @@ public class TaskService {
     @Transactional
     public void deleteTask(Long taskId, User user) {
         Task task = getTaskWithAccess(taskId, user);
+        Long projectId = task.getProject().getId();
         taskRepository.delete(task);
+
+        // Мог измениться общий прогресс проекта
+        projectStatusRecalcService.recalc(projectId);
     }
 
     @Transactional(readOnly = true)

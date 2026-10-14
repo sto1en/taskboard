@@ -17,6 +17,7 @@ import SettingsPage from './pages/SettingsPage'
 import SearchPage from './pages/SearchPage'
 import ProjectSearchPage from './pages/ProjectSearchPage'
 import ShopPage from './pages/ShopPage'
+import AdminShopPage from './pages/AdminShopPage'
 
 function ProtectedRoute({ children }) {
     const { token, loading } = useAuth()
@@ -82,6 +83,7 @@ export default function App() {
                                 <Route path="/settings" element={<SettingsPage />} />
                                 <Route path="/search" element={<SearchPage />} />
                                 <Route path="/boards/:boardId/projects/:projectId/search" element={<ProjectSearchPage />} />
+                                <Route path="/admin/shop" element={<AdminShopPage />} />
                             </Route>
 
                             <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,0 +1,233 @@
+import { useState, useEffect, useRef } from 'react'
+import Modal from '../Modal/Modal'
+import { adminApi } from '../../api/api'
+import { resolveUrl } from '../../utils/format'
+
+export default function AdminAvatarEditorModal({ open, onClose, avatar, categories, onSaved }) {
+    const isEdit = !!avatar
+
+    const [title, setTitle] = useState('')
+    const [description, setDescription] = useState('')
+    const [emoji, setEmoji] = useState('')
+    const [price, setPrice] = useState(0)
+    const [sortOrder, setSortOrder] = useState(0)
+    const [categoryId, setCategoryId] = useState('')
+    const [file, setFile] = useState(null)
+    const [preview, setPreview] = useState(null)
+    const [clearImage, setClearImage] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const [error, setError] = useState(null)
+    const fileInputRef = useRef(null)
+
+    useEffect(() => {
+        if (!open) return
+        if (avatar) {
+            setTitle(avatar.title || '')
+            setDescription(avatar.description || '')
+            setEmoji(avatar.emoji || '')
+            setPrice(avatar.price || 0)
+            setSortOrder(avatar.sortOrder || 0)
+            setCategoryId(avatar.categoryId || '')
+            setPreview(avatar.imageUrl ? resolveUrl(avatar.imageUrl) : null)
+        } else {
+            setTitle('')
+            setDescription('')
+            setEmoji('')
+            setPrice(0)
+            setSortOrder(0)
+            setCategoryId('')
+            setPreview(null)
+        }
+        setFile(null)
+        setClearImage(false)
+        setError(null)
+    }, [open, avatar])
+
+    const pickFile = (e) => {
+        const f = e.target.files?.[0]
+        if (!f) return
+        setFile(f)
+        setPreview(URL.createObjectURL(f))
+        setClearImage(false)
+    }
+
+    const clear = () => {
+        setFile(null)
+        setPreview(null)
+        setClearImage(true)
+    }
+
+    const submit = async () => {
+        if (!title.trim()) {
+            setError('Укажи название')
+            return
+        }
+        setSaving(true)
+        setError(null)
+        try {
+            const fd = new FormData()
+            fd.append('title', title.trim())
+            fd.append('description', description.trim())
+            fd.append('emoji', emoji.trim())
+            fd.append('price', String(Number(price) || 0))
+            fd.append('sortOrder', String(Number(sortOrder) || 0))
+            if (categoryId) fd.append('categoryId', String(categoryId))
+            if (file) fd.append('file', file)
+            if (clearImage) fd.append('clearImage', 'true')
+
+            if (isEdit) {
+                await adminApi.updateAvatar(avatar.id, fd)
+            } else {
+                await adminApi.createAvatar(fd)
+            }
+            onSaved && onSaved()
+            onClose()
+        } catch (err) {
+            setError(err.response?.data?.message || 'Ошибка сохранения')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const remove = async () => {
+        if (!avatar) return
+        if (!confirm(`Удалить аватарку «${avatar.title}»?`)) return
+        setSaving(true)
+        try {
+            await adminApi.deleteAvatar(avatar.id)
+            onSaved && onSaved()
+            onClose()
+        } catch (err) {
+            setError(err.response?.data?.message || 'Ошибка удаления')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <Modal
+            open={open}
+            onClose={onClose}
+            title={isEdit ? `Редактировать: ${avatar.title}` : 'Новая аватарка'}
+            footer={
+                <>
+                    {isEdit && (
+                        <button className="btn btn-icon btn-icon--danger" onClick={remove} disabled={saving} title="Удалить">
+                            🗑
+                        </button>
+                    )}
+                    <div className="modal__foot-spacer" />
+                    <button className="btn btn-ghost" onClick={onClose} disabled={saving}>Отмена</button>
+                    <button className="btn btn-primary" onClick={submit} disabled={saving || !title.trim()}>
+                        {saving ? 'Сохранение...' : 'Сохранить'}
+                    </button>
+                </>
+            }
+        >
+            <div className="admin-avatar-editor">
+                {/* Превью */}
+                <div className="admin-avatar-editor__preview">
+                    {preview ? (
+                        <img src={preview} alt="" />
+                    ) : (
+                        <div className="admin-avatar-editor__preview-empty">нет фото</div>
+                    )}
+                    <div className="admin-avatar-editor__preview-actions">
+                        <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {preview ? 'Заменить' : 'Загрузить фото'}
+                        </button>
+                        {preview && (
+                            <button type="button" className="btn btn-ghost" onClick={clear}>
+                                Убрать
+                            </button>
+                        )}
+                    </div>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={pickFile}
+                    />
+                </div>
+
+                {/* Поля */}
+                <div className="admin-avatar-editor__fields">
+                    <div className="modal__field">
+                        <label className="modal__label">Название</label>
+                        <input
+                            className="input"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            maxLength={120}
+                            autoFocus
+                        />
+                    </div>
+
+                    <div className="modal__field">
+                        <label className="modal__label">Тип</label>
+                        <select
+                            className="input"
+                            value={categoryId}
+                            onChange={(e) => setCategoryId(e.target.value)}
+                        >
+                            <option value="">— Без типа —</option>
+                            {categories.map(c => (
+                                <option key={c.id} value={c.id}>{c.title}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="modal__field">
+                        <label className="modal__label">Цена (листьев)</label>
+                        <input
+                            className="input"
+                            type="number"
+                            min="0"
+                            value={price}
+                            onChange={(e) => setPrice(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="modal__field">
+                        <label className="modal__label">Порядок сортировки</label>
+                        <input
+                            className="input"
+                            type="number"
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="modal__field">
+                        <label className="modal__label">Эмодзи (если это эмодзи-аватарка)</label>
+                        <input
+                            className="input"
+                            value={emoji}
+                            onChange={(e) => setEmoji(e.target.value)}
+                            maxLength={8}
+                            placeholder="напр. 🐱"
+                        />
+                    </div>
+
+                    <div className="modal__field">
+                        <label className="modal__label">Описание</label>
+                        <textarea
+                            className="input"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            maxLength={500}
+                            rows={3}
+                        />
+                    </div>
+
+                    {error && <div className="modal__error">{error}</div>}
+                </div>
+            </div>
+        </Modal>
+    )
+}

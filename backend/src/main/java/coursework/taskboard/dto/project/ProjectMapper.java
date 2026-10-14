@@ -38,6 +38,7 @@ public class ProjectMapper {
                 .status(status)
                 .isPinned(false)
                 .isTemplate(false)
+                .isManualPosition(false)
                 .accentCode(accentCode)
                 .build();
     }
@@ -65,6 +66,7 @@ public class ProjectMapper {
                 .statusCategoryCode(status != null ? status.getCategoryCode() : null)
                 .isPinned(settings != null && settings.getIsPinned())
                 .isTemplate(settings != null && settings.getIsTemplate())
+                .isManualPosition(settings != null && Boolean.TRUE.equals(settings.getIsManualPosition()))
                 .taskTotal(taskTotal)
                 .taskDone(taskDone)
                 .taskActive(taskActive)

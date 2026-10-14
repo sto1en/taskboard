@@ -1,6 +1,6 @@
 # TaskBoard code snapshot
-# Commit: 1d8ec143b72f1c2bd072459151a1fd3a399bd53a
-# Date:   2026-10-10 15:22:26
+# Commit: b582e84166ad9be36cbcc86c5a3b1ced7d8fb57c
+# Date:   2026-10-10 15:26:06
 # Files:  364
 #
 
@@ -6493,6 +6493,41 @@ public class SearchRepository {
         return q.getResultList();
     }
 }
+
+
+
+
+
+
+
+
+
+
+public List<Tag> searchTags(Long userId, SearchFilterRequestDto f) {
+    StringBuilder jpql = new StringBuilder(
+            "SELECT tg FROM Tag tg JOIN tg.board b WHERE b.owner.id = :userId"
+    );
+
+    if (f.hasQuery()) {
+        jpql.append(" AND LOWER(tg.title) LIKE :q");
+    }
+    if (f.getBoardIds() != null && !f.getBoardIds().isEmpty()) {
+        jpql.append(" AND b.id IN :boardIds");
+    }
+    if (f.getTagIds() != null && !f.getTagIds().isEmpty()) {
+        jpql.append(" AND tg.id IN :tagIds");
+    }
+    jpql.append(" ORDER BY tg.board.id ASC, tg.position ASC, tg.id DESC");
+
+    TypedQuery<Tag> q = em.createQuery(jpql.toString(), Tag.class);
+    q.setParameter("userId", userId);
+    if (f.hasQuery()) q.setParameter("q", "%" + f.getQNormalized() + "%");
+    if (f.getBoardIds() != null && !f.getBoardIds().isEmpty()) q.setParameter("boardIds", f.getBoardIds());
+    if (f.getTagIds() != null && !f.getTagIds().isEmpty()) q.setParameter("tagIds", f.getTagIds());
+
+    return q.getResultList();
+}
+
 
 ==================== backend/src/main/java/coursework/taskboard/repository/shop/AccentSkinRepository.java ====================
 package coursework.taskboard.repository.shop;

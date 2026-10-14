@@ -265,7 +265,7 @@ html[data-theme="dark"] .topbar__search:focus {
     align-items: center;
 }
 
-/* ВАЖНО: overflow: visible — иначе box-shadow рамки обрезается */
+/* ВАЖНО: overflow visible — иначе box-shadow рамки срезается */
 .sidebar__user-avatar {
     display: inline-flex;
     align-items: center;
@@ -276,7 +276,6 @@ html[data-theme="dark"] .topbar__search:focus {
     border-radius: 50%;
     width: 56px;
     height: 56px;
-    /* место под рамку снаружи круга */
     margin: 5px;
     overflow: visible;
     position: relative;
@@ -288,22 +287,14 @@ html[data-theme="dark"] .topbar__search:focus {
     transform: scale(1.05);
 }
 
-/* Свёрнутый сайдбар — аватарка 36×36 */
 .sidebar--collapsed .sidebar__user-avatar {
     width: 36px;
     height: 36px;
     margin: 6px;
 }
 
-/* В свёрнутом режиме у аватарки отключаем hover-скейл */
 .sidebar--collapsed .sidebar__user-avatar:hover {
     transform: none;
-}
-
-/* Внутренний .avatar-frame в сайдбаре — 100% от родителя */
-.sidebar__user-avatar .avatar-frame {
-    width: 100%;
-    height: 100%;
 }
 
 .sidebar__name {
@@ -345,7 +336,6 @@ html[data-theme="dark"] .sidebar__icon-btn {
     background: rgba(255, 255, 255, 0.06);
 }
 
-/* В свёрнутом режиме кнопка сворачивания тоже меньше */
 .sidebar--collapsed .sidebar__icon-btn {
     width: 28px;
     height: 28px;
@@ -434,7 +424,6 @@ html[data-theme="dark"] .sidebar__icon-btn {
     text-decoration: none;
 }
 
-/* Активный пункт — мягкая подсветка + тонкая градиентная полоска слева */
 .sidebar__sublink.active {
     background-color: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
     background-image: var(--accent-gradient);
@@ -493,7 +482,6 @@ html[data-theme="dark"] .sidebar__sublink.active {
     text-decoration: none;
 }
 
-/* Активный пункт — мягкая подсветка + тонкая градиентная полоска слева */
 .sidebar__link.active {
     background-color: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
     color: var(--accent, var(--primary));
@@ -538,7 +526,6 @@ html[data-theme="dark"] .sidebar__sublink.active {
     flex-shrink: 0;
 }
 
-/* Кнопка «Выйти» — градиент danger (не акцент) */
 .sidebar__logout {
     display: flex;
     align-items: center;

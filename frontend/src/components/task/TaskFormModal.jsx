@@ -6,17 +6,25 @@ import { resolveUrl } from '../../utils/format'
 import { useAuth } from '../../context/AuthContext'
 import RecurrenceEditor from './RecurrenceEditor'
 
-export default function CreateTaskModal({
-                                            open,
-                                            onClose,
-                                            onCreated,
-                                            projectId: fixedProjectId,
-                                            presetStatusId,
-                                            columns: presetColumns,
-                                            boardId: fixedBoardId,
-                                            presetDeadline,
-                                            boards: boardsProp,
-                                        }) {
+/**
+ * Универсальная модалка создания задачи.
+ *
+ * @param {'calendar' | 'project'} props.mode
+ *   'calendar' — показываются поля выбора Доски и Проекта, принимает presetDeadline
+ *   'project'  — поля выбора скрыты, работаем в контексте projectId/boardId
+ */
+export default function TaskFormModal({
+                                          open,
+                                          onClose,
+                                          onCreated,
+                                          projectId: fixedProjectId,
+                                          boardId: fixedBoardId,
+                                          presetStatusId,
+                                          columns: presetColumns,
+                                          presetDeadline,
+                                          boards: boardsProp,
+                                          mode = 'project',
+                                      }) {
     const t = useT()
     const { user } = useAuth()
 
@@ -28,10 +36,9 @@ export default function CreateTaskModal({
     const [deadlineTime, setDeadlineTime] = useState('')
     const [hasTime, setHasTime] = useState(false)
     const [showMore, setShowMore] = useState(false)
-
-    // Повторение
     const [recurrence, setRecurrence] = useState(null)
 
+    // Выбор доски/проекта — только для mode === 'calendar'
     const [boards, setBoards] = useState(boardsProp || [])
     const [selectedBoardId, setSelectedBoardId] = useState(null)
     const [projectsOfBoard, setProjectsOfBoard] = useState([])
@@ -58,21 +65,21 @@ export default function CreateTaskModal({
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
 
-    const isProjectFixed = !!fixedProjectId
+    const isProjectFixed = mode === 'project' || !!fixedProjectId
 
+    // 1. Список досок (только для режима календаря)
     useEffect(() => {
-        if (!open) return
+        if (!open || mode !== 'calendar') return
         if (boardsProp && boardsProp.length) {
             setBoards(boardsProp)
             return
         }
-        if (isProjectFixed) return
-
         boardsApi.list()
             .then(({ data }) => setBoards(data))
             .catch(() => setBoards([]))
-    }, [open, boardsProp, isProjectFixed])
+    }, [open, boardsProp, mode])
 
+    // 2. Сброс формы при открытии
     useEffect(() => {
         if (!open) return
 
@@ -94,27 +101,27 @@ export default function CreateTaskModal({
         setRecurrence(null)
         setError(null)
 
-        // ВАЖНО: если передан presetStatusId — ставим его сразу
-        if (presetStatusId) {
-            setStatusId(String(presetStatusId))
-        } else {
-            setStatusId('')
-        }
-
         if (isProjectFixed) {
             setSelectedBoardId(fixedBoardId || null)
             setSelectedProjectId(fixedProjectId)
             setColumns(presetColumns || [])
         } else {
+            setSelectedBoardId(null)
             setSelectedProjectId(null)
             setColumns([])
-            setSelectedBoardId(prev => prev || fixedBoardId || null)
+            setProjectsOfBoard([])
         }
-        // eslint-disable-next-line
+
+        if (presetStatusId) {
+            setStatusId(String(presetStatusId))
+        } else {
+            setStatusId('')
+        }
     }, [open, presetDeadline, isProjectFixed, fixedProjectId, fixedBoardId, presetColumns, presetStatusId])
 
+    // 3. Доска по умолчанию (только режим календаря)
     useEffect(() => {
-        if (!open || isProjectFixed) return
+        if (!open || mode !== 'calendar' || isProjectFixed) return
         if (selectedBoardId) return
         if (!boards?.length) return
 
@@ -127,11 +134,11 @@ export default function CreateTaskModal({
             || boards[0].id
 
         setSelectedBoardId(pick)
-        // eslint-disable-next-line
-    }, [open, boards, selectedBoardId, isProjectFixed, user?.workspace?.defaultBoardId])
+    }, [open, boards, selectedBoardId, isProjectFixed, mode, user?.workspace?.defaultBoardId])
 
+    // 4. Проекты выбранной доски (только режим календаря)
     useEffect(() => {
-        if (!open || isProjectFixed) return
+        if (!open || mode !== 'calendar' || isProjectFixed) return
         if (!selectedBoardId) {
             setProjectsOfBoard([])
             return
@@ -148,8 +155,9 @@ export default function CreateTaskModal({
             })
             .catch(() => setProjectsOfBoard([]))
             .finally(() => setLoadingProjects(false))
-    }, [open, selectedBoardId, isProjectFixed])
+    }, [open, selectedBoardId, isProjectFixed, mode])
 
+    // 5. Колонки (статусы) выбранного проекта
     useEffect(() => {
         if (!open) return
         if (!selectedProjectId) {
@@ -166,9 +174,6 @@ export default function CreateTaskModal({
             .then(({ data }) => {
                 const cols = data.columns || []
                 setColumns(cols)
-
-                // Если statusId уже установлен и он есть в колонках — оставляем его.
-                // Иначе fallback: активный → presetStatusId → первый.
                 setStatusId(prev => {
                     if (prev && cols.some(c => String(c.statusId) === String(prev))) {
                         return prev
@@ -186,16 +191,18 @@ export default function CreateTaskModal({
         // eslint-disable-next-line
     }, [open, selectedProjectId, isProjectFixed, presetColumns, presetStatusId])
 
+    // 6. Теги для доски
     useEffect(() => {
         if (!open) return
-        if (!selectedBoardId) {
+        const boardIdForTags = isProjectFixed ? fixedBoardId : selectedBoardId
+        if (!boardIdForTags) {
             setTags([])
             return
         }
-        tagsApi.listByBoard(selectedBoardId)
+        tagsApi.listByBoard(boardIdForTags)
             .then(({ data }) => setTags(data))
             .catch(() => setTags([]))
-    }, [open, selectedBoardId])
+    }, [open, selectedBoardId, fixedBoardId, isProjectFixed])
 
     const toggleTag = (tagId) => {
         setSelectedTagIds(prev =>
@@ -204,9 +211,10 @@ export default function CreateTaskModal({
     }
 
     const createTag = async () => {
-        if (!newTagTitle.trim() || !selectedBoardId) return
+        const boardIdForTag = isProjectFixed ? fixedBoardId : selectedBoardId
+        if (!newTagTitle.trim() || !boardIdForTag) return
         try {
-            const { data } = await tagsApi.create(selectedBoardId, {
+            const { data } = await tagsApi.create(boardIdForTag, {
                 title: newTagTitle.trim(),
                 accentCode: newTagAccent,
                 icon: newTagIcon || null,
@@ -270,7 +278,8 @@ export default function CreateTaskModal({
             setError(t.titleLabel)
             return
         }
-        if (!selectedProjectId) {
+        const projectIdToUse = isProjectFixed ? fixedProjectId : selectedProjectId
+        if (!projectIdToUse) {
             setError('Выберите проект')
             return
         }
@@ -286,7 +295,7 @@ export default function CreateTaskModal({
                 }
             }
 
-            const { data: created } = await tasksApi.create(selectedProjectId, {
+            const { data: created } = await tasksApi.create(projectIdToUse, {
                 title: title.trim(),
                 description: description.trim() || undefined,
                 statusId: statusId ? Number(statusId) : undefined,
@@ -316,7 +325,7 @@ export default function CreateTaskModal({
 
             for (const st of subtasks) {
                 try {
-                    await tasksApi.create(selectedProjectId, {
+                    await tasksApi.create(projectIdToUse, {
                         title: st.title,
                         parentId: created.id,
                     })
@@ -344,16 +353,16 @@ export default function CreateTaskModal({
                     </button>
                     <button
                         type="submit"
-                        form="create-task-form"
+                        form="task-form"
                         className="btn btn-primary"
-                        disabled={loading || !title.trim() || !selectedProjectId}
+                        disabled={loading || !title.trim() || (!isProjectFixed && !selectedProjectId)}
                     >
                         {loading ? t.creatingLabel : t.create}
                     </button>
                 </>
             }
         >
-            <form id="create-task-form" onSubmit={onSubmit} style={{ display: 'contents' }}>
+            <form id="task-form" onSubmit={onSubmit} style={{ display: 'contents' }}>
                 <div className="modal__field">
                     <input
                         className="input"
@@ -393,7 +402,7 @@ export default function CreateTaskModal({
                             />
                         </div>
 
-                        {!isProjectFixed && (
+                        {mode === 'calendar' && !isProjectFixed && (
                             <>
                                 <div className="modal__field">
                                     <label className="modal__label">Доска</label>
@@ -507,7 +516,7 @@ export default function CreateTaskModal({
                                     type="button"
                                     className="task-detail__small-btn"
                                     onClick={() => setCreatingTag(v => !v)}
-                                    disabled={!selectedBoardId}
+                                    disabled={!(isProjectFixed ? fixedBoardId : selectedBoardId)}
                                 >
                                     {creatingTag ? t.cancelCreate : t.createTag}
                                 </button>

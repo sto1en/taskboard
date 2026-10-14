@@ -29,6 +29,7 @@ public class UserMapper {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .createdAt(user.getCreatedAt())
+                .isAdmin(Boolean.TRUE.equals(user.getIsAdmin()))
                 .profile(toProfileDto(profile, avatarMeta))
                 .appearance(toAppearanceDto(appearance))
                 .locale(toLocaleDto(locale))

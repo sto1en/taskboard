@@ -7,7 +7,7 @@ import FiltersBar from '../components/Task/FiltersBar'
 import KanbanView from '../components/Task/KanbanView'
 import ListView from '../components/Task/ListView'
 import CompactView from '../components/Task/CompactView'
-import CreateTaskModal from '../components/Task/CreateTaskModal'
+import TaskFormModal from '../components/task/TaskFormModal'
 import CreateStatusModal from '../components/Task/CreateStatusModal'
 import TaskDetailModal from '../components/Task/TaskDetailModal'
 import AttachmentsModal from '../components/Task/AttachmentsModal'
@@ -325,20 +325,29 @@ export default function ProjectKanbanPage() {
             },
         },
 
-        // Delete — удалить
         {
             combo: 'delete',
             allowInInput: false,
             handler: handleDeleteWithConfirm,
         },
-        // Backspace — перенести в отменённые
         {
             combo: 'backspace',
             allowInInput: false,
             handler: handleToggleCancel,
         },
 
-        { combo: 'c', handler: () => { if (hoveredTaskId) handleDuplicateTask(hoveredTaskId) } },
+        // Ctrl+C — дублировать задачу под курсором
+        {
+            combo: 'ctrl+c',
+            allowInInput: false,
+            handler: () => { if (hoveredTaskId) handleDuplicateTask(hoveredTaskId) },
+        },
+        // C — тоже дублировать
+        {
+            combo: 'c',
+            allowInInput: false,
+            handler: () => { if (hoveredTaskId) handleDuplicateTask(hoveredTaskId) },
+        },
 
         { combo: '1', handler: () => setViewMode('kanban') },
         { combo: '2', handler: () => setViewMode('list') },
@@ -498,7 +507,7 @@ export default function ProjectKanbanPage() {
                 )}
             </div>
 
-            <CreateTaskModal
+            <TaskFormModal
                 open={showCreateTask}
                 onClose={() => { setShowCreateTask(false); setPresetStatusId(null) }}
                 onCreated={handleTaskCreated}
@@ -506,6 +515,7 @@ export default function ProjectKanbanPage() {
                 boardId={Number(boardId)}
                 presetStatusId={presetStatusId}
                 columns={kanban.columns}
+                mode="project"
             />
 
             <CreateStatusModal
