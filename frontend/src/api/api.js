@@ -22,8 +22,11 @@ function fireAchievements(list) {
 // ============================================================
 // Axios instance
 // ============================================================
+// В dev-режиме запросы идут на относительный /api и Vite проксирует их на backend
+// (см. vite.config.js). В прод-сборке тот же путь отдаёт nginx/реверс-прокси,
+// поэтому абсолютный адрес бэкенда в коде не нужен.
 const api = axios.create({
-    baseURL: 'http://localhost:8082/api',
+    baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
     headers: { 'Content-Type': 'application/json' },
 })
 

@@ -17,11 +17,9 @@ export function AuthProvider({ children }) {
         setLoading(true)
         userApi.me()
             .then(({ data }) => {
-                console.log('[Auth] user loaded:', data?.username)
                 setUser(data)
             })
             .catch((err) => {
-                console.error('[Auth] user load failed:', err?.response?.status, err?.message)
                 if (err.response?.status === 401 || err.response?.status === 403) {
                     localStorage.removeItem('token')
                     setToken(null)

@@ -5,7 +5,7 @@ import { userApi, boardsApi, shopApi, projectsApi } from '../api/api'
 import useT from '../hooks/useT'
 import AccentDot from '../components/shop/AccentDot'
 import HelpTip from '../components/common/HelpTip'
-import { SvgAvatar } from '../components/Layout/SvgAvatars'
+import { SvgAvatar } from '../components/layout/SvgAvatars'
 import { resolveUrl } from '../utils/format'
 
 const RUSSIAN_TIMEZONES = [

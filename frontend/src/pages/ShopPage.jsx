@@ -69,8 +69,6 @@ export default function ShopPage() {
 
         shopApi.get(params)
             .then(({ data }) => {
-                // Диагностика — раскомментируй, если хочешь проверить структуру
-                // console.log('[Shop] API response:', data)
                 setData(data)
             })
             .catch(err => setError(err.response?.data?.message || 'Ошибка загрузки'))

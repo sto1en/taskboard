@@ -13,8 +13,6 @@ export default function AppLayout() {
     const { openHelp, helpOpen } = useHotkeysContext()
     const [gPressed, setGPressed] = useState(false)
 
-    console.log('[AppLayout] rendered, pathname =', location.pathname)
-
     const focusSearch = () => {
         const input = document.querySelector('.topbar__search')
         if (input) input.focus()

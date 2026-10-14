@@ -47,5 +47,6 @@ export function resolveUrl(url) {
     if (url.startsWith('/')) {
         return url
     }
-    return `http://localhost:8082/uploads/${url}`
+    // Относительный путь отдаётся через реверс-прокси (/uploads → backend).
+    return `/uploads/${url}`
 }
