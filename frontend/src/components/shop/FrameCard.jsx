@@ -1,5 +1,6 @@
-import { resolveUrl } from '../../utils/format'
-import AvatarWithFrame from '../layout/AvatarWithFrame'
+import ShopPreview from './ShopPreview'
+import ShopPrice from './ShopPrice'
+import useT from '../../hooks/useT'
 
 const NEW_DAYS = 7
 
@@ -14,6 +15,7 @@ function hasDiscount(price, oldPrice) {
 }
 
 export default function FrameCard({ item, onBuy, onEquip, onUnequip, userAvatar, userDisplayName, userUsername }) {
+    const t = useT()
     const owned = item.owned
     const active = item.active
 
@@ -23,12 +25,13 @@ export default function FrameCard({ item, onBuy, onEquip, onUnequip, userAvatar,
         ? Math.round((1 - item.price / item.oldPrice) * 100)
         : 0
 
-    const imageUrl = item.imageUrl ? resolveUrl(item.imageUrl) : null
-
     return (
         <div className={`shop-card ${active ? 'shop-card--active' : ''}`}>
-            {(showNew || showDiscount) && (
-                <div className="shop-card__badges">
+            {(showNew || showDiscount || owned) && (
+                <div className="shop-card__badges shop-card__badges--right">
+                    {owned && (
+                        <span className="shop-badge shop-badge--owned">{t.shopOwned}</span>
+                    )}
                     {showNew && <span className="shop-badge shop-badge--new">Новинка</span>}
                     {showDiscount && (
                         <span className="shop-badge shop-badge--discount">−{discountPct}%</span>
@@ -37,22 +40,13 @@ export default function FrameCard({ item, onBuy, onEquip, onUnequip, userAvatar,
             )}
 
             <div className="shop-card__preview">
-                {imageUrl ? (
-                    <img
-                        src={imageUrl}
-                        alt={item.title}
-                        className="shop-card__preview-img"
-                        draggable={false}
-                    />
-                ) : (
-                    <AvatarWithFrame
-                        avatar={userAvatar}
-                        frame={{ cssClass: item.cssClass || '' }}
-                        displayName={userDisplayName}
-                        username={userUsername}
-                        size={80}
-                    />
-                )}
+                <ShopPreview
+                    kind="frames"
+                    item={item}
+                    userAvatar={userAvatar}
+                    userDisplayName={userDisplayName}
+                    userUsername={userUsername}
+                />
             </div>
 
             <div className="shop-card__body">
@@ -73,26 +67,27 @@ export default function FrameCard({ item, onBuy, onEquip, onUnequip, userAvatar,
                 <div className="shop-card__footer">
                     {!owned && (
                         <>
-                            <span className="shop-card__price">
-                                {showDiscount && (
-                                    <span className="shop-card__price-old">🍃 {item.oldPrice}</span>
-                                )}
-                                <span className="shop-card__price-current">🍃 {item.price}</span>
-                            </span>
+                            <ShopPrice item={item} showDiscount={showDiscount}/>
                             <button className="btn btn-primary shop-card__btn" onClick={onBuy}>
-                                Купить
+                                {t.shopBuy}
                             </button>
                         </>
                     )}
                     {owned && !active && (
-                        <button className="btn btn-primary shop-card__btn" onClick={onEquip}>
-                            Надеть
-                        </button>
+                        <>
+                            <ShopPrice item={item} owned/>
+                            <button className="btn btn-primary shop-card__btn" onClick={onEquip}>
+                                {t.shopEquip}
+                            </button>
+                        </>
                     )}
                     {owned && active && (
-                        <button className="btn btn-ghost shop-card__btn" onClick={onUnequip}>
-                            Снять
-                        </button>
+                        <>
+                            <ShopPrice item={item} owned/>
+                            <button className="btn btn-ghost shop-card__btn" onClick={onUnequip}>
+                                {t.shopUnequip}
+                            </button>
+                        </>
                     )}
                 </div>
             </div>

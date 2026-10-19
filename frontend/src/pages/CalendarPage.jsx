@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSelector, useDispatch } from 'react-redux'
+import { observer } from 'mobx-react-lite'
+import { selectTasksRevision } from '../store/slices/tasksSlice'
+import { invalidateStats } from '../store/slices/statsSlice'
+import { useUiStore } from '../store/useUiStore'
 import { calendarApi, boardsApi, statsApi, tasksApi } from '../api/api'
 import useT from '../hooks/useT'
 import useHotkeys from '../hooks/useHotkeys'
 import useConfirmDelete from '../hooks/useConfirmDelete'
 import { useAuth } from '../context/AuthContext'
-import DayTasksModal from '../components/Calendar/DayTasksModal'
+import DayTasksModal from '../components/calendar/DayTasksModal'
 import TaskFormModal from '../components/task/TaskFormModal'
-import TaskDetailModal from '../components/Task/TaskDetailModal'
-import AttachmentsModal from '../components/Task/AttachmentsModal'
+import TaskDetailModal from '../components/task/TaskDetailModal'
+import AttachmentsModal from '../components/task/AttachmentsModal'
 import ConfirmModal from '../components/common/ConfirmModal'
-import DayLoadBar from '../components/Calendar/DayLoadBar'
+import DayLoadBar from '../components/calendar/DayLoadBar'
 
 const MAX_VISIBLE_TASKS = 3
 
@@ -30,11 +35,14 @@ function categoryColor(cat) {
     }
 }
 
-export default function CalendarPage() {
+export default observer(function CalendarPage() {
     const t = useT()
     const nav = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
     const { user, updateUser } = useAuth()
+    const dispatch = useDispatch()
+    const ui = useUiStore()
+    const tasksRevision = useSelector(selectTasksRevision)
     const today = new Date()
 
     const confirmBeforeDelete = user?.workspace?.confirmBeforeDelete !== false
@@ -131,7 +139,7 @@ export default function CalendarPage() {
                 })
                 setLoadByDay(loadMap)
 
-                window.dispatchEvent(new Event('tree:refresh'))
+                dispatch(invalidateStats())
             })
             .catch(err => console.error('Calendar load error:', err))
             .finally(() => {
@@ -142,25 +150,30 @@ export default function CalendarPage() {
     // eslint-disable-next-line
     useEffect(() => reloadCalendar(), [year, month, coopFilter])
 
+    // Реакция на инвалидацию задач (раньше: слушатель события 'tasks:refresh').
+    // Первое значение revision пропускаем — начальную загрузку делает эффект
+    // по [year, month, coopFilter] выше.
+    const firstRevisionRef = useRef(true)
     useEffect(() => {
-        const onRefresh = () => reloadCalendar({ silent: true })
-        window.addEventListener('tasks:refresh', onRefresh)
-        return () => window.removeEventListener('tasks:refresh', onRefresh)
-        // eslint-disable-next-line
-    }, [year, month, coopFilter])
-
-    useEffect(() => {
-        const handler = (e) => {
-            if (e.detail !== 'calendar-day') return
-            const hovered = hoveredDayRef.current
-            if (!hovered) return
-            if (document.querySelector('.modal-overlay')) return
-            setCreateDate(dateToIso(hovered))
+        if (firstRevisionRef.current) {
+            firstRevisionRef.current = false
+            return
         }
-        window.addEventListener('hotkey:new', handler)
-        return () => window.removeEventListener('hotkey:new', handler)
+        reloadCalendar({ silent: true })
         // eslint-disable-next-line
-    }, [year, month])
+    }, [tasksRevision])
+
+    // Горячая клавиша N: на странице календаря → задача на «наведённый» день.
+    // Раньше: подписка на 'hotkey:new' (detail === 'calendar-day').
+    // Событие бралось из замыкания с [year, month]; здесь те же зависимости,
+    // чтобы dateToIso считался по актуальному месяцу.
+    useEffect(() => {
+        if (ui.consumeCreate() !== 'calendar-day') return
+        const hovered = hoveredDayRef.current
+        if (!hovered) return
+        if (document.querySelector('.modal-overlay')) return
+        setCreateDate(`${year}-${String(month + 1).padStart(2, '0')}-${String(hovered).padStart(2, '0')}`)
+    }, [year, month, ui])
 
     const firstDay = new Date(year, month, 1)
     const startWeekday = (firstDay.getDay() + 6) % 7
@@ -315,7 +328,7 @@ export default function CalendarPage() {
         markDoneLocally(task.id)
         try {
             await tasksApi.update(task.id, { statusId: targetStatusId })
-            window.dispatchEvent(new Event('tree:refresh'))
+            dispatch(invalidateStats())
         } catch (err) {
             console.error('Toggle done failed:', err)
             reloadCalendar({ silent: true })
@@ -350,7 +363,7 @@ export default function CalendarPage() {
 
         try {
             await tasksApi.update(task.id, { statusId: targetStatusId })
-            window.dispatchEvent(new Event('tree:refresh'))
+            dispatch(invalidateStats())
         } catch (err) {
             console.error('Toggle cancel failed:', err)
             reloadCalendar({ silent: true })
@@ -370,7 +383,7 @@ export default function CalendarPage() {
 
         try {
             await tasksApi.delete(task.id)
-            window.dispatchEvent(new Event('tree:refresh'))
+            dispatch(invalidateStats())
         } catch (err) {
             alert(err.response?.data?.message || 'Не удалось удалить')
             reloadCalendar({ silent: true })
@@ -633,4 +646,4 @@ export default function CalendarPage() {
             <ConfirmModal {...modalProps} />
         </div>
     )
-}
+})

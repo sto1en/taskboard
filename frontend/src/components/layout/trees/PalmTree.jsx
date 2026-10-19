@@ -1,120 +1,141 @@
-import { SparkleRing } from './common'
+// frontend/src/components/layout/trees/PalmTree.jsx
 
-function PalmLeaf({ x0, y0, x1, y1, x2, y2, side = 1, tone = 'mid' }) {
-    const colors = { light: '#c4e07a', mid: '#7cba3c', deep: '#3e7a1e' }
-    const c = colors[tone] || colors.mid
-    const midX = (x0 + x1) / 2
-    const midY = (y0 + y1) / 2
-    const barbs = []
-    for (let i = 1; i <= 6; i++) {
-        const t = i / 7
-        const cx = x0 + (x1 - x0) * t
-        const cy = y0 + (y1 - y0) * t
-        barbs.push(<line key={`a${i}`} x1={cx} y1={cy} x2={cx + side * 3} y2={cy - 2}
-                         stroke={c} strokeWidth="1.4" strokeLinecap="round" opacity="0.9"/>)
-        barbs.push(<line key={`b${i}`} x1={cx} y1={cy} x2={cx + side * 3} y2={cy + 2}
-                         stroke={c} strokeWidth="1.4" strokeLinecap="round" opacity="0.75"/>)
+/**
+ * Пальма — гладкий изогнутый ствол с кольцами, веер из 7 перистых листьев.
+ * Ветви листа идут от черешка; доли — единым путём, а не 200 штрихами.
+ */
+
+import { PALETTE, Ground, Trunk, Stage } from './kit'
+
+const p = PALETTE.palm
+
+/** Один перистый лист: черешок + две доли с «пилой» по краю. */
+function Frond({ angle, len = 26, width = 7, tone = 'mid', origin = [50, 20], droop = 6 }) {
+    const tones = {
+        light: { fill: '#9ede66', dark: '#4f9a2e' },
+        mid: { fill: '#6ec04a', dark: '#2f7a26' },
+        deep: { fill: '#3f8b30', dark: '#1d5a17' },
     }
+    const c = tones[tone] || tones.mid
+    const rad = (angle * Math.PI) / 180
+    const ex = origin[0] + Math.cos(rad) * len
+    const ey = origin[1] + Math.sin(rad) * len + droop
+    const mx = origin[0] + Math.cos(rad) * len * 0.55
+    const my = origin[1] + Math.sin(rad) * len * 0.55 + droop * 0.28
+    const nx = -Math.sin(rad) * width
+    const ny = Math.cos(rad) * width
+
+    // Пилообразный край доли: чередуем вершины по обе стороны от осевой.
+    const teeth = 7
+    let edgeA = ''
+    let edgeB = ''
+    for (let i = 1; i <= teeth; i++) {
+        const t = i / (teeth + 1)
+        const bx = origin[0] + (mx - origin[0]) * t * 1.9
+        const by = origin[1] + (my - origin[1]) * t * 1.9 + droop * t * 0.5
+        const k = 0.42 + t * 0.5
+        edgeA += ` L${bx + nx * k} ${by + ny * k} L${bx + nx * 0.12} ${by + ny * 0.12}`
+        edgeB += ` L${bx - nx * k} ${by - ny * k} L${bx - nx * 0.12} ${by - ny * 0.12}`
+    }
+
+    const dA = `M${origin[0]} ${origin[1]} Q${mx} ${my} ${ex} ${ey}${edgeA} Z`
+    const dB = `M${origin[0]} ${origin[1]} Q${mx} ${my + 1} ${ex} ${ey}${edgeB} Z`
+
     return (
         <g>
-            <path d={`M${x0} ${y0} Q${midX} ${midY} ${x1} ${y1} Q${x2} ${y2} ${x0} ${y0}`}
-                  fill={c} opacity="0.85"/>
-            <line x1={x0} y1={y0} x2={x1} y2={y1} stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
-            {barbs}
+            <path d={dB} fill={c.dark} opacity="0.92" />
+            <path d={dA} fill={c.fill} />
+            <path
+                d={`M${origin[0]} ${origin[1]} Q${mx} ${my} ${ex} ${ey}`}
+                stroke={c.dark}
+                strokeWidth="0.55"
+                fill="none"
+                opacity="0.6"
+            />
         </g>
     )
 }
 
-function PalmCrown({ cx, cy, scale = 1 }) {
-    return (
-        <g>
-            <PalmLeaf x0={cx} y0={cy} x1={cx - 30 * scale} y1={cy - 4 * scale} x2={cx - 25 * scale} y2={cy + 4 * scale} side={1} tone="mid"/>
-            <PalmLeaf x0={cx} y0={cy} x1={cx + 30 * scale} y1={cy - 4 * scale} x2={cx + 25 * scale} y2={cy + 4 * scale} side={-1} tone="light"/>
-            <PalmLeaf x0={cx} y0={cy} x1={cx - 20 * scale} y1={cy - 18 * scale} x2={cx - 14 * scale} y2={cy - 9 * scale} side={1} tone="deep"/>
-            <PalmLeaf x0={cx} y0={cy} x1={cx + 20 * scale} y1={cy - 18 * scale} x2={cx + 14 * scale} y2={cy - 9 * scale} side={-1} tone="mid"/>
-            <PalmLeaf x0={cx} y0={cy} x1={cx - 14 * scale} y1={cy + 14 * scale} x2={cx - 7 * scale} y2={cy + 7 * scale} side={1} tone="light"/>
-            <PalmLeaf x0={cx} y0={cy} x1={cx + 14 * scale} y1={cy + 14 * scale} x2={cx + 7 * scale} y2={cy + 7 * scale} side={-1} tone="deep"/>
-            <PalmLeaf x0={cx} y0={cy} x1={cx - 7 * scale} y1={cy - 24 * scale} x2={cx} y2={cy - 13 * scale} side={1} tone="mid"/>
-            <PalmLeaf x0={cx} y0={cy} x1={cx + 7 * scale} y1={cy - 24 * scale} x2={cx} y2={cy - 13 * scale} side={-1} tone="light"/>
-        </g>
-    )
-}
+const FRONDS_YOUNG = [
+    { angle: 200, len: 19, width: 5.5, tone: 'mid', droop: 3 },
+    { angle: 340, len: 19, width: 5.5, tone: 'light', droop: 3 },
+    { angle: 228, len: 15, width: 4.6, tone: 'deep', droop: 2 },
+    { angle: 312, len: 15, width: 4.6, tone: 'mid', droop: 2 },
+    { angle: 258, len: 18, width: 5, tone: 'light', droop: 1.5 },
+    { angle: 282, len: 18, width: 5, tone: 'mid', droop: 1.5 },
+]
 
-function PalmTrunk({ d, segments }) {
+const FRONDS_MATURE = [
+    { angle: 197, len: 30, width: 8, tone: 'mid', droop: 8, origin: [50, 18] },
+    { angle: 343, len: 30, width: 8, tone: 'light', droop: 8, origin: [50, 18] },
+    { angle: 222, len: 25, width: 7, tone: 'deep', droop: 6, origin: [50, 17] },
+    { angle: 318, len: 25, width: 7, tone: 'mid', droop: 6, origin: [50, 17] },
+    { angle: 252, len: 26, width: 7, tone: 'light', droop: 4, origin: [50, 16] },
+    { angle: 288, len: 26, width: 7, tone: 'mid', droop: 4, origin: [50, 16] },
+    { angle: 270, len: 21, width: 6, tone: 'deep', droop: 2, origin: [50, 15] },
+]
+
+/** Кокосы в пазухе кроны. */
+function Coconuts({ y = 22, s = 1 }) {
     return (
         <g>
-            <path d={d} stroke="#8a6b3d" strokeWidth="6" strokeLinecap="round" fill="none"/>
-            <path d={d} stroke="#6b4e28" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.5"/>
-            {segments.map((p, i) => (
-                <ellipse key={i} cx={p[0]} cy={p[1]} rx={p[2] || 3.2} ry={p[3] || 0.9}
-                         fill="#5c4322" opacity="0.9"
-                         transform={p[4] ? `rotate(${p[4]} ${p[0]} ${p[1]})` : ''}/>
-            ))}
+            <circle cx={45.5} cy={y} r={3 * s} fill="#6b4a24" />
+            <circle cx={44.4} cy={y - 1} r={1.1 * s} fill="#9a7442" opacity="0.8" />
+            <circle cx={50.5} cy={y + 1.2} r={2.8 * s} fill="#5a3d1c" />
+            <circle cx={49.6} cy={y + 0.4} r={1 * s} fill="#8a6738" opacity="0.8" />
+            <circle cx={54.5} cy={y - 0.4} r={2.6 * s} fill="#77522a" />
+            <circle cx={53.6} cy={y - 1.1} r={0.9 * s} fill="#a88046" opacity="0.8" />
         </g>
     )
 }
 
 export function SproutSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <ellipse cx="50" cy="94" rx="18" ry="3" fill="#b8a06a" opacity="0.85"/>
-            <ellipse cx="50" cy="93" rx="14" ry="2" fill="#d4bc85" opacity="0.8"/>
-            <path d="M50 94 C48 82 52 74 50 60" stroke="#8a6b3d" strokeWidth="3.6" strokeLinecap="round" fill="none"/>
-            <ellipse cx="50" cy="88" rx="3" ry="0.8" fill="#5c4322" opacity="0.9"/>
-            <ellipse cx="50" cy="80" rx="3" ry="0.8" fill="#5c4322" opacity="0.9"/>
-            <ellipse cx="50" cy="70" rx="3" ry="0.8" fill="#5c4322" opacity="0.9"/>
-            <PalmCrown cx={50} cy={58} scale={0.5}/>
-        </svg>
+        <Stage>
+            <Ground rx={17} dry />
+            <Trunk d="M50 94 C49 86 51 78 50 70" width={3.4} bark={p.bark} />
+            <ellipse cx="50" cy="86" rx="2.6" ry="0.6" fill={p.bark.dark} opacity="0.6" />
+            <ellipse cx="50" cy="79" rx="2.6" ry="0.6" fill={p.bark.dark} opacity="0.6" />
+            <g transform="translate(50 70) scale(0.52) translate(-50 -70)">
+                {FRONDS_YOUNG.map((f, i) => <Frond key={i} {...f} origin={[50, 70]} />)}
+            </g>
+        </Stage>
     )
 }
 
 export function YoungSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <ellipse cx="50" cy="95" rx="26" ry="3.5" fill="#b8a06a" opacity="0.9"/>
-            <ellipse cx="50" cy="94" rx="20" ry="2.2" fill="#d4bc85" opacity="0.8"/>
-            {/* ствол чуть наклонён, но уже высокий */}
-            <PalmTrunk
-                d="M50 94 C48 76 54 56 50 34"
-                segments={[
-                    [50, 86, 3.2, 0.9, 5],
-                    [49, 78, 3.2, 0.9, -4],
-                    [51, 70, 3.2, 0.9, 6],
-                    [50, 62, 3.2, 0.9, -6],
-                    [51, 54, 3.2, 0.9, 4],
-                    [50, 46, 3.2, 0.9, -5],
-                    [50, 38, 3.2, 0.9, 3],
-                ]}
-            />
-            <PalmCrown cx={50} cy={34} scale={0.9}/>
-        </svg>
+        <Stage>
+            <Ground rx={22} dry />
+            <Trunk d="M50 94 C47 76 54 54 50 34" width={5} bark={p.bark} />
+            {[86, 78, 70, 62, 54, 46, 40].map((y, i) => (
+                <ellipse key={i} cx={i % 2 ? 49.4 : 50.6} cy={y} rx="3.1" ry="0.7" fill={p.bark.dark} opacity="0.55" />
+            ))}
+            {FRONDS_YOUNG.map((f, i) => <Frond key={i} {...f} origin={[50, 34]} />)}
+        </Stage>
     )
 }
 
 export function MatureSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <ellipse cx="50" cy="96" rx="38" ry="4" fill="#b8a06a" opacity="0.9"/>
-            <ellipse cx="50" cy="95" rx="30" ry="2.5" fill="#d4bc85" opacity="0.8"/>
-            {/* ствол высокий, чуть изогнут */}
-            <PalmTrunk
-                d="M50 96 C46 76 56 50 50 20"
-                segments={[
-                    [50, 90, 4.2, 1.1, 6],
-                    [48, 84, 4.2, 1.1, -5],
-                    [51, 78, 4.2, 1.1, 7],
-                    [49, 72, 4.2, 1.1, -7],
-                    [52, 66, 4.2, 1.1, 5],
-                    [50, 60, 4.2, 1.1, -6],
-                    [51, 54, 4.2, 1.1, 8],
-                    [50, 48, 4.2, 1.1, -4],
-                    [50, 42, 4.2, 1.1, 5],
-                    [50, 36, 4.2, 1.1, -3],
-                    [50, 28, 4.2, 1.1, 4],
-                ]}
-            />
-            <PalmCrown cx={50} cy={20} scale={1.25}/>
-            <SparkleRing colorScheme="green" />
-        </svg>
+        <Stage>
+            <ellipse cx="50" cy="88" rx="26" ry="7" fill={p.shade} opacity="0.10" />
+            <Ground rx={28} dry />
+            <Trunk d="M50 96 C44 72 56 40 50 18" width={7.2} bark={p.bark} />
+            {[90, 83, 76, 69, 62, 55, 48, 41, 34, 27].map((y, i) => (
+                <ellipse
+                    key={i}
+                    cx={i % 2 ? 46.8 : 49.4}
+                    cy={y}
+                    rx={4}
+                    ry="0.9"
+                    fill={p.bark.dark}
+                    opacity="0.5"
+                    transform={`rotate(${i % 2 ? -5 : 5} ${50} ${y})`}
+                />
+            ))}
+            {FRONDS_MATURE.map((f, i) => <Frond key={i} {...f} />)}
+            <Coconuts y={22} s={1} />
+        </Stage>
     )
 }

@@ -229,7 +229,9 @@ public class AdminShopController {
             @RequestParam(value = "code", required = false) String code,
             @RequestParam("hexColor") String hexColor,
             @RequestParam(value = "hexColorSecondary", required = false) String hexColorSecondary,
+            @RequestParam(value = "hexColorTertiary", required = false) String hexColorTertiary,
             @RequestParam(value = "isGradient", required = false) Boolean isGradient,
+            @RequestParam(value = "isRare", required = false) Boolean isRare,
             @RequestParam("price") Integer price,
             @RequestParam(value = "oldPrice", required = false) Integer oldPrice,
             @RequestParam(value = "sortOrder", required = false) Integer sortOrder,
@@ -237,8 +239,8 @@ public class AdminShopController {
             @RequestParam(value = "file", required = false) MultipartFile file) {
         checkAdmin();
         return ResponseEntity.ok(adminAccentService.createAccent(
-                title, description, code, hexColor, hexColorSecondary, isGradient,
-                price, oldPrice, sortOrder, categoryIds, file
+                title, description, code, hexColor, hexColorSecondary, hexColorTertiary,
+                isGradient, isRare, price, oldPrice, sortOrder, categoryIds, file
         ));
     }
 
@@ -249,7 +251,9 @@ public class AdminShopController {
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "hexColor", required = false) String hexColor,
             @RequestParam(value = "hexColorSecondary", required = false) String hexColorSecondary,
+            @RequestParam(value = "hexColorTertiary", required = false) String hexColorTertiary,
             @RequestParam(value = "isGradient", required = false) Boolean isGradient,
+            @RequestParam(value = "isRare", required = false) Boolean isRare,
             @RequestParam(value = "price", required = false) Integer price,
             @RequestParam(value = "oldPrice", required = false) Integer oldPrice,
             @RequestParam(value = "sortOrder", required = false) Integer sortOrder,
@@ -258,8 +262,8 @@ public class AdminShopController {
             @RequestParam(value = "clearImage", required = false) Boolean clearImage) {
         checkAdmin();
         return ResponseEntity.ok(adminAccentService.updateAccent(
-                id, title, description, hexColor, hexColorSecondary, isGradient,
-                price, oldPrice, sortOrder, categoryIds, file, clearImage
+                id, title, description, hexColor, hexColorSecondary, hexColorTertiary,
+                isGradient, isRare, price, oldPrice, sortOrder, categoryIds, file, clearImage
         ));
     }
 

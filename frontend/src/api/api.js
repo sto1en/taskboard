@@ -49,20 +49,32 @@ api.interceptors.response.use(
             fireAchievements(data.newlyUnlockedAchievements)
         }
 
-        // 2. Любая мутация по задачам/доскам/проектам → обновить баланс листьев
+        // 2. Любая мутация по задачам/доскам/проектам → обновить баланс листьев.
+        // Мост axios -> Redux: сам стор здесь не импортируется (иначе цикл
+        // store <-> api), событие слушает hooks/useShopSync.js в AppLayout.
         if (method === 'post' || method === 'patch' || method === 'delete') {
             if (url.includes('/tasks') ||
                 url.includes('/boards') ||
                 url.includes('/projects')) {
-                window.dispatchEvent(new Event('shop:refresh'))
+                window.dispatchEvent(new Event('shop:invalidate'))
             }
         }
 
         return response
     },
     (error) => {
-        if (error.response?.status === 401) {
+        const status = error.response?.status
+        // 401 — токен отсутствует/протух. 403 backend тоже отдаёт при
+        // неавторизованном запросе (настроено в SecurityConfig), поэтому
+        // трактуем его так же: чистим токен и уходим на логин. Раньше
+        // обрабатывался только 401, и протухший токен приводил к бесконечным
+        // повторным запросам, каждый из которых получал 403.
+        if (status === 401 || status === 403) {
             localStorage.removeItem('token')
+            // Мост axios -> Redux: authSlice сбрасывает состояние по этому событию
+            // (см. context/AuthContext.jsx). api.js намеренно не импортирует store,
+            // чтобы не создать циклическую зависимость store <-> api.
+            window.dispatchEvent(new Event('auth:unauthorized'))
             if (window.location.pathname !== '/login') window.location.href = '/login'
         }
         return Promise.reject(error)
@@ -250,6 +262,12 @@ export const achievementsApi = {
 // ============================================================
 export const shopApi = {
     get: (params = {}) => api.get('/shop', { params }),
+    treeCategories: () => api.get('/shop/tree-categories'),
+    // Справочники для чипов магазина — публичные (админские ручки отдают 403
+    // не-админам, а api.js на 403 выкидывает из аккаунта).
+    avatarCategories: () => api.get('/shop/avatar-categories'),
+    frameCategories: () => api.get('/shop/frame-categories'),
+    accentCategories: () => api.get('/shop/accent-categories'),
     buyAvatar: (id) => api.post(`/shop/avatars/${id}/buy`),
     equipAvatar: (id) => api.post(`/shop/avatars/${id}/equip`),
     buyFrame: (id) => api.post(`/shop/frames/${id}/buy`),

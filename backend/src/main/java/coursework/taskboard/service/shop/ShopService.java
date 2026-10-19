@@ -13,8 +13,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -31,6 +35,10 @@ public class ShopService {
     private final UserTreeSkinRepository userTreeSkinRepository;
     private final UserAccentRepository userAccentRepository;
     private final UserAppearanceRepository userAppearanceRepository;
+    private final TreeCategoryRepository treeCategoryRepository;
+    private final AvatarCategoryRepository avatarCategoryRepository;
+    private final FrameCategoryRepository frameCategoryRepository;
+    private final AccentCategoryRepository accentCategoryRepository;
 
     // ============================================================
     // Основной метод — с фильтрами и сортировкой
@@ -58,14 +66,43 @@ public class ShopService {
                 .leaves(leaves)
                 .avatars(buildAvatarDtos(user, activeAvatarId, avatarCategoryIds, sortBy, sortDir))
                 .frames(buildFrameDtos(user, activeFrameId, frameCategoryIds, sortBy, sortDir))
-                .treeSkins(buildTreeSkinDtos(user, activeSkinId))
+                .treeSkins(buildTreeSkinDtos(user, activeSkinId, sortBy, sortDir))
                 .accents(buildAccentDtos(user, activeAccentCode, accentCategoryIds, sortBy, sortDir))
                 .build();
     }
 
     @Transactional(readOnly = true)
     public UserShopDto getShop(User user) {
-        return getShop(user, null, null, null, null, null);
+        // По умолчанию — «популярность + новые», см. sortItems().
+        return getShop(user, "popular", "desc", null, null, null);
+    }
+
+    /** Типы деревьев для фильтров магазина. */
+    @Transactional(readOnly = true)
+    public List<CategoryDto> getTreeCategories() {
+        // Явная перегрузка: repository отдаёт List<TreeCategory>, и без каста
+        // компилятор выбирает toCategoryDtos(Set<?>), который пересобирает
+        // аргумент в HashSet и превращает категории деревьев в DTO с null
+        // id/title/code — фронт из такого списка не может построить чипы.
+        return toCategoryDtos(
+                new HashSet<>(treeCategoryRepository.findAllByOrderBySortOrderAsc()),
+                TreeCategory.class);
+    }
+
+    /** Справочники для чипов магазина (только чтение, без админских данных). */
+    @Transactional(readOnly = true)
+    public List<CategoryDto> getAvatarCategories() {
+        return toCategoryDtos(new HashSet<>(avatarCategoryRepository.findAllByOrderBySortOrderAsc()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<CategoryDto> getFrameCategories() {
+        return toCategoryDtos(new HashSet<>(frameCategoryRepository.findAllByOrderBySortOrderAsc()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<CategoryDto> getAccentCategories() {
+        return toCategoryDtos(new HashSet<>(accentCategoryRepository.findAllByOrderBySortOrderAsc()));
     }
 
     // ============================================================
@@ -74,15 +111,18 @@ public class ShopService {
     private List<ShopItemDto> buildAvatarDtos(User user, Long activeId,
                                               List<Long> categoryIds,
                                               String sortBy, String sortDir) {
-        Set<Long> owned = new HashSet<>();
+        // Предмет → сколько за него реально отдали (null если подарен ачивкой)
+        Map<Long, Integer> paid = new HashMap<>();
         for (UserAvatar ua : userAvatarRepository.findByUserId(user.getId())) {
-            owned.add(ua.getAvatar().getId());
+            paid.put(ua.getAvatar().getId(), ua.getPricePaid());
         }
+        Map<Long, Long> purchases = purchCounts(userAvatarRepository.countPurchasesByAvatar());
 
         List<Avatar> list = avatarRepository.findWithCategoriesFiltered(
                 categoryIds == null || categoryIds.isEmpty() ? null : categoryIds
         );
-        list = sortByPrice(list, sortBy, sortDir, Avatar::getPrice);
+        list = sortItems(list, sortBy, sortDir, Avatar::getPrice,
+                Avatar::getCreatedAt, purchases);
 
         List<ShopItemDto> result = new ArrayList<>();
         for (Avatar a : list) {
@@ -96,7 +136,9 @@ public class ShopService {
                     .cssClass(a.getCssClass())
                     .price(a.getPrice())
                     .oldPrice(a.getOldPrice())
-                    .owned(owned.contains(a.getId()))
+                    .owned(paid.containsKey(a.getId()))
+                    .pricePaid(paid.get(a.getId()))
+                    .purchaseCount(purchases.getOrDefault(a.getId(), 0L))
                     .active(a.getId().equals(activeId))
                     .createdAt(a.getCreatedAt())
                     .categories(toCategoryDtos(a.getCategories()))
@@ -111,15 +153,17 @@ public class ShopService {
     private List<ShopItemDto> buildFrameDtos(User user, Long activeId,
                                              List<Long> categoryIds,
                                              String sortBy, String sortDir) {
-        Set<Long> owned = new HashSet<>();
+        Map<Long, Integer> paid = new HashMap<>();
         for (UserFrame uf : userFrameRepository.findByUserId(user.getId())) {
-            owned.add(uf.getFrame().getId());
+            paid.put(uf.getFrame().getId(), uf.getPricePaid());
         }
+        Map<Long, Long> purchases = purchCounts(userFrameRepository.countPurchasesByFrame());
 
         List<Frame> list = frameRepository.findWithCategoriesFiltered(
                 categoryIds == null || categoryIds.isEmpty() ? null : categoryIds
         );
-        list = sortByPrice(list, sortBy, sortDir, Frame::getPrice);
+        list = sortItems(list, sortBy, sortDir, Frame::getPrice,
+                Frame::getCreatedAt, purchases);
 
         List<ShopItemDto> result = new ArrayList<>();
         for (Frame f : list) {
@@ -133,7 +177,9 @@ public class ShopService {
                     .hexColor(f.getHexColor())
                     .price(f.getPrice())
                     .oldPrice(f.getOldPrice())
-                    .owned(owned.contains(f.getId()))
+                    .owned(paid.containsKey(f.getId()))
+                    .pricePaid(paid.get(f.getId()))
+                    .purchaseCount(purchases.getOrDefault(f.getId(), 0L))
                     .active(f.getId().equals(activeId))
                     .createdAt(f.getCreatedAt())
                     .categories(toCategoryDtos(f.getCategories()))
@@ -143,24 +189,33 @@ public class ShopService {
     }
 
     // ============================================================
-    // Tree skins (без категорий)
+    // Tree skins
     // ============================================================
-    private List<ShopItemDto> buildTreeSkinDtos(User user, Long activeId) {
-        Set<Long> owned = new HashSet<>();
+    private List<ShopItemDto> buildTreeSkinDtos(User user, Long activeId,
+                                                String sortBy, String sortDir) {
+        Map<Long, Integer> paid = new HashMap<>();
         for (UserTreeSkin us : userTreeSkinRepository.findByUserId(user.getId())) {
-            owned.add(us.getTreeSkin().getId());
+            paid.put(us.getTreeSkin().getId(), us.getPricePaid());
         }
+        Map<Long, Long> purchases = purchCounts(userTreeSkinRepository.countPurchasesByTreeSkin());
+
+        List<TreeSkin> list = sortItems(treeSkinRepository.findWithCategoriesFiltered(null),
+                sortBy, sortDir, TreeSkin::getPrice, null, purchases);
 
         List<ShopItemDto> result = new ArrayList<>();
-        for (TreeSkin s : treeSkinRepository.findAllByOrderBySortOrderAsc()) {
+        for (TreeSkin s : list) {
             result.add(ShopItemDto.builder()
                     .id(s.getId())
                     .code(s.getCode())
                     .title(s.getTitle())
                     .description(s.getDescription())
                     .price(s.getPrice())
-                    .owned(owned.contains(s.getId()))
+                    .owned(paid.containsKey(s.getId()))
+                    .pricePaid(paid.get(s.getId()))
+                    .purchaseCount(purchases.getOrDefault(s.getId(), 0L))
                     .active(s.getId().equals(activeId))
+                    .createdAt(s.getCreatedAt())
+                    .categories(toCategoryDtos(s.getCategories()))
                     .build());
         }
         return result;
@@ -172,15 +227,17 @@ public class ShopService {
     private List<ShopItemDto> buildAccentDtos(User user, String activeCode,
                                               List<Long> categoryIds,
                                               String sortBy, String sortDir) {
-        Set<Long> owned = new HashSet<>();
+        Map<Long, Integer> paid = new HashMap<>();
         for (UserAccent ua : userAccentRepository.findByUserId(user.getId())) {
-            owned.add(ua.getAccentSkin().getId());
+            paid.put(ua.getAccentSkin().getId(), ua.getPricePaid());
         }
+        Map<Long, Long> purchases = purchCounts(userAccentRepository.countPurchasesByAccent());
 
         List<AccentSkin> list = accentSkinRepository.findWithCategoriesFiltered(
                 categoryIds == null || categoryIds.isEmpty() ? null : categoryIds
         );
-        list = sortByPrice(list, sortBy, sortDir, AccentSkin::getPrice);
+        list = sortItems(list, sortBy, sortDir, AccentSkin::getPrice,
+                AccentSkin::getCreatedAt, purchases);
 
         List<ShopItemDto> result = new ArrayList<>();
         for (AccentSkin a : list) {
@@ -193,10 +250,14 @@ public class ShopService {
                     .oldPrice(a.getOldPrice())
                     .hexColor(a.getHexColor())
                     .hexColorSecondary(a.getHexColorSecondary())
+                    .hexColorTertiary(a.getHexColorTertiary())
                     .isGradient(a.getIsGradient())
+                    .isRare(a.getIsRare())
                     .imageUrl(a.getImageUrl())
                     .cssClass(a.getCode())
-                    .owned(owned.contains(a.getId()))
+                    .owned(paid.containsKey(a.getId()))
+                    .pricePaid(paid.get(a.getId()))
+                    .purchaseCount(purchases.getOrDefault(a.getId(), 0L))
                     .active(a.getCode().equals(activeCode))
                     .createdAt(a.getCreatedAt())
                     .categories(toCategoryDtos(a.getCategories()))
@@ -208,14 +269,79 @@ public class ShopService {
     // ============================================================
     // Helpers
     // ============================================================
-    private <T> List<T> sortByPrice(List<T> list, String sortBy, String sortDir,
-                                    java.util.function.Function<T, Integer> priceGetter) {
-        if (!"price".equalsIgnoreCase(sortBy)) return list;
-        boolean desc = "desc".equalsIgnoreCase(sortDir);
-        list.sort((a, b) -> desc
-                ? Integer.compare(priceGetter.apply(b), priceGetter.apply(a))
-                : Integer.compare(priceGetter.apply(a), priceGetter.apply(b)));
+
+    /**
+     * Сортировка каталога.
+     *
+     *   • «price» — по цене по возрастанию/убыванию.
+     *   • «popular» — по числу покупок; при равенстве новые сверху.
+     *   • иначе (в т.ч. «default») — прежний порядок из репозитория.
+     *
+     * «По типу» сортирует фронт: карточка может попасть в несколько типов
+     * сразу, поэтому размножение элементов логичнее до пагинации.
+     */
+    private <T> List<T> sortItems(List<T> list,
+                                  String sortBy,
+                                  String sortDir,
+                                  java.util.function.Function<T, Integer> price,
+                                  java.util.function.Function<T, java.time.LocalDateTime> createdAt,
+                                  Map<Long, Long> purchases) {
+        if (sortBy == null || sortBy.isBlank()) return list;
+
+        if ("price".equalsIgnoreCase(sortBy)) {
+            boolean desc = "desc".equalsIgnoreCase(sortDir);
+            list.sort((a, b) -> desc
+                    ? Integer.compare(price.apply(b), price.apply(a))
+                    : Integer.compare(price.apply(a), price.apply(b)));
+            return list;
+        }
+
+        if ("popular".equalsIgnoreCase(sortBy)) {
+            boolean asc = "asc".equalsIgnoreCase(sortDir);
+            list.sort((a, b) -> {
+                long pa = purchases.getOrDefault(idOf(a), 0L);
+                long pb = purchases.getOrDefault(idOf(b), 0L);
+                int byCount = asc
+                        ? Long.compare(pa, pb)
+                        : Long.compare(pb, pa);
+                if (byCount != 0) return byCount;
+
+                // Новые сверху — «популярность + новые товары».
+                if (createdAt == null) return 0;
+                java.time.LocalDateTime ca = createdAt.apply(a);
+                java.time.LocalDateTime cb = createdAt.apply(b);
+                if (ca == null && cb == null) return 0;
+                if (ca == null) return 1;
+                if (cb == null) return -1;
+                return cb.compareTo(ca);
+            });
+            return list;
+        }
+
         return list;
+    }
+
+    /**
+     * Универсальный резолвер id: сортировка «по популярности» сравнивает
+     * число покупок, а компаратор не знает, в каком поле лежит id.
+     */
+    private static <T> Long idOf(T item) {
+        if (item instanceof Avatar a) return a.getId();
+        if (item instanceof Frame f) return f.getId();
+        if (item instanceof TreeSkin t) return t.getId();
+        if (item instanceof AccentSkin s) return s.getId();
+        return -1L;
+    }
+
+    private Map<Long, Long> purchCounts(List<Object[]> rows) {
+        Map<Long, Long> map = new HashMap<>();
+        if (rows == null) return map;
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) continue;
+            if (row[0] == null || row[1] == null) continue;
+            map.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
+        }
+        return map;
     }
 
     private List<CategoryDto> toCategoryDtos(Set<?> categories) {
@@ -232,6 +358,8 @@ public class ShopService {
                         id = fc.getId(); code = fc.getCode(); title = fc.getTitle(); sortOrder = fc.getSortOrder();
                     } else if (c instanceof AccentCategory acc) {
                         id = acc.getId(); code = acc.getCode(); title = acc.getTitle(); sortOrder = acc.getSortOrder();
+                    } else if (c instanceof TreeCategory tc) {
+                        id = tc.getId(); code = tc.getCode(); title = tc.getTitle(); sortOrder = tc.getSortOrder();
                     }
                     return CategoryDto.builder()
                             .id(id).code(code).title(title).sortOrder(sortOrder)
@@ -239,6 +367,18 @@ public class ShopService {
                 })
                 .sorted((c1, c2) -> Integer.compare(c1.getSortOrder(), c2.getSortOrder()))
                 .toList();
+    }
+
+    /**
+     * Перегрузка, которая гарантированно не теряет тип элементов.
+     *
+     * Была только List<?> → Set<?>: у List<CategoryDto>-возвращающего метода с
+     * аргументом List<TreeCategory> компилятор выбирал Set-версию (ошибок при
+     * этом нет — стирание типов), та делала new HashSet<>(list) и на выходе
+     * получала null во всех полях. Теперь выбор перегрузки однозначен.
+     */
+    private <T> List<CategoryDto> toCategoryDtos(Collection<T> categories, Class<T> type) {
+        return toCategoryDtos(new LinkedHashSet<>(categories));
     }
 
     // ============================================================
@@ -252,7 +392,8 @@ public class ShopService {
             throw new IllegalArgumentException("Уже куплено");
         }
         deductLeaves(user, avatar.getPrice());
-        userAvatarRepository.save(UserAvatar.builder().user(user).avatar(avatar).build());
+        userAvatarRepository.save(UserAvatar.builder()
+                .user(user).avatar(avatar).pricePaid(avatar.getPrice()).build());
         return getShop(user);
     }
 
@@ -279,7 +420,8 @@ public class ShopService {
             throw new IllegalArgumentException("Уже куплено");
         }
         deductLeaves(user, frame.getPrice());
-        userFrameRepository.save(UserFrame.builder().user(user).frame(frame).build());
+        userFrameRepository.save(UserFrame.builder()
+                .user(user).frame(frame).pricePaid(frame.getPrice()).build());
         return getShop(user);
     }
 
@@ -314,7 +456,8 @@ public class ShopService {
             throw new IllegalArgumentException("Уже куплено");
         }
         deductLeaves(user, skin.getPrice());
-        userTreeSkinRepository.save(UserTreeSkin.builder().user(user).treeSkin(skin).build());
+        userTreeSkinRepository.save(UserTreeSkin.builder()
+                .user(user).treeSkin(skin).pricePaid(skin.getPrice()).build());
         return getShop(user);
     }
 
@@ -349,7 +492,8 @@ public class ShopService {
             throw new IllegalArgumentException("Уже куплено");
         }
         deductLeaves(user, skin.getPrice());
-        userAccentRepository.save(UserAccent.builder().user(user).accentSkin(skin).build());
+        userAccentRepository.save(UserAccent.builder()
+                .user(user).accentSkin(skin).pricePaid(skin.getPrice()).build());
         return getShop(user);
     }
 
@@ -378,19 +522,30 @@ public class ShopService {
     // ============================================================
 
     /**
+     * Гарантирует строку баланса у пользователя.
+     *
+     * Раньше @MapsId у UserCurrency требовал managed-ассоциацию и падал на
+     * detached-пользователе. Теперь PK — обычная колонка, но ссылку на User
+     * всё равно берём через getReferenceById: прокси без лишнего SELECT.
+     */
+    private UserCurrency ensureCurrency(User user) {
+        return userCurrencyRepository.findById(user.getId())
+                .orElseGet(() -> {
+                    UserCurrency cur = UserCurrency.builder()
+                            .userId(user.getId())
+                            .leaves(0)
+                            .build();
+                    return userCurrencyRepository.saveAndFlush(cur);
+                });
+    }
+
+    /**
      * Начислить листья. Если amount <= 0 — ничего не делает.
      */
     @Transactional
     public void addLeaves(User user, int amount) {
         if (amount <= 0) return;
-        UserCurrency cur = userCurrencyRepository.findById(user.getId())
-                .orElseGet(() -> userCurrencyRepository.save(
-                        UserCurrency.builder()
-                                .user(user)
-                                .userId(user.getId())
-                                .leaves(0)
-                                .build()
-                ));
+        UserCurrency cur = ensureCurrency(user);
         cur.setLeaves(cur.getLeaves() + amount);
         userCurrencyRepository.save(cur);
     }
@@ -402,14 +557,7 @@ public class ShopService {
     @Transactional
     public void deductLeavesSafe(User user, int amount) {
         if (amount <= 0) return;
-        UserCurrency cur = userCurrencyRepository.findById(user.getId())
-                .orElseGet(() -> userCurrencyRepository.save(
-                        UserCurrency.builder()
-                                .user(user)
-                                .userId(user.getId())
-                                .leaves(0)
-                                .build()
-                ));
+        UserCurrency cur = ensureCurrency(user);
         int newVal = Math.max(0, cur.getLeaves() - amount);
         cur.setLeaves(newVal);
         userCurrencyRepository.save(cur);
@@ -419,14 +567,7 @@ public class ShopService {
      * Строгое списание (для покупок). Бросает исключение, если не хватает.
      */
     private void deductLeaves(User user, int amount) {
-        UserCurrency cur = userCurrencyRepository.findById(user.getId())
-                .orElseGet(() -> userCurrencyRepository.save(
-                        UserCurrency.builder()
-                                .user(user)
-                                .userId(user.getId())
-                                .leaves(0)
-                                .build()
-                ));
+        UserCurrency cur = ensureCurrency(user);
         if (cur.getLeaves() < amount) {
             throw new IllegalArgumentException("Недостаточно листьев");
         }

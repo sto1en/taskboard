@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
+import { observer } from 'mobx-react-lite'
 import { projectFiltersApi } from '../../api/api'
 import useT from '../../hooks/useT'
+import { useUiStore } from '../../store/useUiStore'
 
 const PANEL_ID = 'filters-bar'
 
-export default function FiltersBar({
+export default observer(function FiltersBar({
                                        columns,
                                        activeStatuses,
                                        onStatusToggle,
@@ -12,7 +14,8 @@ export default function FiltersBar({
                                        projectId,
                                    }) {
     const t = useT()
-    const [open, setOpen] = useState(false)
+    const ui = useUiStore()
+    const open = ui.activeToolbar === PANEL_ID
     const [pinned, setPinned] = useState(false)
     const [saving, setSaving] = useState(false)
     const ref = useRef(null)
@@ -27,29 +30,24 @@ export default function FiltersBar({
                 setPinned(!!data && Array.isArray(data.statusIds) && data.statusIds.length > 0)
             })
             .catch(() => setPinned(false))
-    }, [projectId, activeStatuses])
+        // activeStatuses намеренно НЕ в зависимостях: это новый массив при
+        // каждом обновлении и он вызывал шторм запросов /filters.
+    }, [projectId])
 
     useEffect(() => {
         if (!open) return
         const onClick = (e) => {
-            if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-        }
-        const onCloseOthers = (e) => {
-            if (e.detail !== PANEL_ID) setOpen(false)
+            if (ref.current && !ref.current.contains(e.target)) ui.closeToolbar(PANEL_ID)
         }
         window.addEventListener('mousedown', onClick)
-        window.addEventListener('toolbar:close', onCloseOthers)
         return () => {
             window.removeEventListener('mousedown', onClick)
-            window.removeEventListener('toolbar:close', onCloseOthers)
         }
-    }, [open])
+    }, [open, ui])
 
     const togglePanel = () => {
-        if (!open) {
-            window.dispatchEvent(new CustomEvent('toolbar:close', { detail: PANEL_ID }))
-        }
-        setOpen(v => !v)
+        if (open) ui.closeToolbar(PANEL_ID)
+        else ui.openToolbar(PANEL_ID)
     }
 
     const handlePin = async () => {
@@ -148,4 +146,4 @@ export default function FiltersBar({
             )}
         </div>
     )
-}
+})

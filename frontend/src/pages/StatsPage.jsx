@@ -6,7 +6,7 @@ import {
 import { statsApi, achievementsApi } from '../api/api'
 import useT from '../hooks/useT'
 import { useAuth } from '../context/AuthContext'
-import AchievementCard from '../components/Achievement/AchievementCard'
+import AchievementCard from '../components/achievement/AchievementCard'
 
 const RU_MONTHS_GEN = [
     'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',

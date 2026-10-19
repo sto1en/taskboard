@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { boardsApi, attachmentsApi } from '../../api/api'
-import Modal from '../Modal/Modal'
+import Modal from '../modal/Modal'
 import useT from '../../hooks/useT'
 import { resolveUrl } from '../../utils/format'
 

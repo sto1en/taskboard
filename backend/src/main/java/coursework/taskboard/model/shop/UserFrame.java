@@ -31,6 +31,13 @@ public class UserFrame {
     @Column(name = "purchased_at", nullable = false)
     private LocalDateTime purchasedAt;
 
+    /**
+     * Сколько листьев реально ушло на покупку.
+     * null — предмет получен в награду за ачивку (пользователь не платил).
+     */
+    @Column(name = "price_paid")
+    private Integer pricePaid;
+
     @PrePersist
     protected void onCreate() {
         if (this.purchasedAt == null) {

@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
 import { useAuth } from '../context/AuthContext'
 import { userApi, boardsApi, shopApi, projectsApi } from '../api/api'
+import { fetchShop, selectShop } from '../store/slices/shopSlice'
 import useT from '../hooks/useT'
 import AccentDot from '../components/shop/AccentDot'
 import HelpTip from '../components/common/HelpTip'
@@ -113,7 +115,7 @@ export default function ProfilePage() {
     useEffect(() => {
         const urlTab = searchParams.get('tab')
         if (urlTab && urlTab !== tab) setTab(urlTab)
-    }, [searchParams])
+    }, [searchParams, tab])
 
     const switchTab = (code) => {
         setTab(code)
@@ -134,7 +136,10 @@ export default function ProfilePage() {
     const [notificationForm, setNotificationForm] = useState(DEFAULT_NOTIFICATION)
 
     const [pendingAccentId, setPendingAccentId] = useState(null)
-    const [shop, setShop] = useState(null)
+
+    // Магазин — серверный стейт из Redux (раньше: свой useState + shop:refresh)
+    const shop = useSelector(selectShop)
+    const dispatch = useDispatch()
 
     const [frameEnabled, setFrameEnabled] = useState(false)
     const [lastFrameId, setLastFrameId] = useState(null)
@@ -188,20 +193,25 @@ export default function ProfilePage() {
             .catch(() => setProjectsOfDefaultBoard([]))
     }, [workspaceForm.defaultBoardId])
 
-    const loadShop = () => {
-        shopApi.get().then(({ data }) => {
-            setShop(data)
+    // Загрузка магазина — через Redux-thunk вместо локального setShop
+    useEffect(() => {
+        dispatch(fetchShop())
+    }, [dispatch])
 
-            const active = (data?.frames || []).find(f => f.active && isRenderableFrame(f))
-            if (active) {
-                setFrameEnabled(true)
-                setLastFrameId(active.id)
-            } else {
-                setFrameEnabled(false)
-            }
-        }).catch(() => setShop(null))
-    }
-    useEffect(() => { loadShop() }, [])
+    // Побочный эффект, который раньше жил внутри loadShop: синхронизация
+    // переключателя рамок с активной рамкой из канонического ответа.
+    useEffect(() => {
+        const active = (shop?.frames || []).find(f => f.active && isRenderableFrame(f))
+        if (active) {
+            setFrameEnabled(true)
+            setLastFrameId(active.id)
+        } else {
+            setFrameEnabled(false)
+        }
+    }, [shop])
+
+    /** Инвалидация канонического стейта магазина (замена shop:refresh) */
+    const reloadShop = () => { dispatch(fetchShop()) }
 
     const flash = (m) => { setMsg(m); setErr(null); setTimeout(() => setMsg(null), 3000) }
     const flashErr = (e) => { setErr(e.response?.data?.message || e.message || 'Ошибка'); setMsg(null) }
@@ -221,9 +231,7 @@ export default function ProfilePage() {
                 if (!owned) await shopApi.buyAccent(pendingAccentId)
                 await shopApi.equipAccent(pendingAccentId)
                 setPendingAccentId(null)
-                loadShop()
-                window.dispatchEvent(new Event('shop:refresh'))
-                window.dispatchEvent(new Event('user:refresh'))
+                reloadShop()
             } else if (pendingAccentId && String(pendingAccentId).startsWith('base-')) {
                 setPendingAccentId(null)
             }
@@ -277,9 +285,7 @@ export default function ProfilePage() {
             const owned = shop?.avatars?.find(a => a.id === avatarId && a.owned)
             if (!owned) await shopApi.buyAvatar(avatarId)
             await shopApi.equipAvatar(avatarId)
-            loadShop()
-            window.dispatchEvent(new Event('shop:refresh'))
-            window.dispatchEvent(new Event('user:refresh'))
+            reloadShop()
             flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
@@ -291,9 +297,7 @@ export default function ProfilePage() {
             await shopApi.equipFrame(frameId)
             setFrameEnabled(true)
             setLastFrameId(frameId)
-            loadShop()
-            window.dispatchEvent(new Event('shop:refresh'))
-            window.dispatchEvent(new Event('user:refresh'))
+            reloadShop()
             flash('Сохранено')
         } catch (e) { flashErr(e) }
     }
@@ -328,10 +332,7 @@ export default function ProfilePage() {
                 setLastFrameId(targetId)
             }
 
-            const { data } = await shopApi.get()
-            setShop(data)
-            window.dispatchEvent(new Event('shop:refresh'))
-            window.dispatchEvent(new Event('user:refresh'))
+            reloadShop()
         } catch (e) { flashErr(e) }
     }
 
@@ -360,6 +361,13 @@ export default function ProfilePage() {
         return owned
     }, [shop])
 
+    // Хук нельзя вызывать после раннего return: порядок хуков между рендерами
+    // менялся, когда user ещё не загружен, и React падал с "Rendered more hooks".
+    const ownedFrames = useMemo(
+        () => (shop?.frames || []).filter(f => f.owned && isRenderableFrame(f)),
+        [shop]
+    )
+
     if (!user) return <div className="loading">Loading...</div>
 
     const TABS = [
@@ -373,11 +381,6 @@ export default function ProfilePage() {
 
     const activeAvatar = shop?.avatars?.find(a => a.active) || null
     const activeFrame = shop?.frames?.find(f => f.active && isRenderableFrame(f)) || null
-
-    const ownedFrames = useMemo(
-        () => (shop?.frames || []).filter(f => f.owned && isRenderableFrame(f)),
-        [shop]
-    )
 
     const ownedAccents = (shop?.accents || []).filter(a => a.owned)
     const ownedAccentCodes = new Set(ownedAccents.map(a => a.code))
@@ -581,7 +584,9 @@ export default function ProfilePage() {
                                         code={a.code}
                                         hexColor={a.hexColor}
                                         hexColorSecondary={a.hexColorSecondary}
+                                        hexColorTertiary={a.hexColorTertiary}
                                         isGradient={a.isGradient}
+                                        isRare={a.isRare}
                                         title={a.title}
                                         size={40}
                                         active={currentAccentId === a.id}

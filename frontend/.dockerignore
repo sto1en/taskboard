@@ -1,0 +1,14 @@
+# Контекст сборки frontend.
+node_modules/
+dist/
+dist-ssr/
+.vite/
+.idea/
+*.iml
+*.log
+npm-debug.log*
+.git/
+.gitignore
+.env
+.env.*
+!.env.example

@@ -31,6 +31,15 @@ public class UserTreeSkin {
     @Column(name = "purchased_at", nullable = false)
     private LocalDateTime purchasedAt;
 
+    /**
+     * Сколько листьев реально ушло на покупку.
+     * null — предмет получен в награду за ачивку (пользователь не платил).
+     * Нужно, чтобы в магазине для купленного писалось «куплено за N», а на
+     * подаренных предметах цена не сбивала с толку.
+     */
+    @Column(name = "price_paid")
+    private Integer pricePaid;
+
     @PrePersist
     protected void onCreate() {
         if (this.purchasedAt == null) {

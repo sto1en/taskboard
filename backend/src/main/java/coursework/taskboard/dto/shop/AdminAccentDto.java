@@ -16,7 +16,9 @@ public class AdminAccentDto {
     private String description;
     private String hexColor;
     private String hexColorSecondary;
+    private String hexColorTertiary;
     private Boolean isGradient;
+    private Boolean isRare;
     private String imageUrl;
     private Integer price;
     private Integer oldPrice;

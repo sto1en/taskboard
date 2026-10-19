@@ -1,191 +1,158 @@
-import { Aura, SparkleRing, seededRandom } from './common'
+// frontend/src/components/layout/trees/WillowTree.jsx
 
-const WILLOW_TONES = {
-    light: { fill: '#a8d97b', vein: '#7ab048', edge: '#5c8f3a' },
-    mid:   { fill: '#6fb03d', vein: '#4a8a24', edge: '#3f7a2a' },
-    deep:  { fill: '#4e8a3a', vein: '#2f6b22', edge: '#255c1a' },
-}
+/**
+ * Ива — плакучая крона: высокий ствол, купол наверху и «струи» ветвей,
+ * свисающие почти до земли. У взрослой ивы струи доходят до травы.
+ */
 
-// Длинный узкий лист ивы (ланцетовидный)
-function WillowLeaf({ cx, cy, size = 4, rot = 0, tone = 'mid' }) {
-    const c = WILLOW_TONES[tone] || WILLOW_TONES.mid
-    const s = size
-    return (
-        <g transform={`rotate(${rot} ${cx} ${cy})`}>
-            <path d={`M${cx} ${cy - s * 2.2}
-                     C${cx + s * 0.5} ${cy - s * 1.2} ${cx + s * 0.6} ${cy + s * 0.4} ${cx} ${cy + s * 2.2}
-                     C${cx - s * 0.6} ${cy + s * 0.4} ${cx - s * 0.5} ${cy - s * 1.2} ${cx} ${cy - s * 2.2} Z`}
-                  fill={c.fill} stroke={c.edge} strokeWidth={s * 0.08}/>
-            <line x1={cx} y1={cy - s * 1.8} x2={cx} y2={cy + s * 1.8}
-                  stroke={c.vein} strokeWidth={s * 0.08} opacity="0.6"/>
-        </g>
-    )
-}
+import { PALETTE, Ground, Crown, Texture, Trunk, Branches, Stage } from './kit'
+import { seededRandom } from './common'
 
-// Свисающая ветка — цепочка листьев вдоль ниспадающей линии
-function DroopingBranch({ x1, y1, x2, y2, leafCount = 8, seed = 0 }) {
+const p = PALETTE.willow
+
+/**
+ * Одна «коса» — цепочка листьев вдоль провисающей ветви.
+ * Рисуем кривой безье, точки берём по параметру t.
+ */
+function Strand({ from, control, to, seed = 1, leaves = 8, size = 1.5, sway = 1 }) {
     const items = []
-    const tones = ['light', 'mid', 'deep', 'mid', 'light']
-
-    // Невидимая нить (стебель) — тонкая линия
-    items.push(
-        <path key="stem" d={`M${x1} ${y1} Q${(x1 + x2) / 2 + (seededRandom(seed, 999) - 0.5) * 4} ${(y1 + y2) / 2} ${x2} ${y2}`}
-              stroke="#5c8f3a" strokeWidth="0.5" fill="none" opacity="0.6"/>
-    )
-
-    // Листья вдоль ветки
-    for (let i = 0; i < leafCount; i++) {
-        const t = (i + 1) / (leafCount + 1)
-        const px = x1 + (x2 - x1) * t
-        const py = y1 + (y2 - y1) * t + Math.sin(t * Math.PI) * 1.5
-        const leafRot = 90 + (seededRandom(seed, i) - 0.5) * 40
+    for (let i = 0; i < leaves; i++) {
+        const t = (i + 0.5) / leaves
+        const mt = 1 - t
+        const x = mt * mt * from[0] + 2 * mt * t * control[0] + t * t * to[0]
+        const y = mt * mt * from[1] + 2 * mt * t * control[1] + t * t * to[1]
+        const dx = (seededRandom(seed, i) - 0.5) * sway
+        const s = size * (0.7 + seededRandom(seed, i + 11) * 0.55)
         items.push(
-            <WillowLeaf key={i} cx={px} cy={py}
-                        size={2 + seededRandom(seed, i + 100) * 0.8}
-                        rot={leafRot}
-                        tone={tones[i % tones.length]}/>
+            <ellipse
+                key={i}
+                cx={Math.round((x + dx) * 10) / 10}
+                cy={Math.round(y * 10) / 10}
+                rx={s}
+                ry={s * 0.55}
+                transform={`rotate(${Math.round(seededRandom(seed, i + 21) * 80 - 40)} ${x} ${y})`}
+                fill={i % 3 === 0 ? p.shade : i % 3 === 1 ? p.fill : p.hi}
+                opacity={0.9}
+            />,
         )
     }
-    return <g>{items}</g>
-}
-
-// Кластер — пучок свисающих веток
-function WillowCascade({ cx, cy, length = 20, count = 5, seed = 0 }) {
-    const branches = []
-    for (let i = 0; i < count; i++) {
-        const spreadX = (seededRandom(seed, i) - 0.5) * 12
-        const len = length * (0.7 + seededRandom(seed, i + 50) * 0.6)
-        branches.push(
-            <DroopingBranch key={i}
-                            x1={cx + spreadX * 0.3} y1={cy}
-                            x2={cx + spreadX} y2={cy + len}
-                            leafCount={6 + Math.floor(seededRandom(seed, i + 100) * 4)}
-                            seed={seed + i * 10}/>
-        )
-    }
-    return <g>{branches}</g>
-}
-
-// Толстый изогнутый ствол — плакучая форма
-function WillowTrunk({ topY = 20 }) {
     return (
         <g>
-            <path d={`M50 96 C48 86 54 74 50 60 C46 48 54 38 50 ${topY}`}
-                  stroke="#4a3a2a" strokeWidth="8" strokeLinecap="round" fill="none"/>
-            <path d="M47 90 C46 80 51 70 48 58"
-                  stroke="#6b5340" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.7"/>
-            <path d="M53 76 C52 66 55 58 52 50"
-                  stroke="#2f1d14" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.6"/>
-            {/* Кора */}
-            <path d="M45 82 C44 76 47 70 49 66" stroke="#2f1d14" strokeWidth="0.8" strokeLinecap="round" fill="none" opacity="0.7"/>
-            <path d="M52 60 C51 54 53 48 51 42" stroke="#2f1d14" strokeWidth="0.8" strokeLinecap="round" fill="none" opacity="0.7"/>
+            <path
+                d={`M${from[0]} ${from[1]} Q${control[0]} ${control[1]} ${to[0]} ${to[1]}`}
+                stroke="#5c7a35"
+                strokeWidth="0.7"
+                fill="none"
+                opacity="0.75"
+            />
+            {items}
         </g>
     )
 }
 
-// Верхние прямые ветки, от которых свисают каскады
-function WillowBranches({ topY = 18 }) {
-    return (
-        <g stroke="#4a3a2a" strokeLinecap="round" fill="none">
-            {/* Раздваивающиеся верхние ветки */}
-            <path d={`M50 ${topY + 4} C42 ${topY - 2} 32 ${topY} 22 ${topY + 6}`} strokeWidth="3.4"/>
-            <path d={`M50 ${topY + 4} C58 ${topY - 2} 68 ${topY} 78 ${topY + 6}`} strokeWidth="3.4"/>
-
-            <path d={`M22 ${topY + 6} C16 ${topY + 4} 10 ${topY + 4} 4 ${topY + 8}`} strokeWidth="2.4"/>
-            <path d={`M78 ${topY + 6} C84 ${topY + 4} 90 ${topY + 4} 96 ${topY + 8}`} strokeWidth="2.4"/>
-
-            <path d={`M50 ${topY + 12} C42 ${topY + 8} 32 ${topY + 8} 22 ${topY + 14}`} strokeWidth="3"/>
-            <path d={`M50 ${topY + 12} C58 ${topY + 8} 68 ${topY + 8} 78 ${topY + 14}`} strokeWidth="3"/>
-
-            <path d={`M22 ${topY + 14} C14 ${topY + 14} 8 ${topY + 16} 2 ${topY + 20}`} strokeWidth="2"/>
-            <path d={`M78 ${topY + 14} C86 ${topY + 14} 92 ${topY + 16} 98 ${topY + 20}`} strokeWidth="2"/>
-
-            {/* Тонкие ветки */}
-            <path d={`M4 ${topY + 8} C2 ${topY + 12} 2 ${topY + 18} 4 ${topY + 22}`} strokeWidth="1.4"/>
-            <path d={`M96 ${topY + 8} C98 ${topY + 12} 98 ${topY + 18} 96 ${topY + 22}`} strokeWidth="1.4"/>
-
-            <path d={`M50 ${topY} C48 ${topY - 4} 46 ${topY - 6} 44 ${topY - 8}`} strokeWidth="1.6"/>
-            <path d={`M50 ${topY} C52 ${topY - 4} 54 ${topY - 6} 56 ${topY - 8}`} strokeWidth="1.6"/>
-        </g>
-    )
+function Curtain({ strands }) {
+    return <g>{strands.map((s, i) => <Strand key={i} {...s} seed={s.seed || i + 1} />)}</g>
 }
 
-function WillowGround() {
-    return (
-        <g>
-            <ellipse cx="50" cy="96" rx="42" ry="4.5" fill="#7a6b52" opacity="0.8"/>
-            <ellipse cx="50" cy="95" rx="32" ry="2.8" fill="#9a8a6a" opacity="0.85"/>
-            <path d="M18 95 L16 90 M22 95 L23 90 M26 95 L25 90"
-                  stroke="#5c8f4a" strokeWidth="0.7" strokeLinecap="round" fill="none"/>
-            <path d="M74 95 L75 90 M78 95 L80 90 M82 95 L81 90"
-                  stroke="#5c8f4a" strokeWidth="0.7" strokeLinecap="round" fill="none"/>
-        </g>
-    )
-}
+const MATURE_STRANDS = [
+    { from: [18, 40], control: [10, 62], to: [22, 84], leaves: 9, size: 1.7, seed: 1 },
+    { from: [24, 36], control: [18, 66], to: [30, 90], leaves: 10, size: 1.8, seed: 2 },
+    { from: [32, 30], control: [29, 64], to: [39, 88], leaves: 10, size: 1.7, seed: 3 },
+    { from: [40, 26], control: [39, 62], to: [47, 86], leaves: 9, size: 1.6, seed: 4 },
+    { from: [50, 24], control: [51, 60], to: [53, 84], leaves: 9, size: 1.6, seed: 5 },
+    { from: [60, 26], control: [61, 62], to: [59, 86], leaves: 9, size: 1.6, seed: 6 },
+    { from: [68, 30], control: [71, 64], to: [65, 88], leaves: 10, size: 1.7, seed: 7 },
+    { from: [76, 36], control: [82, 66], to: [72, 90], leaves: 10, size: 1.8, seed: 8 },
+    { from: [82, 40], control: [90, 62], to: [78, 84], leaves: 9, size: 1.7, seed: 9 },
+]
+
+const YOUNG_STRANDS = [
+    { from: [32, 40], control: [28, 54], to: [36, 68], leaves: 7, size: 1.5, seed: 11 },
+    { from: [42, 36], control: [40, 56], to: [47, 72], leaves: 7, size: 1.5, seed: 12 },
+    { from: [52, 36], control: [52, 56], to: [53, 72], leaves: 7, size: 1.5, seed: 13 },
+    { from: [62, 38], control: [64, 56], to: [60, 70], leaves: 7, size: 1.5, seed: 14 },
+    { from: [70, 42], control: [74, 54], to: [66, 68], leaves: 6, size: 1.4, seed: 15 },
+]
+
+const MATURE_BLOBS = [
+    { cx: 50, cy: 30, rx: 30, ry: 16 },
+    { cx: 28, cy: 34, rx: 15, ry: 11 },
+    { cx: 72, cy: 34, rx: 15, ry: 11 },
+    { cx: 50, cy: 22, rx: 20, ry: 10 },
+]
+
+const YOUNG_BLOBS = [
+    { cx: 50, cy: 32, rx: 19, ry: 12 },
+    { cx: 34, cy: 36, rx: 10, ry: 8 },
+    { cx: 66, cy: 36, rx: 10, ry: 8 },
+    { cx: 50, cy: 24, rx: 13, ry: 8 },
+]
 
 export function SproutSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <WillowGround />
-            <path d="M50 94 C49 82 51 72 50 60" stroke="#4a3a2a" strokeWidth="3.4" strokeLinecap="round" fill="none"/>
-            <path d="M50 76 C44 74 40 72 36 70" stroke="#4a3a2a" strokeWidth="2" strokeLinecap="round" fill="none"/>
-            <path d="M50 72 C56 70 60 68 64 66" stroke="#4a3a2a" strokeWidth="2" strokeLinecap="round" fill="none"/>
-            <WillowCascade cx={36} cy={70} length={14} count={3} seed={1}/>
-            <WillowCascade cx={64} cy={66} length={14} count={3} seed={2}/>
-            <WillowCascade cx={50} cy={60} length={16} count={4} seed={3}/>
-        </svg>
+        <Stage>
+            <Ground rx={18} tone="#7fa353" />
+            <path d="M50 94 C48 86 52 79 50 71" stroke={p.bark.base} strokeWidth="3.2" strokeLinecap="round" fill="none" />
+            <path d="M50 83 C45 80 42 76 41 72" stroke={p.bark.base} strokeWidth="1.9" strokeLinecap="round" fill="none" />
+            <path d="M50 80 C55 77 58 73 59 69" stroke={p.bark.base} strokeWidth="1.9" strokeLinecap="round" fill="none" />
+            <Crown
+                p={p}
+                seed={10}
+                shadow={0.2}
+                gloss={0.3}
+                depth={2}
+                blobs={[
+                    { cx: 42, cy: 68, rx: 7, ry: 4.6 },
+                    { cx: 58, cy: 66, rx: 7, ry: 4.6 },
+                    { cx: 50, cy: 62, rx: 8, ry: 5 },
+                ]}
+            />
+            <Curtain
+                strands={[
+                    { from: [43, 66], control: [40, 74], to: [44, 82], leaves: 4, size: 1.2, seed: 30 },
+                    { from: [58, 64], control: [61, 72], to: [57, 80], leaves: 4, size: 1.2, seed: 31 },
+                ]}
+            />
+        </Stage>
     )
 }
 
 export function YoungSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <WillowGround />
-            <WillowTrunk topY={30}/>
-            <WillowBranches topY={30}/>
-
-            {/* Каскады по веткам */}
-            <WillowCascade cx={22} cy={36} length={22} count={4} seed={10}/>
-            <WillowCascade cx={78} cy={36} length={22} count={4} seed={11}/>
-            <WillowCascade cx={4} cy={38} length={20} count={3} seed={12}/>
-            <WillowCascade cx={96} cy={38} length={20} count={3} seed={13}/>
-            <WillowCascade cx={2} cy={52} length={18} count={3} seed={14}/>
-            <WillowCascade cx={98} cy={52} length={18} count={3} seed={15}/>
-            <WillowCascade cx={50} cy={34} length={24} count={5} seed={16}/>
-            <WillowCascade cx={34} cy={32} length={20} count={4} seed={17}/>
-            <WillowCascade cx={66} cy={32} length={20} count={4} seed={18}/>
-        </svg>
+        <Stage>
+            <Ground rx={23} tone="#7fa353" />
+            <Trunk d="M50 94 C48 78 52 58 50 40" width={4.6} bark={p.bark} />
+            <Branches
+                bark={p.bark}
+                width={2.2}
+                ds={['M50 62 C44 58 39 52 37 44', 'M50 58 C57 54 61 48 63 42', 'M50 48 C47 44 45 39 45 34']}
+            />
+            <Crown p={p} seed={22} blobs={YOUNG_BLOBS} shadow={0.24} gloss={0.28} />
+            <Texture p={p} seed={32} count={16} size={1.2} area={{ cx: 50, cy: 32, rx: 19, ry: 13 }} />
+            <Curtain strands={YOUNG_STRANDS} />
+        </Stage>
     )
 }
 
 export function MatureSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <Aura id="willowAura" color1="#a8d97b" color2="#4e8a3a" />
-            <circle cx="50" cy="45" r="48" fill="url(#willowAura)" />
-            <WillowGround />
-            <WillowTrunk topY={14}/>
-            <WillowBranches topY={14}/>
-
-            {/* Много каскадов — плакучая ива */}
-            <WillowCascade cx={22} cy={20} length={30} count={5} seed={100}/>
-            <WillowCascade cx={78} cy={20} length={30} count={5} seed={101}/>
-            <WillowCascade cx={4} cy={22} length={28} count={4} seed={102}/>
-            <WillowCascade cx={96} cy={22} length={28} count={4} seed={103}/>
-            <WillowCascade cx={2} cy={36} length={26} count={4} seed={104}/>
-            <WillowCascade cx={98} cy={36} length={26} count={4} seed={105}/>
-            <WillowCascade cx={14} cy={20} length={32} count={5} seed={106}/>
-            <WillowCascade cx={86} cy={20} length={32} count={5} seed={107}/>
-
-            <WillowCascade cx={50} cy={18} length={34} count={6} seed={108}/>
-            <WillowCascade cx={34} cy={18} length={30} count={5} seed={109}/>
-            <WillowCascade cx={66} cy={18} length={30} count={5} seed={110}/>
-            <WillowCascade cx={28} cy={30} length={28} count={4} seed={111}/>
-            <WillowCascade cx={72} cy={30} length={28} count={4} seed={112}/>
-            <WillowCascade cx={10} cy={52} length={24} count={4} seed={113}/>
-            <WillowCascade cx={90} cy={52} length={24} count={4} seed={114}/>
-
-            <SparkleRing colorScheme="green" />
-        </svg>
+        <Stage>
+            <ellipse cx="50" cy="88" rx="36" ry="9" fill={p.shade} opacity="0.10" />
+            <Ground rx={31} tone="#7fa353" />
+            <Trunk d="M50 96 C46 76 55 48 50 24" width={8} bark={p.bark} />
+            <Branches
+                bark={p.bark}
+                width={3.2}
+                ds={[
+                    'M50 66 C38 62 26 52 20 40',
+                    'M52 60 C64 54 74 44 80 32',
+                    'M50 46 C42 40 34 32 30 24',
+                    'M50 40 C58 34 66 26 70 18',
+                ]}
+            />
+            <Crown p={p} seed={112} blobs={MATURE_BLOBS} shadow={0.26} gloss={0.28} depth={3} />
+            <Texture p={p} seed={132} count={26} size={1.4} area={{ cx: 50, cy: 28, rx: 31, ry: 17 }} />
+            <Curtain strands={MATURE_STRANDS} />
+        </Stage>
     )
 }

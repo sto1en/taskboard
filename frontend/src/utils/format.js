@@ -39,14 +39,23 @@ export function buildDeadline(date, time, hasTime) {
     return `${date}T00:00:00`
 }
 
+// Цена в листьях: целое число с разделителем тысяч (2500 → «2 500»).
+export function formatPrice(value) {
+    if (value == null) return '0'
+    return Number(value).toLocaleString('ru-RU')
+}
+
 export function resolveUrl(url) {
     if (!url) return null
     if (url.startsWith('http://') || url.startsWith('https://')) {
         return url
     }
+    // Относительные пути ('/uploads/..', '/avatars/..') отдаём как есть:
+    // их проксирует тот же origin (Vite-dev или nginx), поэтому абсолютный
+    // http://localhost:8082 ломал бы картинки при доступе по LAN/ngrok.
     if (url.startsWith('/')) {
         return url
     }
-    // Относительный путь отдаётся через реверс-прокси (/uploads → backend).
+    // Голое имя файла -> стандартный префикс загрузок.
     return `/uploads/${url}`
 }

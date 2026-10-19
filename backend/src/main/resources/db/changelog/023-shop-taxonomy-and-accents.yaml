@@ -1,0 +1,337 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 023 — Таксономия магазина + переработка акцентов
+  #
+  # Что делаем:
+  #   • у деревьев появляются свои «типы» (tree_category_links), чтобы
+  #     в магазине работали чипы и сортировка по типу;
+  #   • каждая аватарка получает хотя бы одну категорию
+  #     (41 безкатегорийная разносится по смыслу);
+  #   • акценты: чиню «Малиновый»/«Лаванду» (неверные hex), ввожу
+  #     РЕДКИЕ акценты с собственной визуальной фишкой (металл),
+  #     добавляю новые редкие и градиентные;
+  #   • поле popularity для сортировки «по популярности» — число покупок
+  #     считается по user_* таблицам, без денормализации.
+  # ============================================================
+
+  # ------------------------------------------------------------
+  # 023-00. Деревья: created_at (для сортировки «новые» и бейджа «Новинка»)
+  #
+  # У аватарок/рамок/акцентов такая колонка появилась ещё в 019, а у деревьев
+  # её не было — бэкенд отдавал createdAt = null, и «Новинка» не показывалась
+  # никогда. Ставим NOW(): у всех нынешних скинов «дата» примерно одна, что
+  # честно — их добавили в магазин разом.
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 023-00-tree-skins-created-at
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: tree_skins
+                columnName: created_at
+      changes:
+        - addColumn:
+            tableName: tree_skins
+            columns:
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints: { nullable: false }
+
+  # ------------------------------------------------------------
+  # 023-01. Деревья: категории
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 023-01-tree-categories
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: tree_categories }
+      changes:
+        - createTable:
+            tableName: tree_categories
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: code,       type: VARCHAR(64),  constraints: { nullable: false, unique: true } }
+              - column: { name: title,      type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT,          constraints: { nullable: false }, defaultValueNumeric: 0 }
+
+  - changeSet:
+      id: 023-02-tree-categories-seed
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: tree_categories }
+        - sqlCheck:
+            expectedResult: 0
+            sql: "SELECT count(*) FROM tree_categories"
+      changes:
+        - insert:
+            tableName: tree_categories
+            columns:
+              - column: { name: code, value: 'classic' }
+              - column: { name: title, value: 'Классические' }
+              - column: { name: sort_order, valueNumeric: 10 }
+        - insert:
+            tableName: tree_categories
+            columns:
+              - column: { name: code, value: 'fruit' }
+              - column: { name: title, value: 'Плодовые' }
+              - column: { name: sort_order, valueNumeric: 20 }
+        - insert:
+            tableName: tree_categories
+            columns:
+              - column: { name: code, value: 'exotic' }
+              - column: { name: title, value: 'Экзотические' }
+              - column: { name: sort_order, valueNumeric: 30 }
+        - insert:
+            tableName: tree_categories
+            columns:
+              - column: { name: code, value: 'conifer' }
+              - column: { name: title, value: 'Хвойные' }
+              - column: { name: sort_order, valueNumeric: 40 }
+        - insert:
+            tableName: tree_categories
+            columns:
+              - column: { name: code, value: 'blossom' }
+              - column: { name: title, value: 'Цветущие' }
+              - column: { name: sort_order, valueNumeric: 50 }
+        - insert:
+            tableName: tree_categories
+            columns:
+              - column: { name: code, value: 'fantasy' }
+              - column: { name: title, value: 'Фантазийные' }
+              - column: { name: sort_order, valueNumeric: 60 }
+
+  - changeSet:
+      id: 023-03-tree-category-links
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: tree_category_links }
+      changes:
+        - createTable:
+            tableName: tree_category_links
+            columns:
+              - column:
+                  name: tree_skin_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: tree_skins(id)
+                    foreignKeyName: fk_tcl_skin
+                    deleteCascade: true
+              - column:
+                  name: category_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: tree_categories(id)
+                    foreignKeyName: fk_tcl_category
+                    deleteCascade: true
+        - addPrimaryKey:
+            tableName: tree_category_links
+            columnNames: tree_skin_id, category_id
+            constraintName: pk_tree_category_links
+        - createIndex:
+            tableName: tree_category_links
+            indexName: idx_tcl_category
+            columns:
+              - column: { name: category_id }
+
+  # Раскладка 20 деревьев по типам. Мультитиповые получают несколько строк —
+  # в сортировке «по типу» такая карточка честно появляется в каждом типе.
+  - changeSet:
+      id: 023-04-tree-category-seed
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: tree_category_links }
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO tree_category_links (tree_skin_id, category_id)
+              SELECT t.id,
+                     (SELECT c.id FROM tree_categories c WHERE c.code = v.cat_code)
+              FROM tree_skins t
+              JOIN (VALUES
+                ('oak',        'classic'),
+                ('birch',      'classic'),
+                ('maple',      'classic'),
+                ('willow',     'classic'),
+                ('apple',      'fruit'),
+                ('cherry',     'fruit'),
+                ('cherry',     'blossom'),
+                ('orange',     'fruit'),
+                ('orange',     'exotic'),
+                ('lemon',      'fruit'),
+                ('lemon',      'exotic'),
+                ('mango',      'fruit'),
+                ('mango',      'exotic'),
+                ('palm',       'exotic'),
+                ('coconut',    'exotic'),
+                ('eucalyptus', 'exotic'),
+                ('cypress',    'conifer'),
+                ('fir',        'conifer'),
+                ('xmas',       'conifer'),
+                ('xmas',       'fantasy'),
+                ('sakura',     'blossom'),
+                ('jacaranda',  'blossom'),
+                ('neon',       'fantasy'),
+                ('crystal',    'fantasy'),
+                ('banyan',     'exotic')
+              ) AS v(tree_code, cat_code) ON v.tree_code = t.code
+              WHERE EXISTS (SELECT 1 FROM tree_categories c WHERE c.code = v.cat_code)
+              ON CONFLICT DO NOTHING;
+
+  # ------------------------------------------------------------
+  # 023-05. Аватарки без категории → «Персонажи»
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 023-05-avatar-characters-category
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: avatar_categories }
+      changes:
+        - sql:
+            sql: |
+              -- Категория-ловушка для оставшихся без типа (в админке её можно
+              -- переименовать). Сортируется после основных.
+              INSERT INTO avatar_categories (code, title, sort_order)
+              VALUES ('characters', 'Персонажи', 70)
+              ON CONFLICT (code) DO NOTHING;
+
+              -- Аниме-персонажи, ушедшие из своей категории (zzz-*), — «Аниме».
+              INSERT INTO avatar_category_links (avatar_id, category_id)
+              SELECT a.id, c.id FROM avatars a
+              JOIN avatar_categories c ON c.code = 'anime'
+              WHERE a.code IN ('zzz-1', 'zzz-2')
+              ON CONFLICT DO NOTHING;
+
+              -- Всё, что до сих пор без категории, — «Персонажи».
+              INSERT INTO avatar_category_links (avatar_id, category_id)
+              SELECT a.id, c.id FROM avatars a
+              JOIN avatar_categories c ON c.code = 'characters'
+              WHERE NOT EXISTS (
+                SELECT 1 FROM avatar_category_links l WHERE l.avatar_id = a.id
+              )
+              ON CONFLICT DO NOTHING;
+
+  # ------------------------------------------------------------
+  # 023-06. Акценты: чиню hex у Малинового и Лаванды
+  #
+  # Раньше «Малиновый» = #dc143c (алый/кармин, по сути красный),
+  # «Лаванда» = #b57edc (скорее lilac/фиолетовый, не серо-сиреневый).
+  # Ставим канонические значения и сохраняем контраст с «Красный» (#ff5630)
+  # и «Фиолетовый» (#8f6ed5).
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 023-06-fix-raspberry-lavender
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: accent_skins }
+      changes:
+        - sql:
+            sql: |
+              UPDATE accent_skins SET hex_color = '#A81E55'
+              WHERE code = 'crimson' AND hex_color IN ('#dc143c', '#DC143C');
+
+              UPDATE accent_skins SET hex_color = '#A995DE'
+              WHERE code = 'lavender' AND hex_color IN ('#b57edc', '#B57EDC');
+
+  # ------------------------------------------------------------
+  # 023-07. Новые акценты: редкие (металл) и градиентные
+  #
+  # Редкие живут отдельной визуальной системой: у них is_gradient = FALSE,
+  # а вторая пара hex (hex2/hex3) + is_rare = TRUE. Фронт рисует для них
+  # металлический/контурный стиль и не показывает их как «обычный цвет».
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 023-07-accent-metal-columns
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: accent_skins }
+      changes:
+        - addColumn:
+            tableName: accent_skins
+            columns:
+              - column:
+                  name: hex_color_tertiary
+                  type: VARCHAR(9)
+                  constraints: { nullable: true }
+              - column:
+                  name: is_rare
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+
+  - changeSet:
+      id: 023-08-accent-new-items
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: accent_skins }
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO accent_skins
+                (code, title, description, hex_color, hex_color_secondary, hex_color_tertiary,
+                 is_gradient, is_rare, price, sort_order, created_at)
+              VALUES
+                -- Градиентные
+                ('meadow',    'Луговой',   'Травяной градиент с солнечной искрой', '#7ed957', '#c8f05a', NULL, TRUE,  FALSE, 350, 210, NOW()),
+                ('dusk',      'Сумерки',   'Фиолетово-розовый закатный переход',   '#5b2a86', '#ff7eb3', NULL, TRUE,  FALSE, 350, 220, NOW()),
+                ('sherbet',   'Щербет',    'Абрикосовый градиент с малиновым',     '#ff9f68', '#ff5f9e', NULL, TRUE,  FALSE, 350, 230, NOW()),
+                ('deepsea',   'Глубина',   'Тёмно-бирюзовый с лазурным свечением', '#0b3954', '#19d3c5', NULL, TRUE,  FALSE, 700, 240, NOW()),
+                -- Редкие (металл) — рисуются контуром/металлом, не заливкой
+                ('rosegold',  'Розовое золото', 'Редкий металл: мягкий розово-золотой отсвет', '#e6a596', '#ffd9c9', '#b76e79', FALSE, TRUE, 2500, 300, NOW()),
+                ('sapphire-metal', 'Сапфир-металл', 'Редкий металл: глубокая синева с бликом', '#0f52ba', '#7fb2ff', '#041e42', FALSE, TRUE, 2500, 310, NOW()),
+                ('onyx',      'Оникс',     'Редкий металл: чёрный камень с серым бликом',  '#1a1a1a', '#8c8c8c', '#000000', FALSE, TRUE, 2500, 320, NOW()),
+                ('hologram',  'Голограмма', 'Редкий эффект: радужный блик по контуру',      '#00e5ff', '#ff00e5', '#ffd600', FALSE, TRUE, 4000, 330, NOW()),
+                ('platinum',  'Платина',    'Редкий металл: холодный серебристый блеск',    '#e5e4e2', '#b8b8b8', '#7a7a7a', FALSE, TRUE, 1500, 340, NOW())
+              ON CONFLICT (code) DO NOTHING;
+
+  - changeSet:
+      id: 023-09-accent-links-fix
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: accent_category_links }
+      changes:
+        - sql:
+            sql: |
+              -- Новые градиентные → категория «Градиентные»
+              INSERT INTO accent_category_links (accent_skin_id, category_id)
+              SELECT s.id, c.id FROM accent_skins s
+              JOIN accent_categories c ON c.code = 'gradient'
+              WHERE s.code IN ('meadow', 'dusk', 'sherbet', 'deepsea')
+              ON CONFLICT DO NOTHING;
+
+              -- Новые редкие → ТОЛЬКО «Редкие» (не дублируем в «Однотонных»)
+              INSERT INTO accent_category_links (accent_skin_id, category_id)
+              SELECT s.id, c.id FROM accent_skins s
+              JOIN accent_categories c ON c.code = 'rare'
+              WHERE s.code IN ('rosegold', 'sapphire-metal', 'onyx', 'hologram', 'platinum')
+              ON CONFLICT DO NOTHING;
+
+              -- Neon/Gold были одновременно «Градиентные» + «Редкие» —
+              -- оставляем их в «Градиентных», снимаем лишнюю привязку.
+              DELETE FROM accent_category_links l
+              USING accent_skins s, accent_categories c
+              WHERE l.accent_skin_id = s.id
+                AND l.category_id = c.id
+                AND c.code = 'rare'
+                AND s.code IN ('neon', 'gold');

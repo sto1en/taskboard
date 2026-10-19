@@ -1,26 +1,34 @@
 import { useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import {
+    fetchRescheduleCandidates,
+    invalidateTasks,
+    selectRescheduleCandidates,
+} from '../../store/slices/tasksSlice'
 import { tasksApi } from '../../api/api'
 import { formatDeadline } from '../../utils/format'
 import useT from '../../hooks/useT'
 import RescheduleModal from './RescheduleModal'
 
 export default function RescheduleBanner() {
-    const [tasks, setTasks] = useState([])
+    // Кандидаты на перенос — серверный стейт из Redux (раньше: локальный
+    // useState + событие 'tasks:refresh').
+    const dispatch = useDispatch()
+    const candidates = useSelector(selectRescheduleCandidates)
+
+    // Задачи, скрытые локально в текущей сессии: snooze/удаление убирают
+    // элемент из баннера без ожидания refetch. Это эфемерное UI-состояние,
+    // поэтому и живёт локально, а серверный список — в Redux.
+    const [hiddenIds, setHiddenIds] = useState([])
     const [dismissed, setDismissed] = useState(false)
     const [openTask, setOpenTask] = useState(null)
 
-    const load = () => {
-        tasksApi.rescheduleCandidates()
-            .then(({ data }) => setTasks(data || []))
-            .catch(() => setTasks([]))
-    }
-
+    // Первичная загрузка кандидатов.
     useEffect(() => {
-        load()
-        const onRefresh = () => load()
-        window.addEventListener('tasks:refresh', onRefresh)
-        return () => window.removeEventListener('tasks:refresh', onRefresh)
-    }, [])
+        dispatch(fetchRescheduleCandidates())
+    }, [dispatch])
+
+    const tasks = candidates.filter((t) => !hiddenIds.includes(t.id))
 
     if (dismissed || tasks.length === 0) return null
 
@@ -37,7 +45,7 @@ export default function RescheduleBanner() {
     const snooze = async () => {
         try {
             await tasksApi.snoozeReschedule(first.id, 24)
-            setTasks(prev => prev.slice(1))
+            setHiddenIds((prev) => [...prev, first.id])
         } catch {}
     }
 
@@ -45,8 +53,7 @@ export default function RescheduleBanner() {
         if (!confirm(`Удалить задачу «${first.title}»?`)) return
         try {
             await tasksApi.delete(first.id)
-            setTasks(prev => prev.slice(1))
-            window.dispatchEvent(new Event('tasks:refresh'))
+            dispatch(invalidateTasks())
         } catch {}
     }
 
@@ -87,8 +94,7 @@ export default function RescheduleBanner() {
                 task={openTask}
                 onClose={() => setOpenTask(null)}
                 onUpdated={() => {
-                    setTasks(prev => prev.slice(1))
-                    window.dispatchEvent(new Event('tasks:refresh'))
+                    dispatch(invalidateTasks())
                 }}
             />
         </>

@@ -113,34 +113,42 @@ public class DataInitializerConfig implements CommandLineRunner {
 
     // ============================================================
     // ACHIEVEMENTS
+    //
+    // reward — листья. Масштаб согласован с 021-shop-economy-rebalance.yaml
+    // и с ценами магазина:
+    //   30–80    — «первый день» (мелочи, ловятся сразу)
+    //   150–300  — «первая неделя»
+    //   400–600  — «первый месяц»
+    //   1000–2500 — длинный хвост (топовый предмет за одну ачивку)
+    // Доход без ачивок: 10 листьев за задачу + 100 за каждое взрослое дерево.
     // ============================================================
     private void initAchievements() {
         if (achievementRepository.count() > 0) return;
         achievementRepository.saveAll(List.of(
                 ach("FIRST_TASK",     "🌱 Росток",            "Закрыта первая задача",                          "🌱", "green",  "TASKS_DONE_TOTAL",   1,   10,  50,   null,   null),
-                ach("TEN_TASKS",      "🌿 Первые шаги",        "Закрыто 10 задач",                               "🌿", "green",  "TASKS_DONE_TOTAL",   10,  20,  200,  null,   null),
-                ach("FIFTY_TASKS",    "🌳 Полтинник",          "Закрыто 50 задач",                               "🌳", "green",  "TASKS_DONE_TOTAL",   50,  30,  700,  null,   null),
-                ach("HUNDRED_TASKS",  "🏆 Сотня",              "Закрыто 100 задач",                              "🏆", "amber",  "TASKS_DONE_TOTAL",   100, 40,  1500, "ACCENT", "forest"),
-                ach("FIVE_HUNDRED",   "🚀 Пятьсот",            "Закрыто 500 задач",                              "🚀", "purple", "TASKS_DONE_TOTAL",   500, 50,  5000, "FRAME",  "oak"),
-                ach("MARATHON_10",    "⚡ Марафонец",          "10 задач за один день",                          "⚡", "amber",  "TASKS_DONE_DAY",     10,  60,  300,  null,   null),
-                ach("FIRE_25",        "🔥 Огонь",              "25 задач за один день",                          "🔥", "red",    "TASKS_DONE_DAY",     25,  70,  1000, null,   null),
-                ach("WEEK_STREAK",    "📅 Стабильность",       "Задачи закрывались 7 дней подряд",               "📅", "blue",   "STREAK_DAYS",        7,   80,  500,  null,   null),
-                ach("MONTH_STREAK",   "💪 Дисциплина",         "30 дней подряд с закрытыми задачами",            "💪", "purple", "STREAK_DAYS",        30,  90,  3000, "FRAME",  "pulse"),
-                ach("FIVE_BOARDS",    "📋 Хранитель досок",    "Создано 5 досок",                                "📋", "blue",   "BOARDS_CREATED",     5,   100, 300,  null,   null),
-                ach("TEN_PROJECTS",   "🗂️ Стратег",            "Создано 10 проектов",                            "🗂️", "indigo", "PROJECTS_CREATED",   10,  110, 600,  null,   null),
-                ach("COVER_SET",      "🎨 Оформитель",         "У доски установлена обложка",                    "🎨", "pink",   "BOARD_COVER_SET",    1,   120, 100,  null,   null),
+                ach("TEN_TASKS",      "🌿 Первые шаги",        "Закрыто 10 задач",                               "🌿", "green",  "TASKS_DONE_TOTAL",   10,  20,  150,  null,   null),
+                ach("FIFTY_TASKS",    "🌳 Полтинник",          "Закрыто 50 задач",                               "🌳", "green",  "TASKS_DONE_TOTAL",   50,  30,  500,  null,   null),
+                ach("HUNDRED_TASKS",  "🏆 Сотня",              "Закрыто 100 задач",                              "🏆", "amber",  "TASKS_DONE_TOTAL",   100, 40,  1000, "ACCENT", "forest"),
+                ach("FIVE_HUNDRED",   "🚀 Пятьсот",            "Закрыто 500 задач",                              "🚀", "purple", "TASKS_DONE_TOTAL",   500, 50,  1500, "FRAME",  "oak"),
+                ach("MARATHON_10",    "⚡ Марафонец",          "10 задач за один день",                          "⚡", "amber",  "TASKS_DONE_DAY",     10,  60,  200,  null,   null),
+                ach("FIRE_25",        "🔥 Огонь",              "25 задач за один день",                          "🔥", "red",    "TASKS_DONE_DAY",     25,  70,  600,  null,   null),
+                ach("WEEK_STREAK",    "📅 Стабильность",       "Задачи закрывались 7 дней подряд",               "📅", "blue",   "STREAK_DAYS",        7,   80,  300,  null,   null),
+                ach("MONTH_STREAK",   "💪 Дисциплина",         "30 дней подряд с закрытыми задачами",            "💪", "purple", "STREAK_DAYS",        30,  90,  1200, "FRAME",  "pulse"),
+                ach("FIVE_BOARDS",    "📋 Хранитель досок",    "Создано 5 досок",                                "📋", "blue",   "BOARDS_CREATED",     5,   100, 200,  null,   null),
+                ach("TEN_PROJECTS",   "🗂️ Стратег",            "Создано 10 проектов",                            "🗂️", "indigo", "PROJECTS_CREATED",   10,  110, 400,  null,   null),
+                ach("COVER_SET",      "🎨 Оформитель",         "У доски установлена обложка",                    "🎨", "pink",   "BOARD_COVER_SET",    1,   120, 80,   null,   null),
                 ach("FIRST_EXPIRED",  "⏰ Первый просроченный", "Первая просроченная задача. Ничего страшного!",  "⏰", "slate",  "EXPIRED_FIRST",      1,   130, 20,   null,   null),
                 ach("DEBTOR",         "💀 Должник",            "10 просроченных задач",                          "💀", "maroon", "EXPIRED_TOTAL",      10,  140, 50,   null,   null),
-                ach("ON_TIME_10",     "🎯 В срок",             "10 задач закрыто до дедлайна",                   "🎯", "teal",   "ON_TIME_TOTAL",      10,  150, 400,  null,   null),
-                ach("NIGHT_OWL",      "🦉 Ночной сторож",      "Задача закрыта после 23:00",                     "🦉", "violet", "NIGHT_TASK",         1,   160, 100,  null,   null),
-                ach("TREE_YOUNG",     "🌸 Сакура цветёт",      "Дерево выросло до стадии «молодое»",             "🌸", "pink",   "TREE_STAGE",         1,   170, 250,  null,   null),
-                ach("TREE_MATURE",    "🌳 Могучий дуб",        "Дерево выросло до стадии «взрослое»",            "🌳", "green",  "TREE_STAGE",         2,   180, 600,  "TREE",  "oak"),
+                ach("ON_TIME_10",     "🎯 В срок",             "10 задач закрыто до дедлайна",                   "🎯", "teal",   "ON_TIME_TOTAL",      10,  150, 250,  null,   null),
+                ach("NIGHT_OWL",      "🦉 Ночной сторож",      "Задача закрыта после 23:00",                     "🦉", "violet", "NIGHT_TASK",         1,   160, 80,   null,   null),
+                ach("TREE_YOUNG",     "🌸 Сакура цветёт",      "Дерево выросло до стадии «молодое»",             "🌸", "pink",   "TREE_STAGE",         1,   170, 200,  null,   null),
+                ach("TREE_MATURE",    "🌳 Могучий дуб",        "Дерево выросло до стадии «взрослое»",            "🌳", "green",  "TREE_STAGE",         2,   180, 500,  "TREE",  "oak"),
                 ach("TREE_HARVEST",   "🍎 Урожай",             "Взрослое дерево и 100 закрытых задач",           "🍎", "red",    "TREE_HARVEST",       1,   190, 1000, "TREE",  "cherry"),
                 ach("DUCK",           "🦆 Утка-программист",   "Задача с текстом «утка»",                        "🦆", "yellow", "TEXT_CONTAINS",      1,   200, 30,   null,   null),
-                ach("NINJA",          "🥷 Ниндзя",             "5 задач за 10 минут",                            "🥷", "slate",  "NINJA_10MIN",        1,   210, 300,  null,   null),
-                ach("CLEAN_WEEK",     "🧹 Чистюля",            "Неделя без просроченных задач",                  "🧹", "mint",   "CLEAN_WEEK",         1,   220, 500,  null,   null),
+                ach("NINJA",          "🥷 Ниндзя",             "5 задач за 10 минут",                            "🥷", "slate",  "NINJA_10MIN",        1,   210, 200,  null,   null),
+                ach("CLEAN_WEEK",     "🧹 Чистюля",            "Неделя без просроченных задач",                  "🧹", "mint",   "CLEAN_WEEK",         1,   220, 400,  null,   null),
                 ach("JOKER",          "🎭 Шутник",             "Задача со словом «лол» или «:D»",                "🎭", "magenta","TEXT_CONTAINS",      1,   230, 30,   null,   null),
-                ach("XMAS_TREE",      "🎄 Новый год!",         "Ёлка полностью наряжена и гирлянда горит",       "🎄", "red",    "XMAS_TREE_DONE",     1,   240, 2000, "TREE",  "xmas")
+                ach("XMAS_TREE",      "🎄 Новый год!",         "Ёлка полностью наряжена и гирлянда горит",       "🎄", "red",    "XMAS_TREE_DONE",     1,   240, 1500, "TREE",  "xmas")
         ));
     }
 
@@ -165,13 +173,16 @@ public class DataInitializerConfig implements CommandLineRunner {
     // ============================================================
     private void initTreeSkins() {
         if (treeSkinRepository.count() > 0) return;
+        // Цены согласованы с 021-shop-economy-rebalance.yaml.
+        // Ориентир: за первые 3 дня активный пользователь набирает ~600–700
+        // листьев, значит 600 — «первая серьёзная покупка», 2000–2500 — топ.
         treeSkinRepository.saveAll(List.of(
-                treeSkin("sakura", "Сакура",  "Нежная цветущая сакура",        2000, 10),
-                treeSkin("birch",  "Берёза",  "Стройная белоствольная берёза", 200,  20),
-                treeSkin("palm",   "Пальма",  "Тропическая пальма",            500,  30),
-                treeSkin("apple",  "Яблоня",  "Яблоня с красными плодами",     1000, 40),
-                treeSkin("oak",    "Дуб",     "Могучий вековой дуб",           2500, 50),
-                treeSkin("cherry", "Вишня",   "Цветущая вишня",                1500, 60),
+                treeSkin("birch",  "Берёза",  "Стройная белоствольная берёза", 40,   10),
+                treeSkin("oak",    "Дуб",     "Могучий вековой дуб",           100,  20),
+                treeSkin("palm",   "Пальма",  "Тропическая пальма",            400,  30),
+                treeSkin("apple",  "Яблоня",  "Яблоня с красными плодами",     600,  40),
+                treeSkin("cherry", "Вишня",   "Цветущая вишня",                1200, 50),
+                treeSkin("sakura", "Сакура",  "Нежная цветущая сакура",        2000, 60),
                 treeSkin("xmas",   "Ёлка",    "Новогодняя ёлка",               4000, 70)
         ));
     }

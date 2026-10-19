@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import Modal from '../Modal/Modal'
+import Modal from '../modal/Modal'
 import { adminApi } from '../../api/api'
 import { resolveUrl } from '../../utils/format'
 import CategoryMultiSelect from './CategoryMultiSelect'

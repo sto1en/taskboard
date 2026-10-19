@@ -15,7 +15,7 @@ import {
     horizontalListSortingStrategy,
     arrayMove,
 } from '@dnd-kit/sortable'
-import SortableKanbanColumn from '../Board/SortableKanbanColumn'
+import SortableKanbanColumn from '../board/SortableKanbanColumn'
 import TaskCard from './TaskCard'
 import { tasksApi, statusesApi } from '../../api/api'
 import { sortTasks } from '../../utils/sortTasks'

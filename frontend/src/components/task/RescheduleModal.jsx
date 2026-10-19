@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import Modal from '../Modal/Modal'
+import { useDispatch } from 'react-redux'
+import { invalidateTasks } from '../../store/slices/tasksSlice'
+import Modal from '../modal/Modal'
 import { tasksApi } from '../../api/api'
 import { splitDeadline, buildDeadline } from '../../utils/format'
 import useT from '../../hooks/useT'
 
 export default function RescheduleModal({ open, task, onClose, onUpdated }) {
     const t = useT()
+    const dispatch = useDispatch()
     const [date, setDate] = useState('')
     const [time, setTime] = useState('')
     const [hasTime, setHasTime] = useState(false)
@@ -30,7 +33,7 @@ export default function RescheduleModal({ open, task, onClose, onUpdated }) {
         try {
             const deadline = buildDeadline(date, time, hasTime)
             await tasksApi.update(task.id, { deadline })
-            window.dispatchEvent(new Event('tasks:refresh'))
+            dispatch(invalidateTasks())
             onUpdated && onUpdated()
             onClose()
         } catch (e) {

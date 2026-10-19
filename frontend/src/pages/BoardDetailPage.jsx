@@ -1,25 +1,21 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
+import { fetchPinned } from '../store/slices/sidebarSlice'
 import { boardsApi, projectsApi } from '../api/api'
-import BoardToolbar from '../components/Board/BoardToolbar'
-import ProjectsGrid from '../components/Project/ProjectsGrid'
+import BoardToolbar from '../components/board/BoardToolbar'
+import ProjectsGrid from '../components/project/ProjectsGrid'
 import useT from '../hooks/useT'
 
 export default function BoardDetailPage() {
     const { id } = useParams()
     const nav = useNavigate()
     const t = useT()
+    const dispatch = useDispatch()
     const [board, setBoard] = useState(null)
     const [projects, setProjects] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
-
-    const reloadProjects = useCallback(() => {
-        if (!id) return
-        projectsApi.listByBoard(id)
-            .then(({ data }) => setProjects(data))
-            .catch(() => {})
-    }, [id])
 
     useEffect(() => {
         if (!id) return
@@ -42,21 +38,10 @@ export default function BoardDetailPage() {
             .finally(() => setLoading(false))
     }, [id])
 
-    // Обновляем проекты при изменениях в трее / при перетаскивании
-    useEffect(() => {
-        const onRefresh = () => reloadProjects()
-        window.addEventListener('projects:refresh', onRefresh)
-        window.addEventListener('sidebar:refresh', onRefresh)
-        return () => {
-            window.removeEventListener('projects:refresh', onRefresh)
-            window.removeEventListener('sidebar:refresh', onRefresh)
-        }
-    }, [reloadProjects])
-
     const handleDeleteBoard = async (boardId) => {
         try {
             await boardsApi.delete(boardId)
-            window.dispatchEvent(new Event('sidebar:refresh'))
+            dispatch(fetchPinned())
             nav('/boards')
         } catch (err) {
             alert(err.response?.data?.message || 'Ошибка удаления')
@@ -67,7 +52,7 @@ export default function BoardDetailPage() {
         try {
             await projectsApi.delete(projectId)
             setProjects(prev => prev.filter(p => p.id !== projectId))
-            window.dispatchEvent(new Event('sidebar:refresh'))
+            dispatch(fetchPinned())
         } catch (err) {
             alert(err.response?.data?.message || 'Ошибка удаления')
         }

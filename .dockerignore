@@ -1,0 +1,31 @@
+# Корневой контекст сборки не нужен — каждый сервис собирается
+# из своей папки (backend/, frontend/). Здесь только подстраховка.
+
+.git/
+.gitignore
+
+backend/target/
+backend/uploads/
+backend/.idea/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.idea/
+
+.idea/
+.vscode/
+
+.env
+.env.*
+!.env.docker.example
+
+.obsidian/
+taskboard/
+.copilot/
+.opencode/
+copilot/
+
+*.log
+logs/
+all-code.txt
+test.html

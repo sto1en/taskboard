@@ -1,25 +1,36 @@
 // frontend/src/pages/ShopPage.jsx
 
 import { useEffect, useMemo, useState } from 'react'
-import { shopApi, adminApi } from '../api/api'
+import { useDispatch } from 'react-redux'
+import { shopApi } from '../api/api'
+import { fetchShop } from '../store/slices/shopSlice'
 import useT from '../hooks/useT'
 import { useAuth } from '../context/AuthContext'
-import AvatarCard from '../components/Shop/AvatarCard'
-import FrameCard from '../components/Shop/FrameCard'
-import TreeSkinCard from '../components/Shop/TreeSkinCard'
-import AccentCard from '../components/Shop/AccentCard'
-import CategoryChips from '../components/Shop/CategoryChips'
-import SortToggle from '../components/Shop/SortToggle'
-import ShopEmptyState from '../components/Shop/ShopEmptyState'
-import ShopPagination from '../components/Shop/ShopPagination'
+import { formatPrice } from '../utils/format'
+import { prepareShopList } from '../utils/shopSort'
+import AvatarCard from '../components/shop/AvatarCard'
+import FrameCard from '../components/shop/FrameCard'
+import TreeSkinCard from '../components/shop/TreeSkinCard'
+import AccentCard from '../components/shop/AccentCard'
+import CategoryChips from '../components/shop/CategoryChips'
+import SortToggle from '../components/shop/SortToggle'
+import ShopEmptyState from '../components/shop/ShopEmptyState'
+import ShopPagination from '../components/shop/ShopPagination'
 
 const PAGE_SIZE = 24
+
+// Сортировка по умолчанию — «популярность + новые». Сбрасывается при каждом
+// открытии магазина (это состояние живёт только в компоненте).
+const DEFAULT_SORT = { sortBy: 'popular', sortDir: 'desc' }
 
 // Хелпер: гарантирует массив, даже если с бэка пришёл null / не объект
 const asArray = (v) => (Array.isArray(v) ? v : [])
 
+const TABS = ['avatars', 'frames', 'trees', 'accents']
+
 export default function ShopPage() {
     const t = useT()
+    const dispatch = useDispatch()
     const { user } = useAuth()
     const [tab, setTab] = useState('avatars')
     const [data, setData] = useState(null)
@@ -29,39 +40,49 @@ export default function ShopPage() {
     const [avatarCategories, setAvatarCategories] = useState([])
     const [frameCategories, setFrameCategories] = useState([])
     const [accentCategories, setAccentCategories] = useState([])
+    const [treeCategories, setTreeCategories] = useState([])
 
     const [selectedAvatarCats, setSelectedAvatarCats] = useState([])
     const [selectedFrameCats, setSelectedFrameCats] = useState([])
+    const [selectedTreeCats, setSelectedTreeCats] = useState([])
     const [selectedAccentCats, setSelectedAccentCats] = useState([])
 
-    const [sortBy, setSortBy] = useState('default')
-    const [sortDir, setSortDir] = useState('asc')
+    // Сервер понимает только «цену» и «популярность». «По типу» и «порядок»
+    // разворачиваются на клиенте (см. utils/shopSort.js).
+    const [sortBy, setSortBy] = useState(DEFAULT_SORT.sortBy)
+    const [sortDir, setSortDir] = useState(DEFAULT_SORT.sortDir)
 
-    const [pageAvatars, setPageAvatars] = useState(0)
-    const [pageFrames, setPageFrames] = useState(0)
-    const [pageTrees, setPageTrees] = useState(0)
-    const [pageAccents, setPageAccents] = useState(0)
+    const [page, setPage] = useState(0)
 
     useEffect(() => {
         Promise.all([
-            adminApi.listAvatarCategories().then(({ data }) => data).catch(() => []),
-            adminApi.listFrameCategories().then(({ data }) => data).catch(() => []),
-            adminApi.listAccentCategories().then(({ data }) => data).catch(() => []),
-        ]).then(([ac, fc, acc]) => {
+            shopApi.avatarCategories().then(({ data }) => data).catch(() => []),
+            shopApi.frameCategories().then(({ data }) => data).catch(() => []),
+            shopApi.accentCategories().then(({ data }) => data).catch(() => []),
+            shopApi.treeCategories().then(({ data }) => data).catch(() => []),
+        ]).then(([ac, fc, acc, tc]) => {
             setAvatarCategories(asArray(ac))
             setFrameCategories(asArray(fc))
             setAccentCategories(asArray(acc))
+            setTreeCategories(asArray(tc))
         })
     }, [])
 
+    // Категории деревьев = типы. Приходят из отдельного публичного эндпоинта,
+    // а id для фильтрации берём из самих предметов (categories[].id).
     const load = () => {
         setLoading(true)
         setError(null)
 
         const params = {}
-        if (sortBy !== 'default') {
-            params.sortBy = sortBy
+        // Сервер умеет популярность и цену; «по типу»/«порядку» — клиентские,
+        // но сортировку цены всё равно отдаём на бэк (там же стабильный порядок).
+        if (sortBy === 'price') {
+            params.sortBy = 'price'
             params.sortDir = sortDir
+        } else if (sortBy === 'popular') {
+            params.sortBy = 'popular'
+            params.sortDir = 'desc'
         }
         if (selectedAvatarCats.length > 0) params.avatarCategoryIds = selectedAvatarCats
         if (selectedFrameCats.length > 0) params.frameCategoryIds = selectedFrameCats
@@ -77,7 +98,7 @@ export default function ShopPage() {
 
     useEffect(() => {
         load()
-        // eslint-disable-next-line
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         sortBy,
         sortDir,
@@ -86,17 +107,16 @@ export default function ShopPage() {
         selectedAccentCats.join(','),
     ])
 
+    // Смена вкладки/фильтра/сортировки — всегда с первой страницы.
     useEffect(() => {
-        setPageAvatars(0)
-        setPageFrames(0)
-        setPageTrees(0)
-        setPageAccents(0)
+        setPage(0)
     }, [
         tab,
         sortBy,
         sortDir,
         selectedAvatarCats.join(','),
         selectedFrameCats.join(','),
+        selectedTreeCats.join(','),
         selectedAccentCats.join(','),
     ])
 
@@ -104,8 +124,9 @@ export default function ShopPage() {
         try {
             await fn()
             load()
-            window.dispatchEvent(new Event('shop:refresh'))
-            window.dispatchEvent(new Event('user:refresh'))
+            // Покупка/экипировка меняет и канонический стейт магазина
+            // (баланс листьев, активные аватар/рамка/скин) для Sidebar и TopBar.
+            dispatch(fetchShop())
         } catch (err) {
             alert(err.response?.data?.message || 'Ошибка')
         }
@@ -114,22 +135,25 @@ export default function ShopPage() {
     const resetActiveFilter = () => {
         if (tab === 'avatars') setSelectedAvatarCats([])
         else if (tab === 'frames') setSelectedFrameCats([])
+        else if (tab === 'trees') setSelectedTreeCats([])
         else if (tab === 'accents') setSelectedAccentCats([])
     }
 
     const currentCategories = useMemo(() => {
         if (tab === 'avatars') return avatarCategories
         if (tab === 'frames') return frameCategories
+        if (tab === 'trees') return treeCategories
         if (tab === 'accents') return accentCategories
         return []
-    }, [tab, avatarCategories, frameCategories, accentCategories])
+    }, [tab, avatarCategories, frameCategories, treeCategories, accentCategories])
 
     const currentSelected = useMemo(() => {
         if (tab === 'avatars') return selectedAvatarCats
         if (tab === 'frames') return selectedFrameCats
+        if (tab === 'trees') return selectedTreeCats
         if (tab === 'accents') return selectedAccentCats
         return []
-    }, [tab, selectedAvatarCats, selectedFrameCats, selectedAccentCats])
+    }, [tab, selectedAvatarCats, selectedFrameCats, selectedTreeCats, selectedAccentCats])
 
     const toggleCategory = (id) => {
         if (tab === 'avatars') {
@@ -140,6 +164,10 @@ export default function ShopPage() {
             setSelectedFrameCats(prev =>
                 prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
             )
+        } else if (tab === 'trees') {
+            setSelectedTreeCats(prev =>
+                prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+            )
         } else if (tab === 'accents') {
             setSelectedAccentCats(prev =>
                 prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -147,73 +175,153 @@ export default function ShopPage() {
         }
     }
 
-    const paginate = (arr, page) => {
-        const list = asArray(arr)
-        const start = page * PAGE_SIZE
-        return list.slice(start, start + PAGE_SIZE)
-    }
-
-    const showFilters = tab === 'avatars' || tab === 'frames' || tab === 'accents'
-    const hasFilter = currentSelected.length > 0
-
     // Вытащим массивы один раз
     const avatars   = asArray(data?.avatars)
     const frames    = asArray(data?.frames)
     const treeSkins = asArray(data?.treeSkins)
     const accents   = asArray(data?.accents)
 
+    // Фильтр деревьев по типу (сервер дерево-категории не фильтрует:
+    // /shop отдаёт все, поэтому фильтруем здесь — это дешевле запроса).
+    const filteredTrees = useMemo(() => {
+        if (selectedTreeCats.length === 0) return treeSkins
+        return treeSkins.filter(s =>
+            (s.categories || []).some(c => selectedTreeCats.includes(c.id))
+        )
+    }, [treeSkins, selectedTreeCats])
+
+    const rawList = useMemo(() => {
+        if (tab === 'avatars') return avatars
+        if (tab === 'frames') return frames
+        if (tab === 'trees') return filteredTrees
+        if (tab === 'accents') return accents
+        return []
+    }, [tab, avatars, frames, filteredTrees, accents])
+
+    // Подготовка списка: сортировка + размножение карточек по типам.
+    // «Прочее» передаём на языке интерфейса — от него зависит буквенный блок.
+    const rows = useMemo(
+        () => prepareShopList(rawList, sortBy, sortDir, t.shopMiscType),
+        [rawList, sortBy, sortDir, t.shopMiscType],
+    )
+
+    const start = page * PAGE_SIZE
+    const pageRows = rows.slice(start, start + PAGE_SIZE)
+
     const activeAvatar = avatars.find(a => a.active) || null
+    const activeFrame = frames.find(f => f.active) || null
     const userDisplayName = user?.profile?.displayName || user?.username
+
+    const hasFilter = currentSelected.length > 0
+
+    const emptyMessage = (() => {
+        if (tab === 'avatars') return 'Нет аватарок в этой категории'
+        if (tab === 'frames') return 'Нет рамок в этой категории'
+        if (tab === 'trees') return 'Нет деревьев в этой категории'
+        return 'Нет акцентов в этой категории'
+    })()
+
+    const renderRow = ({ item, key }) => {
+        if (tab === 'avatars') {
+            return (
+                <AvatarCard
+                    key={key}
+                    item={item}
+                    userFrame={activeFrame}
+                    onBuy={() => wrap(() => shopApi.buyAvatar(item.id))}
+                    onEquip={() => wrap(() => shopApi.equipAvatar(item.id))}
+                />
+            )
+        }
+        if (tab === 'frames') {
+            return (
+                <FrameCard
+                    key={key}
+                    item={item}
+                    userAvatar={activeAvatar}
+                    userDisplayName={userDisplayName}
+                    userUsername={user?.username}
+                    onBuy={() => wrap(() => shopApi.buyFrame(item.id))}
+                    onEquip={() => wrap(() => shopApi.equipFrame(item.id))}
+                    onUnequip={() => wrap(() => shopApi.unequipFrame())}
+                />
+            )
+        }
+        if (tab === 'trees') {
+            return (
+                <TreeSkinCard
+                    key={key}
+                    item={item}
+                    onBuy={() => wrap(() => shopApi.buyTreeSkin(item.id))}
+                    onEquip={() => wrap(() => shopApi.equipTreeSkin(item.id))}
+                    onUnequip={() => wrap(() => shopApi.unequipTreeSkin())}
+                />
+            )
+        }
+        return (
+            <AccentCard
+                key={key}
+                item={item}
+                onBuy={() => wrap(() => shopApi.buyAccent(item.id))}
+                onEquip={() => wrap(() => shopApi.equipAccent(item.id))}
+                onUnequip={() => wrap(() => shopApi.unequipAccent())}
+            />
+        )
+    }
+
+    const tabCount = (list) => list.length > 0 && (
+        <span className="shop__tab-count">{list.length}</span>
+    )
 
     return (
         <div className="shop">
             <div className="shop__head">
                 <h1 className="shop__title">Магазин</h1>
-                {data && (
-                    <div className="shop__balance" title="Листья">
-                        🍃 <b>{data.leaves ?? 0}</b>
-                    </div>
-                )}
+                <div className="shop__head-right">
+                    {data && (
+                        <div className="shop__balance" title={t.shopLeaves}>
+                            🍃 <b>{formatPrice(data.leaves ?? 0)}</b>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="shop__tabs">
                 <button className={`shop__tab ${tab === 'avatars' ? 'shop__tab--active' : ''}`}
-                        onClick={() => setTab('avatars')}>
-                    Аватарки {avatars.length > 0 && <span className="shop__tab-count">{avatars.length}</span>}
+                        onClick={() => setTab(TABS[0])}>
+                    Аватарки {tabCount(avatars)}
                 </button>
                 <button className={`shop__tab ${tab === 'frames' ? 'shop__tab--active' : ''}`}
-                        onClick={() => setTab('frames')}>
-                    Рамки {frames.length > 0 && <span className="shop__tab-count">{frames.length}</span>}
+                        onClick={() => setTab(TABS[1])}>
+                    Рамки {tabCount(frames)}
                 </button>
                 <button className={`shop__tab ${tab === 'trees' ? 'shop__tab--active' : ''}`}
-                        onClick={() => setTab('trees')}>
-                    Деревья {treeSkins.length > 0 && <span className="shop__tab-count">{treeSkins.length}</span>}
+                        onClick={() => setTab(TABS[2])}>
+                    Деревья {tabCount(treeSkins)}
                 </button>
                 <button className={`shop__tab ${tab === 'accents' ? 'shop__tab--active' : ''}`}
-                        onClick={() => setTab('accents')}>
-                    Акценты {accents.length > 0 && <span className="shop__tab-count">{accents.length}</span>}
+                        onClick={() => setTab(TABS[3])}>
+                    Акценты {tabCount(accents)}
                 </button>
             </div>
 
-            {showFilters && (
-                <div className="shop__toolbar">
-                    <CategoryChips
-                        categories={currentCategories}
-                        selectedIds={currentSelected}
-                        onToggle={toggleCategory}
-                        onClearAll={resetActiveFilter}
-                        allLabel="Все"
-                    />
-                    <SortToggle
-                        sortBy={sortBy}
-                        sortDir={sortDir}
-                        onChange={(sb, sd) => {
-                            setSortBy(sb)
-                            setSortDir(sd)
-                        }}
-                    />
-                </div>
-            )}
+            <div className="shop__toolbar">
+                <CategoryChips
+                    categories={currentCategories}
+                    selectedIds={currentSelected}
+                    onToggle={toggleCategory}
+                    onClearAll={resetActiveFilter}
+                    allLabel={t.shopTypeAll}
+                />
+                <SortToggle
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onChange={(sb, sd) => {
+                        setSortBy(sb)
+                        setSortDir(sd)
+                    }}
+                />
+            </div>
 
             {loading && <div className="loading">{t.loading}</div>}
             {error && <div className="error">{error}</div>}
@@ -222,123 +330,25 @@ export default function ShopPage() {
                 <ShopEmptyState message="Магазин недоступен" />
             )}
 
-            {/* ==== AVATARS ==== */}
-            {!loading && data && tab === 'avatars' && (
-                avatars.length === 0 ? (
-                    <ShopEmptyState
-                        onReset={hasFilter ? resetActiveFilter : null}
-                        message="Нет аватарок в этой категории"
-                    />
-                ) : (
-                    <>
-                        <div className="shop__grid">
-                            {paginate(avatars, pageAvatars).map(a => (
-                                <AvatarCard
-                                    key={a.id}
-                                    item={a}
-                                    onBuy={() => wrap(() => shopApi.buyAvatar(a.id))}
-                                    onEquip={() => wrap(() => shopApi.equipAvatar(a.id))}
-                                />
-                            ))}
-                        </div>
-                        <ShopPagination
-                            page={pageAvatars}
-                            pageSize={PAGE_SIZE}
-                            total={avatars.length}
-                            onChange={setPageAvatars}
-                        />
-                    </>
-                )
+            {!loading && data && rows.length === 0 && (
+                <ShopEmptyState
+                    onReset={hasFilter ? resetActiveFilter : null}
+                    message={emptyMessage}
+                />
             )}
 
-            {/* ==== FRAMES ==== */}
-            {!loading && data && tab === 'frames' && (
-                frames.length === 0 ? (
-                    <ShopEmptyState
-                        onReset={hasFilter ? resetActiveFilter : null}
-                        message="Нет рамок в этой категории"
+            {!loading && data && rows.length > 0 && (
+                <>
+                    <div className="shop__grid">
+                        {pageRows.map(renderRow)}
+                    </div>
+                    <ShopPagination
+                        page={page}
+                        pageSize={PAGE_SIZE}
+                        total={rows.length}
+                        onChange={setPage}
                     />
-                ) : (
-                    <>
-                        <div className="shop__grid">
-                            {paginate(frames, pageFrames).map(f => (
-                                <FrameCard
-                                    key={f.id}
-                                    item={f}
-                                    userAvatar={activeAvatar}
-                                    userDisplayName={userDisplayName}
-                                    userUsername={user?.username}
-                                    onBuy={() => wrap(() => shopApi.buyFrame(f.id))}
-                                    onEquip={() => wrap(() => shopApi.equipFrame(f.id))}
-                                    onUnequip={() => wrap(() => shopApi.unequipFrame())}
-                                />
-                            ))}
-                        </div>
-                        <ShopPagination
-                            page={pageFrames}
-                            pageSize={PAGE_SIZE}
-                            total={frames.length}
-                            onChange={setPageFrames}
-                        />
-                    </>
-                )
-            )}
-
-            {/* ==== TREES ==== */}
-            {!loading && data && tab === 'trees' && (
-                treeSkins.length === 0 ? (
-                    <ShopEmptyState message="Нет деревьев" />
-                ) : (
-                    <>
-                        <div className="shop__grid">
-                            {paginate(treeSkins, pageTrees).map(s => (
-                                <TreeSkinCard
-                                    key={s.id}
-                                    item={s}
-                                    onBuy={() => wrap(() => shopApi.buyTreeSkin(s.id))}
-                                    onEquip={() => wrap(() => shopApi.equipTreeSkin(s.id))}
-                                    onUnequip={() => wrap(() => shopApi.unequipTreeSkin())}
-                                />
-                            ))}
-                        </div>
-                        <ShopPagination
-                            page={pageTrees}
-                            pageSize={PAGE_SIZE}
-                            total={treeSkins.length}
-                            onChange={setPageTrees}
-                        />
-                    </>
-                )
-            )}
-
-            {/* ==== ACCENTS ==== */}
-            {!loading && data && tab === 'accents' && (
-                accents.length === 0 ? (
-                    <ShopEmptyState
-                        onReset={hasFilter ? resetActiveFilter : null}
-                        message="Нет акцентов в этой категории"
-                    />
-                ) : (
-                    <>
-                        <div className="shop__grid">
-                            {paginate(accents, pageAccents).map(a => (
-                                <AccentCard
-                                    key={a.id}
-                                    item={a}
-                                    onBuy={() => wrap(() => shopApi.buyAccent(a.id))}
-                                    onEquip={() => wrap(() => shopApi.equipAccent(a.id))}
-                                    onUnequip={() => wrap(() => shopApi.unequipAccent())}
-                                />
-                            ))}
-                        </div>
-                        <ShopPagination
-                            page={pageAccents}
-                            pageSize={PAGE_SIZE}
-                            total={accents.length}
-                            onChange={setPageAccents}
-                        />
-                    </>
-                )
+                </>
             )}
         </div>
     )

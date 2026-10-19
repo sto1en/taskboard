@@ -1,6 +1,5 @@
 package coursework.taskboard.model.shop;
 
-import coursework.taskboard.model.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -13,14 +12,17 @@ import lombok.*;
 @Builder
 public class UserCurrency {
 
+    /**
+     * user_id — он же PK и (логически) FK на users(id).
+     *
+     * Раньше здесь стоял @MapsId + @OneToOne, но Hibernate падал с
+     * AssertionFailure «null identifier»: id выводился из ассоциации, а она
+     * приходила detached (фильтр JWT, свежая регистрация). Обычной колонки
+     * достаточно — значение всегда равно id пользователя.
+     */
     @Id
     @Column(name = "user_id")
     private Long userId;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
-    @JoinColumn(name = "user_id")
-    private User user;
 
     @Column(nullable = false)
     @Builder.Default

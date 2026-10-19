@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { searchApi } from '../api/api'
 import useT from '../hooks/useT'
-import SearchFilters from '../components/Search/SearchFilters'
-import SearchResults from '../components/Search/SearchResults'
-import SearchPagination from '../components/Search/SearchPagination'
-import TaskDetailModal from '../components/Task/TaskDetailModal'
+import SearchFilters from '../components/search/SearchFilters'
+import SearchResults from '../components/search/SearchResults'
+import SearchPagination from '../components/search/SearchPagination'
+import TaskDetailModal from '../components/task/TaskDetailModal'
 
 const KIND_ORDER = { task: 0, project: 1, board: 2, tag: 3 }
 

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { boardsApi, statusesApi, tagsApi } from '../api/api'
-import StatusEditor from '../components/Board/StatusEditor'
-import TagEditor from '../components/Board/TagEditor'
-import BoardMembersEditor from '../components/Board/BoardMembersEditor'
+import StatusEditor from '../components/board/StatusEditor'
+import TagEditor from '../components/board/TagEditor'
+import BoardMembersEditor from '../components/board/BoardMembersEditor'
 import useT from '../hooks/useT'
 
 export default function BoardSettingsPage() {

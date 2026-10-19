@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { searchApi, projectsApi } from '../api/api'
 import useT from '../hooks/useT'
-import SearchResults from '../components/Search/SearchResults'
-import TaskDetailModal from '../components/Task/TaskDetailModal'
+import SearchResults from '../components/search/SearchResults'
+import TaskDetailModal from '../components/task/TaskDetailModal'
 
 export default function ProjectSearchPage() {
     const t = useT()

@@ -1,16 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
+import { observer } from 'mobx-react-lite'
+import { fetchPinned } from '../store/slices/sidebarSlice'
+import { invalidateStats } from '../store/slices/statsSlice'
+import { useUiStore } from '../store/useUiStore'
 import { projectsApi, tasksApi, projectFiltersApi, statusesApi } from '../api/api'
-import ViewSwitcher from '../components/Task/ViewSwitcher'
-import SortSwitcher from '../components/Task/SortSwitcher'
-import FiltersBar from '../components/Task/FiltersBar'
-import KanbanView from '../components/Task/KanbanView'
-import ListView from '../components/Task/ListView'
-import CompactView from '../components/Task/CompactView'
+import ViewSwitcher from '../components/task/ViewSwitcher'
+import SortSwitcher from '../components/task/SortSwitcher'
+import FiltersBar from '../components/task/FiltersBar'
+import KanbanView from '../components/task/KanbanView'
+import ListView from '../components/task/ListView'
+import CompactView from '../components/task/CompactView'
 import TaskFormModal from '../components/task/TaskFormModal'
-import CreateStatusModal from '../components/Task/CreateStatusModal'
-import TaskDetailModal from '../components/Task/TaskDetailModal'
-import AttachmentsModal from '../components/Task/AttachmentsModal'
+import CreateStatusModal from '../components/task/CreateStatusModal'
+import TaskDetailModal from '../components/task/TaskDetailModal'
+import AttachmentsModal from '../components/task/AttachmentsModal'
 import ConfirmModal from '../components/common/ConfirmModal'
 import InlineEdit from '../components/common/InlineEdit'
 import useHotkeys from '../hooks/useHotkeys'
@@ -23,10 +28,12 @@ const ACCENTS = [
     'lime', 'mint', 'cyan', 'slate', 'maroon', 'brown',
 ]
 
-export default function ProjectKanbanPage() {
+export default observer(function ProjectKanbanPage() {
     const { boardId, projectId } = useParams()
     const [searchParams] = useSearchParams()
     const nav = useNavigate()
+    const dispatch = useDispatch()
+    const ui = useUiStore()
     const { user, updateUser } = useAuth()
 
     const confirmBeforeDelete = user?.workspace?.confirmBeforeDelete !== false
@@ -61,13 +68,20 @@ export default function ProjectKanbanPage() {
         if (!projectId) return
         projectFiltersApi.get(projectId)
             .then(({ data }) => {
-                if (data?.statusIds?.length > 0) setActiveStatuses(data.statusIds)
-                else setActiveStatuses([])
+                // Не пересоздаём массив, если фильтров нет: новая ссылка
+                // заставляла перезапускаться эффект FiltersBar (его deps
+                // включают activeStatuses), порождая лишние запросы.
+                const ids = data?.statusIds?.length > 0 ? data.statusIds : []
+                setActiveStatuses(prev =>
+                    prev.length === ids.length && prev.every((v, i) => v === ids[i])
+                        ? prev
+                        : ids
+                )
                 if (data?.sortMode) setSortMode(data.sortMode)
                 if (data?.sortDir) setSortDir(data.sortDir)
                 if (data?.viewMode) setViewMode(data.viewMode)
             })
-            .catch(() => setActiveStatuses([]))
+            .catch(() => setActiveStatuses(prev => (prev.length === 0 ? prev : [])))
     }, [projectId])
 
     useEffect(() => {
@@ -110,7 +124,7 @@ export default function ProjectKanbanPage() {
     }
 
     const refreshTree = () => {
-        window.dispatchEvent(new Event('tree:refresh'))
+        dispatch(invalidateStats())
     }
 
     const handleAddTask = (statusId) => {
@@ -118,14 +132,12 @@ export default function ProjectKanbanPage() {
         setShowCreateTask(true)
     }
 
+    // Горячая клавиша N: на странице проекта → новая задача.
+    // Раньше: подписка на 'hotkey:new' (detail === 'task').
+    // Без массива зависимостей — см. пояснение в BoardsPage.
     useEffect(() => {
-        const handler = (e) => {
-            if (e.detail === 'task') handleAddTask(null)
-        }
-        window.addEventListener('hotkey:new', handler)
-        return () => window.removeEventListener('hotkey:new', handler)
-        // eslint-disable-next-line
-    }, [])
+        if (ui.consumeCreate() === 'task') handleAddTask(null)
+    })
 
     const handleTaskCreated = () => {
         setShowCreateTask(false)
@@ -259,7 +271,7 @@ export default function ProjectKanbanPage() {
                 isPinned: !project.isPinned,
             })
             setProject(data)
-            window.dispatchEvent(new Event('sidebar:refresh'))
+            dispatch(fetchPinned())
         } catch (err) {
             alert(err.response?.data?.message || 'Ошибка')
         }
@@ -296,7 +308,11 @@ export default function ProjectKanbanPage() {
         }
     }
 
-    useHotkeys([
+    // Массив хоткеев мемоизируем: useHotkeys внутри зависит от ссылки на
+    // массив, и при новом массиве каждый рендер переустанавливал обработчик
+    // keydown. Значения, от которых зависят сами обработчики, читаются через
+    // замыкание, поэтому достаточно мемоизации по ссылкам на функции-хендлеры.
+    const hotkeys = useMemo(() => [
         {
             combo: 'escape',
             when: () => reorderMode,
@@ -354,7 +370,10 @@ export default function ProjectKanbanPage() {
         { combo: '3', handler: () => setViewMode('compact') },
 
         { combo: 'p', handler: () => setReorderMode(v => !v) },
-    ])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    ], [hoveredTaskId, kanban])
+
+    useHotkeys(hotkeys)
 
     if (loading) return <div className="loading">Загрузка...</div>
     if (error) return <div className="error">{error}</div>
@@ -576,4 +595,4 @@ export default function ProjectKanbanPage() {
             )}
         </div>
     )
-}
+})

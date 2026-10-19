@@ -1,110 +1,168 @@
 @echo off
-chcp 65001 >nul
-setlocal
+REM ���� ��࠭� � CP866 - த��� ����஢�� cmd.exe �� ���᪮� Windows.
+REM �� �����࠭�� � UTF-8: cmd.exe ����� ������ ���᪨� �������ਨ
+REM ��� ���� � ������ ��ப�. chcp �� ��뢠��, �⮡� echo �뢮���
+REM ��ਫ���� ���४⭮.
+setlocal EnableDelayedExpansion
 
 REM ============================================================
-REM  TaskBoard — сборка + перезапуск Nginx + открытие браузера
+REM  TaskBoard - ?? ????? + ??????? ????? ?? Nginx.
+REM
+REM  ??? ????:
+REM    frontend-run.bat            -> ??: nginx:8081 ???? frontend\dist
+REM    frontend-run.bat --dev      -> dev:  Vite ?? 5173 (hot reload)
+REM
+REM  ??? ???? ????? 0.0.0.0, ????? ?????? ? ?? ngrok.
 REM ============================================================
 
 set "PROJECT_ROOT=D:\projects\taskBoard"
 set "FRONTEND_DIR=%PROJECT_ROOT%\frontend"
 set "NGINX_DIR=D:\utilities\nginx-1.30.4"
 set "NGINX_EXE=%NGINX_DIR%\nginx.exe"
-set "TASKBOARD_URL=http://localhost:8081"
+set "NGINX_CONF=%NGINX_DIR%\conf\nginx.conf"
+
+REM --- ?????: prod (?? ?????) ??? dev ---
+set "MODE=prod"
+if /I "%~1"=="--dev" set "MODE=dev"
+if /I "%~1"=="dev"   set "MODE=dev"
+
+if /I "%MODE%"=="dev" (
+    set "TASKBOARD_URL=http://localhost:5173"
+    set "APP_PORT=5173"
+) else (
+    set "TASKBOARD_URL=http://localhost:8081"
+    set "APP_PORT=8081"
+)
 
 echo.
 echo ============================================================
-echo   TaskBoard - пересборка фронтенда
+echo   TaskBoard - ????? ????? [???: %MODE%]
 echo ============================================================
 echo.
 
 if not exist "%FRONTEND_DIR%\package.json" (
-    echo [ОШИБКА] Не найден %FRONTEND_DIR%\package.json
+    echo [??????] ?? ?????? %FRONTEND_DIR%\package.json
     goto :error
 )
 if not exist "%NGINX_EXE%" (
-    echo [ОШИБКА] Не найден Nginx: %NGINX_EXE%
+    echo [??????] ?? ?????? Nginx: %NGINX_EXE%
     goto :error
 )
-if not exist "%NGINX_DIR%\conf\nginx.conf" (
-    echo [ОШИБКА] Не найден конфиг Nginx: %NGINX_DIR%\conf\nginx.conf
+if not exist "%NGINX_CONF%" (
+    echo [??????] ?? ?????? ???? Nginx: %NGINX_CONF%
     goto :error
 )
 
-echo [0/6] Убиваем старые процессы Nginx...
+REM ============================================================
+REM  DEV-?????: ?? Vite, ??? nginx ? ??? ??.
+REM ============================================================
+if /I "%MODE%"=="dev" (
+    echo [1/2] ???? ??? Vite...
+    if exist "%FRONTEND_DIR%\node_modules\.vite" rmdir /s /q "%FRONTEND_DIR%\node_modules\.vite"
+    echo       OK
+    echo.
+
+    echo [2/2] ???? Vite dev-??? ?? ????? %APP_PORT%...
+    echo       ????????: Ctrl+C
+    echo.
+    cd /d "%FRONTEND_DIR%"
+
+    REM ?????? ????, ???? Vite ???????????.
+    start "" /B cmd /c "timeout /t 4 /nobreak >nul & start "" "%TASKBOARD_URL%""
+
+    call npm run dev -- --host 0.0.0.0 --port %APP_PORT%
+    goto :end
+)
+
+REM ============================================================
+REM  PROD-?????: ?? + nginx:8081
+REM ============================================================
+echo [0/6] ??????????? ???? ?????? Nginx...
 taskkill /F /IM nginx.exe >nul 2>&1
 echo       OK
 echo.
 
-echo [1/6] Очистка dist и кэша Vite...
-if exist "%FRONTEND_DIR%\dist" (
-    rmdir /s /q "%FRONTEND_DIR%\dist"
-)
-if exist "%FRONTEND_DIR%\node_modules\.vite" (
-    rmdir /s /q "%FRONTEND_DIR%\node_modules\.vite"
-)
+echo [1/6] ???? dist ? ??? Vite...
+if exist "%FRONTEND_DIR%\dist" rmdir /s /q "%FRONTEND_DIR%\dist"
+if exist "%FRONTEND_DIR%\node_modules\.vite" rmdir /s /q "%FRONTEND_DIR%\node_modules\.vite"
 echo       OK
 echo.
 
-echo [2/6] Сборка React...
+echo [2/6] ???? React...
 cd /d "%FRONTEND_DIR%"
 call npm run build
 if errorlevel 1 (
     echo.
-    echo [ОШИБКА] Сборка React не удалась
+    echo [??????] ???? React ?? ?????
     goto :error
 )
 echo       OK
 echo.
 
-echo [3/6] Проверка dist\index.html...
+echo [3/6] ???? dist\index.html...
 if not exist "%FRONTEND_DIR%\dist\index.html" (
-    echo [ОШИБКА] Не найден %FRONTEND_DIR%\dist\index.html
+    echo [??????] ?? ?????? %FRONTEND_DIR%\dist\index.html
     goto :error
 )
 echo       OK
-
-echo       Файлы в dist\assets:
-dir /b "%FRONTEND_DIR%\dist\assets"
 echo.
 
-echo [4/6] Проверка конфига Nginx...
-REM ВАЖНО: указываем -p (prefix) и -c (конфиг) явно
-"%NGINX_EXE%" -p "%NGINX_DIR%" -c "%NGINX_DIR%\conf\nginx.conf" -t
+echo [4/6] ???? ????? Nginx...
+REM ?????: ????? -p (prefix) ? -c (????) ??.
+REM app-??? (:8081) ????? ? conf\taskboard.conf ? ??????????
+REM ?????? include ?? nginx.conf.
+"%NGINX_EXE%" -p "%NGINX_DIR%" -c "%NGINX_CONF%" -t
 if errorlevel 1 (
-    echo [ОШИБКА] Конфиг Nginx некорректен
+    echo [??????] ???? Nginx ???????
     goto :error
 )
 echo       OK
 echo.
 
-echo [5/6] Старт Nginx...
-cd /d "%NGINX_DIR%"
-start "" /B "%NGINX_EXE%" -p "%NGINX_DIR%" -c "%NGINX_DIR%\conf\nginx.conf"
+echo [5/6] ???? Nginx...
+start "" /B "%NGINX_EXE%" -p "%NGINX_DIR%" -c "%NGINX_CONF%"
 ping -n 3 127.0.0.1 >nul
+
+REM ?????, ?? nginx ??????? ??????? ? ???? ????.
+tasklist /FI "IMAGENAME eq nginx.exe" 2>nul | find /I "nginx.exe" >nul
+if errorlevel 1 (
+    echo [??????] Nginx ?? ????????. ?????? ???:
+    echo          %NGINX_DIR%\logs\error.log
+    goto :error
+)
 echo       OK
 echo.
 
-echo [6/6] Проверка HTTP:
-curl -s -o nul -w "  /          %%{http_code}\n" http://localhost:8081/
-curl -s -o nul -w "  /calendar  %%{http_code}\n" http://localhost:8081/calendar
-curl -s -o nul -w "  /api/ping  %%{http_code}\n" http://localhost:8081/api/ping
+echo [6/6] ???? HTTP ?? ????? %APP_PORT%:
+curl -s -o nul -w "  /          %%{http_code}\n" "%TASKBOARD_URL%/"
+curl -s -o nul -w "  /calendar  %%{http_code}\n" "%TASKBOARD_URL%/calendar"
+curl -s -o nul -w "  /api/ping  %%{http_code}\n" "%TASKBOARD_URL%/api/ping"
+echo.
+echo       ^(??? 000 = nginx ????????;  502/504 = backend ?? ?????^)
 echo.
 
 echo ============================================================
-echo   Открываю браузер: %TASKBOARD_URL%
+echo   ??????:  %TASKBOARD_URL%
+echo   ??? ngrok (? ????? ????):
+echo       ngrok http %APP_PORT%
+echo   ????? ?? ??: http://^<???-LAN-IP^>:%APP_PORT%
 echo ============================================================
 start "" "%TASKBOARD_URL%"
 
 echo.
-echo Всё готово. Окно закроется через 3 секунды.
-timeout /t 3 /nobreak >nul
+echo Nginx ???? ? ??. ???? ????? ??????? - ??? ??????? ????.
+echo ???????? ???: taskkill /F /IM nginx.exe
+echo.
+pause
 exit /b 0
 
 :error
 echo.
 echo ============================================================
-echo   СКРИПТ ЗАВЕРШИЛСЯ С ОШИБКОЙ
+echo   ?????? ?????????? ? ???????
 echo ============================================================
 pause
 exit /b 1
+
+:end
+exit /b 0

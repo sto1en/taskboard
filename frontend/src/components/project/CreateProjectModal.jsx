@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { projectsApi, attachmentsApi } from '../../api/api'
-import Modal from '../Modal/Modal'
+import Modal from '../modal/Modal'
 import { resolveUrl } from '../../utils/format'
 
 const ACCENTS = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray']

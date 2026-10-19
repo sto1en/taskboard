@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { observer } from 'mobx-react-lite'
 import {
     DndContext,
     DragOverlay,
@@ -14,6 +15,9 @@ import {
     rectSortingStrategy,
     arrayMove,
 } from '@dnd-kit/sortable'
+import { useDispatch } from 'react-redux'
+import { fetchPinned } from '../../store/slices/sidebarSlice'
+import { useUiStore } from '../../store/useUiStore'
 import { projectsApi, boardsApi } from '../../api/api'
 import useT from '../../hooks/useT'
 import useConfirmDelete from '../../hooks/useConfirmDelete'
@@ -24,7 +28,7 @@ import CreateProjectModal from './CreateProjectModal'
 import EditProjectModal from './EditProjectModal'
 import ConfirmModal from '../common/ConfirmModal'
 
-export default function ProjectsGrid({
+export default observer(function ProjectsGrid({
                                          projects,
                                          boardId,
                                          onProjectCreated,
@@ -33,6 +37,8 @@ export default function ProjectsGrid({
                                      }) {
     const nav = useNavigate()
     const t = useT()
+    const dispatch = useDispatch()
+    const ui = useUiStore()
     const { user, updateUser } = useAuth()
 
     const [showCreate, setShowCreate] = useState(false)
@@ -59,15 +65,12 @@ export default function ProjectsGrid({
     //  - если перетаскивали — сохраняется ручная позиция.
     const sorted = localOrder || projects
 
+    // Горячая клавиша N: на странице доски → новый проект.
+    // Раньше: подписка на 'hotkey:new' (detail === 'project').
+    // Без массива зависимостей — см. пояснение в BoardsPage.
     useEffect(() => {
-        const handler = (e) => {
-            if (e.detail === 'project') {
-                setShowCreate(true)
-            }
-        }
-        window.addEventListener('hotkey:new', handler)
-        return () => window.removeEventListener('hotkey:new', handler)
-    }, [])
+        if (ui.consumeCreate() === 'project') setShowCreate(true)
+    })
 
     const openProject = (projectId) => {
         if (!boardId) return
@@ -103,7 +106,7 @@ export default function ProjectsGrid({
                 isPinned: !project.isPinned,
             })
             onProjectUpdated && onProjectUpdated(data)
-            window.dispatchEvent(new Event('sidebar:refresh'))
+            dispatch(fetchPinned())
         } catch (err) {
             alert(err.response?.data?.message || 'Error')
         }
@@ -167,7 +170,7 @@ export default function ProjectsGrid({
                 isManualPosition: true,
             }))
             setLocalOrder(null)
-            window.dispatchEvent(new Event('sidebar:refresh'))
+            dispatch(fetchPinned())
         } catch (err) {
             console.error('Move failed:', err)
             setLocalOrder(null)
@@ -228,7 +231,7 @@ export default function ProjectsGrid({
                 onClose={() => setShowCreate(false)}
                 onCreated={(newProject) => {
                     onProjectCreated && onProjectCreated(newProject)
-                    window.dispatchEvent(new Event('sidebar:refresh'))
+                    dispatch(fetchPinned())
                 }}
                 boardId={boardId}
             />
@@ -247,7 +250,7 @@ export default function ProjectsGrid({
             <ConfirmModal {...modalProps} />
         </>
     )
-}
+})
 
 function ProjectCard({ project, onClick, onDeleteClick, onEdit, onTogglePin }) {
     const t = useT()

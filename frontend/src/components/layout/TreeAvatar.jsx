@@ -53,6 +53,10 @@ const TREES = {
     eucalyptus: Eucalyptus,
 }
 
+// Скины деревьев доступны и снаружи (TreeThumb в магазине): там нужен
+// только MatureSVG, без всей логики роста/тултипов TreeAvatar.
+export const TREE_COMPONENTS = TREES
+
 const LEAVES_BY_KIND = {
     sakura: {
         sprout: ['🌱', '🍃'],
@@ -169,6 +173,22 @@ function getProgress(done) {
     return Math.min(1, Math.max(0, (done - min) / (max - min)))
 }
 
+// Компактный индикатор стадии (используется, если превью просит полосу).
+// В попапе превью стадию показывает подпись под рисунком, поэтому там
+// noStageBar=true и этот блок не рендерится.
+function StageBar({ done, label }) {
+    const accent = 'var(--accent, #4c9aff)'
+    return (
+        <div className="tree-stage-bar" style={{ width: '100%', maxWidth: 150 }}>
+            <div className="tree-stage-bar__label">{label}</div>
+            <div className="tree-stage-bar__track">
+                <span style={{ width: `${Math.min(100, (done / 10) * 100)}%`, background: accent }}/>
+            </div>
+            <div className="tree-stage-bar__count">{done} / 10</div>
+        </div>
+    )
+}
+
 function ProgressBar({ done, target, label }) {
     const segments = 10
     const filled = Math.min(segments, Math.round((done / target) * segments))
@@ -247,7 +267,14 @@ function ProgressBar({ done, target, label }) {
     )
 }
 
-export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }) {
+export default function TreeAvatar({
+    done = 0,
+    kind = 'apple',
+    maxHeight = 400,
+    demo = false,
+    noStageBar = false,
+    demoSize = 200,
+}) {
     const t = useT()
     const stage = getStage(done)
     const progress = getProgress(done)
@@ -263,12 +290,19 @@ export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }
     const prevKindRef = useRef(kind)
     const nextLeafId = useRef(0)
 
+    // Растёт от нуля и «прыгает» при росте только настоящее дерево в сайдбаре;
+    // в режиме demo (превью товара) оно статично.
     useEffect(() => {
+        if (demo) {
+            setGrown(true)
+            return
+        }
         const id = requestAnimationFrame(() => setGrown(true))
         return () => cancelAnimationFrame(id)
-    }, [])
+    }, [demo])
 
     useEffect(() => {
+        if (demo) return
         if (prevKindRef.current !== kind) {
             prevKindRef.current = kind
             prevDoneRef.current = done
@@ -283,7 +317,7 @@ export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }
             return () => clearTimeout(t2)
         }
         prevDoneRef.current = done
-    }, [done, kind])
+    }, [done, kind, demo])
 
     const handleTreeClick = useCallback(() => {
         if (stage !== 'mature') return
@@ -341,6 +375,7 @@ export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }
     const cap = Math.min(maxHeight, Math.floor(window.innerHeight * 0.5))
 
     let size
+    let box = size
     if (stage === 'sprout') {
         size = 40 + progress * 30
     } else if (stage === 'young') {
@@ -349,42 +384,55 @@ export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }
         size = 220 + progress * (cap - 220)
     }
 
+    // В превью (demo) три стадии стоят рядом, и росток при сайдбарных размерах
+    // выглядел бы пустым квадратом: нормализуем по высоте картинки, а рамку
+    // держим общей, чтобы деревья «сидели» на одной линии земли.
+    if (demo) {
+        const share = stage === 'sprout' ? 0.42 : stage === 'young' ? 0.7 : 1
+        box = demoSize
+        size = Math.round(demoSize * share)
+    }
+
     const Comp = stage === 'sprout'
         ? treeModule.SproutSVG
         : stage === 'young'
             ? treeModule.YoungSVG
             : treeModule.MatureSVG
 
-    const scale = grown ? 1 : 0.1
+    const scale = demo || grown ? 1 : 0.1
 
     return (
-        <div className="tree-avatar-wrap">
+        <div className={`tree-avatar-wrap ${demo ? 'tree-avatar-wrap--demo' : ''}`}>
 
-            {/* Кнопка «?» — при наведении/клике открывает тултип */}
-            <div
-                className="tree-help"
-                onClick={handleTipClick}
-                onMouseEnter={handleTipEnter}
-                onMouseLeave={handleTipLeave}
-                role="button"
-                tabIndex={0}
-                aria-label="Что такое дерево прогресса"
-            >
-                ?
-            </div>
+            {/* Кнопка «?» — при наведении/клике открывает тултип.
+                В превью товара не нужна: там нет дневного прогресса. */}
+            {!demo && (
+                <div
+                    className="tree-help"
+                    onClick={handleTipClick}
+                    onMouseEnter={handleTipEnter}
+                    onMouseLeave={handleTipLeave}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Что такое дерево прогресса"
+                >
+                    ?
+                </div>
+            )}
 
             <div
-                className={`tree-avatar tree-avatar--${stage} ${bounce ? 'tree-avatar--bounce' : ''}`}
+                className={`tree-avatar tree-avatar--${stage} ${bounce ? 'tree-avatar--bounce' : ''} ${demo ? 'tree-avatar--demo' : ''}`}
                 style={{
-                    width: size,
-                    height: size,
+                    width: demo ? box : size,
+                    height: demo ? box : size,
                     transform: `scale(${scale})`,
-                    opacity: grown ? 1 : 0,
+                    opacity: demo || grown ? 1 : 0,
                     transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease',
                     transformOrigin: 'bottom center',
                     cursor: stage === 'mature' ? 'pointer' : 'default',
                 }}
-                onClick={handleTreeClick}
+                onClick={demo ? undefined : handleTreeClick}
+                title={demo ? undefined : (stage === 'mature' ? 'Кликни — посыпятся листья' : undefined)}
             >
                 <Comp />
 
@@ -406,10 +454,12 @@ export default function TreeAvatar({ done = 0, kind = 'apple', maxHeight = 400 }
                 ))}
             </div>
 
-            <ProgressBar done={done} target={10} label={t.progressTree} />
+            {demo
+                ? (noStageBar ? null : <StageBar done={done} label="Взрослое дерево"/>)
+                : <ProgressBar done={done} target={10} label={t.progressTree} />}
 
             {/* Тултип — рендерится через портал в document.body */}
-            {tipOpen && tipCoords && createPortal(
+            {!demo && tipOpen && tipCoords && createPortal(
                 <div
                     className="tree-help__tip"
                     style={{

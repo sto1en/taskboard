@@ -1,0 +1,13 @@
+# Контекст сборки backend — лишнее не отправляем в демон Docker.
+target/
+uploads/
+.idea/
+*.iml
+.mvn/wrapper/maven-wrapper.jar
+*.log
+logs/
+.git/
+.gitignore
+.env
+.env.*
+!.env.example

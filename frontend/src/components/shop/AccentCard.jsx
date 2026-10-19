@@ -1,5 +1,6 @@
-import AccentDot from './AccentDot'
-import { resolveUrl } from '../../utils/format'
+import ShopPreview, { accentVars } from './ShopPreview'
+import ShopPrice from './ShopPrice'
+import useT from '../../hooks/useT'
 
 const NEW_DAYS = 7
 
@@ -14,6 +15,7 @@ function hasDiscount(price, oldPrice) {
 }
 
 export default function AccentCard({ item, onBuy, onEquip, onUnequip }) {
+    const t = useT()
     const owned = item.owned
     const active = item.active
 
@@ -22,13 +24,22 @@ export default function AccentCard({ item, onBuy, onEquip, onUnequip }) {
     const discountPct = showDiscount
         ? Math.round((1 - item.price / item.oldPrice) * 100)
         : 0
-
-    const imageUrl = item.imageUrl ? resolveUrl(item.imageUrl) : null
+    const free = !item.price || item.price === 0
 
     return (
-        <div className={`shop-card ${active ? 'shop-card--active' : ''}`}>
-            {(showNew || showDiscount) && (
-                <div className="shop-card__badges">
+        <div
+            className={`shop-card shop-card--accent ${active ? 'shop-card--active' : ''} ${item.isRare ? 'shop-card--rare' : ''}`}
+            data-accent={item.code}
+            style={accentVars(item)}
+        >
+            {(showNew || showDiscount || item.isRare || owned) && (
+                <div className="shop-card__badges shop-card__badges--right">
+                    {owned && (
+                        <span className="shop-badge shop-badge--owned">{t.shopOwned}</span>
+                    )}
+                    {item.isRare && (
+                        <span className="shop-badge shop-badge--rare">{t.shopRare}</span>
+                    )}
                     {showNew && <span className="shop-badge shop-badge--new">Новинка</span>}
                     {showDiscount && (
                         <span className="shop-badge shop-badge--discount">−{discountPct}%</span>
@@ -37,24 +48,7 @@ export default function AccentCard({ item, onBuy, onEquip, onUnequip }) {
             )}
 
             <div className="shop-card__preview">
-                {imageUrl ? (
-                    <img
-                        src={imageUrl}
-                        alt={item.title}
-                        className="shop-card__preview-img"
-                        draggable={false}
-                    />
-                ) : (
-                    <AccentDot
-                        code={item.code}
-                        hexColor={item.hexColor}
-                        hexColorSecondary={item.hexColorSecondary}
-                        isGradient={item.isGradient}
-                        size={72}
-                        active={false}
-                        title={item.title}
-                    />
-                )}
+                <ShopPreview kind="accents" item={item} />
             </div>
 
             <div className="shop-card__body">
@@ -75,28 +69,27 @@ export default function AccentCard({ item, onBuy, onEquip, onUnequip }) {
                 <div className="shop-card__footer">
                     {!owned && (
                         <>
-                            <span className="shop-card__price">
-                                {showDiscount && (
-                                    <span className="shop-card__price-old">🍃 {item.oldPrice}</span>
-                                )}
-                                <span className="shop-card__price-current">
-                                    {item.price === 0 ? 'Бесплатно' : `🍃 ${item.price}`}
-                                </span>
-                            </span>
+                            <ShopPrice item={item} showDiscount={showDiscount}/>
                             <button className="btn btn-primary shop-card__btn" onClick={onBuy}>
-                                {item.price === 0 ? 'Получить' : 'Купить'}
+                                {free ? t.shopGet : t.shopBuy}
                             </button>
                         </>
                     )}
                     {owned && !active && (
-                        <button className="btn btn-primary shop-card__btn" onClick={onEquip}>
-                            Надеть
-                        </button>
+                        <>
+                            <ShopPrice item={item} owned/>
+                            <button className="btn btn-primary shop-card__btn" onClick={onEquip}>
+                                {t.shopEquip}
+                            </button>
+                        </>
                     )}
                     {owned && active && (
-                        <button className="btn btn-ghost shop-card__btn" onClick={onUnequip}>
-                            Снять
-                        </button>
+                        <>
+                            <ShopPrice item={item} owned/>
+                            <button className="btn btn-ghost shop-card__btn" onClick={onUnequip}>
+                                {t.shopUnequip}
+                            </button>
+                        </>
                     )}
                 </div>
             </div>

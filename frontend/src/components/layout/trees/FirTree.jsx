@@ -1,102 +1,102 @@
-import { Aura, SparkleRing, seededRandom } from './common'
+// frontend/src/components/layout/trees/FirTree.jsx
 
-function FirNeedle({ cx, cy, len = 3, rot = 0, tone = 'mid' }) {
-    const palette = {
-        light: { fill: '#2f6b2a', edge: '#1f4a1c' },
-        mid:   { fill: '#1c4a18', edge: '#0f2f0e' },
-        deep:  { fill: '#0f2f0e', edge: '#061806' },
+/**
+ * Пихта — конус из ярусов лап, верхушка светлее, шишки свисают вниз
+ * (в отличие от ели, где они смотрят вверх).
+ */
+
+import { PALETTE, Ground, Trunk, Stage } from './kit'
+
+const p = PALETTE.fir
+
+/**
+ * Ярус «лап»: широкая форма с зубчатым низом.
+ * y — уровень основания яруса, w — половина ширины.
+ */
+function Tier({ y, w, drop = 7, tone = 'mid', notch = 4 }) {
+    const tones = {
+        light: { fill: '#3f8a4c', dark: '#1f5a2a' },
+        mid: { fill: '#2f7040', dark: '#123f1f' },
+        deep: { fill: '#215a31', dark: '#0a2e16' },
     }
-    const c = palette[tone] || palette.mid
+    const c = tones[tone] || tones.mid
+
+    // Зубчатый нижний край: чередуем «висящие» уголки лап
+    let bottom = ''
+    for (let i = 0; i < notch; i++) {
+        const x0 = 50 + w - (2 * w * i) / notch
+        const x1 = 50 + w - (2 * w * (i + 1)) / notch
+        const mid = (x0 + x1) / 2
+        bottom += ` L${mid} ${y + drop} L${x1} ${y}`
+    }
+
     return (
-        <g transform={`rotate(${rot} ${cx} ${cy})`}>
-            <path d={`M${cx} ${cy - len} L${cx + len * 0.4} ${cy + len * 0.4} L${cx - len * 0.4} ${cy + len * 0.4} Z`}
-                  fill={c.fill} stroke={c.edge} strokeWidth="0.2"/>
+        <g>
+            <path d={`M50 ${y - drop * 1.5} L${50 + w} ${y}${bottom} Z`} fill={c.fill} />
+            <path d={`M50 ${y - drop * 1.5} L${50 + w} ${y} L${50 + w * 0.35} ${y + drop * 0.55} Z`} fill={c.dark} opacity="0.45" />
+            <path d={`M50 ${y - drop * 1.4} L${50 - w * 0.55} ${y - drop * 0.12} L50 ${y - drop * 0.05} Z`} fill="#6fb06c" opacity="0.32" />
         </g>
     )
 }
 
-function FirCluster({ cx, cy, radius = 8, count = 24, seed = 0 }) {
-    const needles = []
-    const tones = ['light', 'mid', 'deep', 'mid', 'deep']
-    for (let i = 0; i < count; i++) {
-        const a = seededRandom(seed, i) * Math.PI * 2
-        const d = radius * (0.1 + Math.sqrt(seededRandom(seed, i + 100)) * 1.0)
-        const nx = cx + Math.cos(a) * d
-        const ny = cy + Math.sin(a) * d * 0.9
-        needles.push(
-            <FirNeedle key={i} cx={nx} cy={ny}
-                       len={2 + seededRandom(seed, i + 200) * 0.9}
-                       rot={(a * 180 / Math.PI) + 180}
-                       tone={tones[i % tones.length]}/>
-        )
-    }
-    return <g>{needles}</g>
-}
-
-function FirTrunk() {
-    return <path d="M48 96 L52 96 L51 86 L49 86 Z" fill="#4a2f18"/>
-}
-
-function FirGround() {
+function Cone({ x, y, s = 1 }) {
     return (
         <g>
-            <ellipse cx="50" cy="96" rx="38" ry="4" fill="#4a5a2a" opacity="0.85"/>
-            <ellipse cx="50" cy="95" rx="28" ry="2.6" fill="#6a7a3a" opacity="0.9"/>
-            <circle cx="22" cy="95" r="0.5" fill="#8a9a5a" opacity="0.6"/>
-            <circle cx="78" cy="95" r="0.5" fill="#8a9a5a" opacity="0.6"/>
+            <path d={`M${x - 1.4 * s} ${y} L${x} ${y + 3 * s} L${x + 1.4 * s} ${y} Z`} fill="#8a5a2a" />
+            <path d={`M${x - 1.4 * s} ${y} L${x + 1.4 * s} ${y} L${x + 1 * s} ${y - 0.9 * s} L${x - 1 * s} ${y - 0.9 * s} Z`} fill="#b07a3c" />
+            <line x1={x} y1={y - 1.6 * s} x2={x} y2={y - 0.4 * s} stroke="#5e3b16" strokeWidth="0.4" />
         </g>
     )
 }
 
 export function SproutSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <FirGround />
-            <polygon points="50,60 42,80 58,80" fill="#1c4a18" stroke="#0f2f0e" strokeWidth="0.4"/>
-            <polygon points="50,70 40,88 60,88" fill="#2f6b2a" stroke="#0f2f0e" strokeWidth="0.4"/>
-            <FirTrunk />
-        </svg>
+        <Stage>
+            <Ground rx={15} tone="#5f8a3e" />
+            <path d="M50 94 L50 78" stroke={p.bark.base} strokeWidth="2.4" strokeLinecap="round" />
+            <Tier y={80} w={9} drop={4} tone="deep" notch={3} />
+            <Tier y={72} w={7} drop={3.6} tone="mid" notch={3} />
+            <Tier y={65} w={4.6} drop={3} tone="light" notch={2} />
+        </Stage>
     )
 }
 
 export function YoungSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <FirGround />
-            <FirCluster cx={50} cy={45} radius={8} seed={1} count={20}/>
-            {/* Три яруса — ровный конус */}
-            <polygon points="50,25 34,55 66,55" fill="#1c4a18" stroke="#0f2f0e" strokeWidth="0.5"/>
-            <polygon points="50,40 28,72 72,72" fill="#2f6b2a" stroke="#0f2f0e" strokeWidth="0.5"/>
-            <polygon points="50,55 22,88 78,88" fill="#1c4a18" stroke="#0f2f0e" strokeWidth="0.5"/>
-            <FirTrunk />
-        </svg>
+        <Stage>
+            <Ground rx={20} tone="#5f8a3e" />
+            <Trunk d="M50 94 L50 40" width={3.6} bark={p.bark} />
+            <Tier y={88} w={15} drop={6} tone="deep" />
+            <Tier y={78} w={13.5} drop={6} tone="mid" />
+            <Tier y={68} w={12} drop={5.6} tone="deep" />
+            <Tier y={58} w={10} drop={5.2} tone="mid" />
+            <Tier y={48} w={7.6} drop={4.6} tone="light" />
+            <Tier y={39} w={5} drop={4} tone="light" notch={3} />
+            <Cone x={64} y={77} s={1.2} />
+            <Cone x={36} y={67} s={1.1} />
+        </Stage>
     )
 }
 
 export function MatureSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <Aura id="firAura" color1="#4a7a2a" color2="#0f2f0e" />
-            <circle cx="50" cy="45" r="46" fill="url(#firAura)" />
-            <FirGround />
-
-            {/* Пять ярусов — строгий конус */}
-            <polygon points="50,10 30,38 70,38" fill="#1c4a18" stroke="#0f2f0e" strokeWidth="0.5"/>
-            <polygon points="50,26 26,54 74,54" fill="#2f6b2a" stroke="#0f2f0e" strokeWidth="0.5"/>
-            <polygon points="50,42 22,68 78,68" fill="#1c4a18" stroke="#0f2f0e" strokeWidth="0.5"/>
-            <polygon points="50,56 18,80 82,80" fill="#2f6b2a" stroke="#0f2f0e" strokeWidth="0.5"/>
-            <polygon points="50,70 14,94 86,94" fill="#1c4a18" stroke="#0f2f0e" strokeWidth="0.5"/>
-            <FirTrunk />
-
-            {/* Плотные кластеры игл */}
-            <FirCluster cx={50} cy={12} radius={8} seed={100} count={24}/>
-            <FirCluster cx={50} cy={28} radius={9} seed={101} count={26}/>
-            <FirCluster cx={50} cy={44} radius={10} seed={102} count={28}/>
-            <FirCluster cx={50} cy={58} radius={11} seed={103} count={30}/>
-            <FirCluster cx={50} cy={72} radius={12} seed={104} count={32}/>
-            <FirCluster cx={50} cy={86} radius={12} seed={105} count={32}/>
-
-            <SparkleRing colorScheme="green" />
-        </svg>
+        <Stage>
+            <ellipse cx="50" cy="90" rx="26" ry="7" fill={p.shade} opacity="0.16" />
+            <Ground rx={24} tone="#5f8a3e" />
+            <Trunk d="M50 96 L50 30" width={5.4} bark={p.bark} />
+            <Tier y={92} w={26} drop={8} tone="deep" />
+            <Tier y={82} w={24} drop={8} tone="mid" />
+            <Tier y={72} w={22} drop={7.6} tone="deep" />
+            <Tier y={62} w={19.5} drop={7.2} tone="mid" />
+            <Tier y={52} w={16.5} drop={6.8} tone="deep" />
+            <Tier y={43} w={13.5} drop={6.2} tone="mid" />
+            <Tier y={34} w={10} drop={5.6} tone="light" />
+            <Tier y={26} w={6.6} drop={5} tone="light" notch={3} />
+            <Cone x={72} y={81} s={1.5} />
+            <Cone x={30} y={71} s={1.4} />
+            <Cone x={62} y={61} s={1.3} />
+            <Cone x={40} y={51} s={1.2} />
+            <Cone x={58} y={42} s={1.1} />
+        </Stage>
     )
 }

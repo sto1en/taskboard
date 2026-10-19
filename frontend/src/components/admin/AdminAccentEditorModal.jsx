@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import Modal from '../Modal/Modal'
+import Modal from '../modal/Modal'
 import { adminApi } from '../../api/api'
 import { resolveUrl } from '../../utils/format'
 import CategoryMultiSelect from './CategoryMultiSelect'
@@ -13,7 +13,9 @@ export default function AdminAccentEditorModal({
     const [description, setDescription] = useState('')
     const [hexColor, setHexColor] = useState('#4c9aff')
     const [hexColorSecondary, setHexColorSecondary] = useState('#a45cd6')
+    const [hexColorTertiary, setHexColorTertiary] = useState('#ffffff')
     const [isGradient, setIsGradient] = useState(false)
+    const [isRare, setIsRare] = useState(false)
     const [price, setPrice] = useState(0)
     const [oldPrice, setOldPrice] = useState('')
     const [sortOrder, setSortOrder] = useState(0)
@@ -32,7 +34,9 @@ export default function AdminAccentEditorModal({
             setDescription(accent.description || '')
             setHexColor(accent.hexColor || '#4c9aff')
             setHexColorSecondary(accent.hexColorSecondary || '#a45cd6')
+            setHexColorTertiary(accent.hexColorTertiary || '#ffffff')
             setIsGradient(!!accent.isGradient)
+            setIsRare(!!accent.isRare)
             setPrice(accent.price || 0)
             setOldPrice(accent.oldPrice != null ? String(accent.oldPrice) : '')
             setSortOrder(accent.sortOrder || 0)
@@ -43,7 +47,9 @@ export default function AdminAccentEditorModal({
             setDescription('')
             setHexColor('#4c9aff')
             setHexColorSecondary('#a45cd6')
+            setHexColorTertiary('#ffffff')
             setIsGradient(false)
+            setIsRare(false)
             setPrice(0)
             setOldPrice('')
             setSortOrder(0)
@@ -81,10 +87,14 @@ export default function AdminAccentEditorModal({
             fd.append('title', title.trim())
             fd.append('description', description.trim())
             fd.append('hexColor', hexColor)
-            if (isGradient && hexColorSecondary) {
+            if ((isGradient || isRare) && hexColorSecondary) {
                 fd.append('hexColorSecondary', hexColorSecondary)
             }
+            if (isRare) {
+                fd.append('hexColorTertiary', hexColorTertiary)
+            }
             fd.append('isGradient', isGradient ? 'true' : 'false')
+            fd.append('isRare', isRare ? 'true' : 'false')
             fd.append('price', String(Number(price) || 0))
             if (oldPrice !== '') fd.append('oldPrice', String(Number(oldPrice) || 0))
             fd.append('sortOrder', String(Number(sortOrder) || 0))
@@ -121,9 +131,13 @@ export default function AdminAccentEditorModal({
         }
     }
 
-    const previewStyle = isGradient
+    const secondaryColor = isRare
+        ? (hexColorTertiary || hexColorSecondary)
+        : hexColorSecondary
+
+    const previewStyle = isGradient || isRare
         ? {
-            backgroundImage: `linear-gradient(135deg, ${hexColor} 0%, ${hexColorSecondary} 100%)`,
+            backgroundImage: `linear-gradient(135deg, ${hexColor} 0%, ${hexColorSecondary} 50%, ${secondaryColor} 100%)`,
             backgroundColor: 'transparent',
         }
         : { backgroundColor: hexColor, backgroundImage: 'none' }
@@ -231,13 +245,32 @@ export default function AdminAccentEditorModal({
                             type="checkbox"
                             checked={isGradient}
                             onChange={(e) => setIsGradient(e.target.checked)}
+                            disabled={isRare}
                         />
                         <span>Это градиент (второй цвет)</span>
                     </label>
 
-                    {isGradient && (
+                    {/* Редкий — не градиент, а металл: три цвета, из которых
+                        фронт собирает блик и кольцо (см. --accent-metal). */}
+                    <label className="task-detail__toggle">
+                        <input
+                            type="checkbox"
+                            checked={isRare}
+                            onChange={(e) => {
+                                setIsRare(e.target.checked)
+                                // Металл и линейный градиент — взаимоисключающие:
+                                // «редкость» уже задаёт собственную технику отрисовки.
+                                if (e.target.checked) setIsGradient(false)
+                            }}
+                        />
+                        <span>Редкий акцент (металлический блик, третий цвет)</span>
+                    </label>
+
+                    {(isGradient || isRare) && (
                         <div className="modal__field">
-                            <label className="modal__label">Второй цвет (конец градиента)</label>
+                            <label className="modal__label">
+                                {isRare ? 'Второй цвет (средний отблеск)' : 'Второй цвет (конец градиента)'}
+                            </label>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <input
                                     type="color"
@@ -257,6 +290,35 @@ export default function AdminAccentEditorModal({
                                     className="input"
                                     value={hexColorSecondary}
                                     onChange={(e) => setHexColorSecondary(e.target.value)}
+                                    maxLength={9}
+                                    style={{ maxWidth: 140 }}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {isRare && (
+                        <div className="modal__field">
+                            <label className="modal__label">Третий цвет (край блика)</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <input
+                                    type="color"
+                                    value={hexColorTertiary}
+                                    onChange={(e) => setHexColorTertiary(e.target.value)}
+                                    style={{
+                                        width: 60,
+                                        height: 40,
+                                        border: '1px solid var(--border)',
+                                        borderRadius: 6,
+                                        background: 'transparent',
+                                        cursor: 'pointer',
+                                        padding: 0,
+                                    }}
+                                />
+                                <input
+                                    className="input"
+                                    value={hexColorTertiary}
+                                    onChange={(e) => setHexColorTertiary(e.target.value)}
                                     maxLength={9}
                                     style={{ maxWidth: 140 }}
                                 />

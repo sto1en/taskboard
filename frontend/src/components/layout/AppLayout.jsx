@@ -1,17 +1,38 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, Suspense } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { useSelector } from 'react-redux'
+import { observer } from 'mobx-react-lite'
 import useHotkeys from '../../hooks/useHotkeys'
+import useShopSync from '../../hooks/useShopSync'
 import { useHotkeysContext } from '../../context/HotkeysContext'
-import api from '../../api/api'
+import { selectSidebarPins } from '../../store/slices/sidebarSlice'
+import { useUiStore } from '../../store/useUiStore'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
-import RescheduleBanner from '../Task/RescheduleBanner'
+import RescheduleBanner from '../task/RescheduleBanner'
 
-export default function AppLayout() {
+/**
+ * AppLayout — владелец глобальных хоткеев и «шины» локальной UI-логики.
+ *
+ * После D5 все сигналы, которые раньше шли через window.dispatchEvent,
+ * идут через MobX-стор (useUiStore): клавиша T — toggleTree(),
+ * Escape — closeAllToolbars(), клавиша N — requestCreate(kind), который
+ * забирает активный экран через consumeCreate(). Подписок на кастомные
+ * события здесь больше нет.
+ */
+export default observer(function AppLayout() {
     const nav = useNavigate()
     const location = useLocation()
     const { openHelp, helpOpen } = useHotkeysContext()
+    const ui = useUiStore()
     const [gPressed, setGPressed] = useState(false)
+
+    // Пиннутые доски/проекты — серверный стейт из Redux. Хоткеи g1/g2/g3
+    // читают готовый производный список вместо собственных 4 запросов.
+    const sidebarPins = useSelector(selectSidebarPins)
+
+    // Мост axios -> Redux: реакция на 'shop:invalidate' (см. hooks/useShopSync.js)
+    useShopSync()
 
     const focusSearch = () => {
         const input = document.querySelector('.topbar__search')
@@ -19,67 +40,17 @@ export default function AppLayout() {
     }
 
     const toggleTree = () => {
-        const current = localStorage.getItem('tree_enabled')
-        const next = current === 'false' ? 'true' : 'false'
-        localStorage.setItem('tree_enabled', next)
-        window.dispatchEvent(new CustomEvent('tree:toggle', { detail: next === 'true' }))
+        ui.toggleTree()
     }
 
-    const openPinned = async (index) => {
-        try {
-            const { data: boards } = await api.get('/boards')
+    const openPinned = (index) => {
+        const pin = sidebarPins[index - 1]
+        if (!pin) return
 
-            const projectsArrays = await Promise.all(
-                boards.map(b =>
-                    api.get(`/boards/${b.id}/projects`)
-                        .then(({ data }) => [b.id, data])
-                        .catch(() => [b.id, []])
-                )
-            )
-            const projectsByBoard = Object.fromEntries(projectsArrays)
-
-            const visibleBoards = boards
-                .filter(b => {
-                    const projs = projectsByBoard[b.id] || []
-                    return b.isPinned || projs.some(p => p.isPinned)
-                })
-                .sort((a, b) => {
-                    const pa = a.position ?? 0
-                    const pb = b.position ?? 0
-                    if (pa !== pb) return pa - pb
-                    return (a.id || 0) - (b.id || 0)
-                })
-
-            const pins = []
-            for (const b of visibleBoards) {
-                const projs = (projectsByBoard[b.id] || [])
-                    .filter(p => p.isPinned)
-                    .sort((a, b2) => {
-                        const pa = a.position ?? 0
-                        const pb = b2.position ?? 0
-                        if (pa !== pb) return pa - pb
-                        return (a.id || 0) - (b2.id || 0)
-                    })
-
-                if (projs.length > 0) {
-                    for (const p of projs) {
-                        pins.push({ type: 'project', boardId: b.id, projectId: p.id })
-                    }
-                } else {
-                    pins.push({ type: 'board', boardId: b.id })
-                }
-            }
-
-            const pin = pins[index - 1]
-            if (!pin) return
-
-            if (pin.type === 'project') {
-                nav(`/boards/${pin.boardId}/projects/${pin.projectId}`)
-            } else {
-                nav(`/boards/${pin.boardId}`)
-            }
-        } catch (err) {
-            console.error('openPinned failed:', err)
+        if (pin.type === 'project') {
+            nav(`/boards/${pin.boardId}/projects/${pin.projectId}`)
+        } else {
+            nav(`/boards/${pin.boardId}`)
         }
     }
 
@@ -99,10 +70,10 @@ export default function AppLayout() {
         }
 
         const anyOpenPanel = document.querySelector(
-            '.filters-bar__panel, .view-switcher__menu, .sort-switcher__menu, .search-filters__panel'
+            '.filters-bar__panel, .view-switcher__menu, .sort-switcher__menu'
         )
         if (anyOpenPanel) {
-            window.dispatchEvent(new CustomEvent('toolbar:close', { detail: null }))
+            ui.closeAllToolbars()
             return false
         }
 
@@ -140,20 +111,20 @@ export default function AppLayout() {
         const path = location.pathname
 
         if (path === '/calendar' || path.startsWith('/calendar?')) {
-            window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'calendar-day' }))
+            ui.requestCreate('calendar-day')
             return
         }
 
         if (/^\/boards\/\d+\/projects\/\d+/.test(path)) {
-            window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'task' }))
+            ui.requestCreate('task')
             return
         }
         if (/^\/boards\/\d+\/?$/.test(path)) {
-            window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'project' }))
+            ui.requestCreate('project')
             return
         }
         if (/^\/boards\/?$/.test(path)) {
-            window.dispatchEvent(new CustomEvent('hotkey:new', { detail: 'board' }))
+            ui.requestCreate('board')
             return
         }
     }
@@ -211,10 +182,14 @@ export default function AppLayout() {
             <div className="layout__main">
                 <TopBar />
                 <div className="layout__content">
-                    <Outlet />
+                    {/* Свой Suspense: при ленивой загрузке страницы остаётся
+                        видимым сайдбар, а не только полноэкранный спиннер. */}
+                    <Suspense fallback={<div className="loading">Загрузка…</div>}>
+                        <Outlet />
+                    </Suspense>
                 </div>
                 <RescheduleBanner />
             </div>
         </div>
     )
-}
+})

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { useDispatch } from 'react-redux'
+import { invalidateTasks } from '../../store/slices/tasksSlice'
 import { tasksApi, tagsApi, attachmentsApi, projectsApi, recurrenceApi } from '../../api/api'
-import Modal from '../Modal/Modal'
+import Modal from '../modal/Modal'
 import ConfirmModal from '../common/ConfirmModal'
 import AttachmentPreview from './AttachmentPreview'
 import DetailTextEditor from './DetailTextEditor'
@@ -34,6 +36,7 @@ export default function TaskDetailModal({
                                         }) {
     const t = useT()
     const { user, updateUser } = useAuth()
+    const dispatch = useDispatch()
     const confirmBeforeDelete = user?.workspace?.confirmBeforeDelete !== false
     const { requestDelete, modalProps } = useConfirmDelete({
         confirmBeforeDelete,
@@ -290,7 +293,7 @@ export default function TaskDetailModal({
             onConfirm: async () => {
                 try {
                     await tasksApi.delete(taskId)
-                    window.dispatchEvent(new Event('tasks:refresh'))
+                    dispatch(invalidateTasks())
                     onUpdated && onUpdated()
                     onClose && onClose()
                 } catch (err) {

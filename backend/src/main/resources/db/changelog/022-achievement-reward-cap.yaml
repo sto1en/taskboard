@@ -1,0 +1,36 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 022 — Потолок наград ачивок: не выше 1500 листьев.
+  #
+  # Проблема:
+  #   FIVE_HUNDRED давал 2500 листьев — это ровно цена топового предмета
+  #   (см. 021-shop-economy-rebalance.yaml). Одна ачивка бесплатно закрывала
+  #   смысл ежедневного фарма, ради которого и делалось убывание задач.
+  #
+  # Решение:
+  #   • всё, что выше 1500 → 1500;
+  #   • MONTH_STREAK (длинный хвост) → 1200;
+  #   • остальные награды не трогаем.
+  #
+  # Значения обязаны совпадать с DataInitializerConfig.initAchievements(),
+  # иначе свежая (Java-инициализатор) и мигрированная база разойдутся.
+  #
+  # 021 не редактируется (иначе Liquibase упадёт на checksum) — правки
+  # идут отдельным changeSet.
+  # ============================================================
+  - changeSet:
+      id: 022-01-achievements-reward-cap
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: achievements }
+      changes:
+        - sql:
+            sql: |
+              -- явные исключения из общего потолка
+              UPDATE achievements SET reward = 1200 WHERE code = 'MONTH_STREAK';
+              UPDATE achievements SET reward = 1000 WHERE code IN ('TREE_HARVEST', 'HUNDRED_TASKS');
+
+              -- всё, что выше 1500, подрезаем до потолка
+              UPDATE achievements SET reward = 1500 WHERE reward > 1500;

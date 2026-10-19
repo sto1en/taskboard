@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
-import { searchApi, shopApi } from '../../api/api'
+import { useSelector } from 'react-redux'
+import { selectLeaves } from '../../store/slices/shopSlice'
+import { searchApi } from '../../api/api'
 import useT from '../../hooks/useT'
 import TaskBoardLogo from './TaskBoardLogo'
 
@@ -9,7 +10,6 @@ export default function TopBar() {
     const nav = useNavigate()
     const location = useLocation()
     const [searchParams, setSearchParams] = useSearchParams()
-    const { user } = useAuth()
     const t = useT()
 
     const urlQuery = searchParams.get('q') || ''
@@ -19,23 +19,11 @@ export default function TopBar() {
     const [results, setResults] = useState(null)
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
-    const [leaves, setLeaves] = useState(0)
     const wrapperRef = useRef(null)
 
-    useEffect(() => {
-        const load = () => {
-            shopApi.get()
-                .then(({ data }) => setLeaves(data?.leaves ?? 0))
-                .catch(() => setLeaves(0))
-        }
-        load()
-        window.addEventListener('shop:refresh', load)
-        window.addEventListener('user:refresh', load)
-        return () => {
-            window.removeEventListener('shop:refresh', load)
-            window.removeEventListener('user:refresh', load)
-        }
-    }, [])
+    // Баланс листьев — серверный факт из Redux (раньше: локальный useState,
+    // который перезапрашивал /shop на каждое событие shop:refresh / user:refresh).
+    const leaves = useSelector(selectLeaves)
 
     useEffect(() => {
         if (onSearchPage) setQuery(urlQuery)
@@ -191,9 +179,9 @@ export default function TopBar() {
 
             {/* Лого TaskBoard */}
             <Link
-                to="/calendar"
+                to="/"
                 className="topbar__logo topbar__tip"
-                data-tip="TaskBoard — на главную (календарь)"
+                data-tip="TaskBoard — на главную"
             >
                 <TaskBoardLogo size={40} />
             </Link>

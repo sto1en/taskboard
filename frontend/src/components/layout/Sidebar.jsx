@@ -1,7 +1,23 @@
 import { useState, useEffect, useMemo } from 'react'
 import { NavLink, Link } from 'react-router-dom'
+import { useSelector, useDispatch } from 'react-redux'
+import { observer } from 'mobx-react-lite'
+import { useUiStore } from '../../store/useUiStore'
 import { useAuth } from '../../context/AuthContext'
-import api, { statsApi, projectsApi, boardsApi, shopApi } from '../../api/api'
+import {
+    selectActiveAvatar,
+    selectActiveFrame,
+} from '../../store/slices/shopSlice'
+import {
+    fetchPinned,
+    selectPinnedBoards,
+    selectPinnedProjectsByBoard,
+} from '../../store/slices/sidebarSlice'
+import {
+    fetchStats,
+    selectDoneToday,
+} from '../../store/slices/statsSlice'
+import { boardsApi, projectsApi } from '../../api/api'
 import useT from '../../hooks/useT'
 import TreeAvatar from './TreeAvatar'
 import AvatarWithFrame from './AvatarWithFrame'
@@ -9,119 +25,66 @@ import ConfirmModal from '../common/ConfirmModal'
 
 const MAX_PINS = 3
 
-export default function Sidebar() {
+/**
+ * Sidebar.
+ *
+ * Серверный стейт (пиннутые доски/проекты, магазин, дневная сводка) —
+ * из Redux. Локальная UI-логика после D5 — из MobX:
+ *   ui.sidebarCollapsed  — сворачивание панели (персист в localStorage внутри стора)
+ *   ui.treeEnabledLocal  — видимость дерева (клавиша T), вместо события 'tree:toggle'
+ * observer() нужен, чтобы панель перерисовывалась на этих observable-полях.
+ */
+export default observer(function Sidebar() {
     const { user, logout } = useAuth()
     const t = useT()
+    const dispatch = useDispatch()
+    const ui = useUiStore()
 
-    const [boards, setBoards] = useState([])
-    const [projectsByBoard, setProjectsByBoard] = useState({})
+    // Магазин — серверный стейт из Redux (раньше: локальный useState + shop:refresh).
+    // Sidebar нужны только производные — активные аватар и рамка; treeKind
+    // считается отдельным селектором ниже.
+    const activeAvatar = useSelector(selectActiveAvatar)
+    const activeFrame = useSelector(selectActiveFrame)
+
+    // Пиннутые доски/проекты — серверный стейт из Redux (раньше: локальный
+    // load + событие 'sidebar:refresh' в 6 файлах).
+    const boards = useSelector(selectPinnedBoards)
+    const projectsByBoard = useSelector(selectPinnedProjectsByBoard)
+
+    // Дерево: количество выполненных за день — серверный факт из Redux.
+    const doneTasks = useSelector(selectDoneToday)
+
     const [boardsOpen, setBoardsOpen] = useState(true)
-    const [doneTasks, setDoneTasks] = useState(0)
-    const [collapsed, setCollapsed] = useState(() => {
-        return localStorage.getItem('sidebar_collapsed') === 'true'
-    })
     const [showLogout, setShowLogout] = useState(false)
 
-    const [shop, setShop] = useState(null)
+    // collapsed — локальная UI-логика из MobX (раньше: useState + localStorage).
+    const collapsed = ui.sidebarCollapsed
 
+    // treeKind: активный скин из магазина, иначе — сохранённый в профиле
+    const treeKind = useSelector(
+        (state) => state.shop.data?.treeSkins?.find(s => s.active)?.code,
+    ) || user?.appearance?.treeKind || 'sakura'
+
+    // treeEnabledLocal — локальная UI-логика из MobX (раньше: useState +
+    // событие 'tree:toggle' из AppLayout).
     const treeEnabledByUser = user?.appearance?.treeEnabled !== false
-    const treeKind = shop?.treeSkins?.find(s => s.active)?.code
-        || user?.appearance?.treeKind
-        || 'sakura'
+    const treeVisible = treeEnabledByUser && ui.treeEnabledLocal
 
-    const [treeEnabledLocal, setTreeEnabledLocal] = useState(() => {
-        const v = localStorage.getItem('tree_enabled')
-        return v === null ? true : v === 'true'
-    })
-
-    const treeVisible = treeEnabledByUser && treeEnabledLocal
-
+    // Первичная загрузка пиннутых досок/проектов при монтировании панели.
+    // Событие 'sidebar:refresh' больше не слушается: инвалидация идёт через
+    // dispatch(fetchPinned()) из точек мутации.
     useEffect(() => {
-        const onTreeToggle = (e) => setTreeEnabledLocal(!!e.detail)
-        window.addEventListener('tree:toggle', onTreeToggle)
-        return () => window.removeEventListener('tree:toggle', onTreeToggle)
-    }, [])
+        dispatch(fetchPinned())
+    }, [dispatch])
 
-    const loadShop = () => {
-        shopApi.get().then(({ data }) => setShop(data)).catch(() => setShop(null))
-    }
-
-    useEffect(() => {
-        loadShop()
-        const onRefresh = () => loadShop()
-        window.addEventListener('shop:refresh', onRefresh)
-        window.addEventListener('user:refresh', onRefresh)
-        return () => {
-            window.removeEventListener('shop:refresh', onRefresh)
-            window.removeEventListener('user:refresh', onRefresh)
-        }
-    }, [])
-
-    useEffect(() => {
-        let cancelled = false
-        const load = async () => {
-            try {
-                const { data: allBoards } = await api.get('/boards')
-                const projectsArrays = await Promise.all(
-                    allBoards.map(b =>
-                        api.get(`/boards/${b.id}/projects`)
-                            .then(({ data }) => [b.id, data])
-                            .catch(() => [b.id, []])
-                    )
-                )
-                if (cancelled) return
-                const mapProjects = Object.fromEntries(projectsArrays)
-                const visibleBoards = allBoards
-                    .filter(b => {
-                        const projs = mapProjects[b.id] || []
-                        return b.isPinned || projs.some(p => p.isPinned)
-                    })
-                    .sort((a, b) => {
-                        const pa = a.position ?? 0, pb = b.position ?? 0
-                        if (pa !== pb) return pa - pb
-                        return (a.id || 0) - (b.id || 0)
-                    })
-                const visibleProjects = {}
-                for (const b of visibleBoards) {
-                    visibleProjects[b.id] = (mapProjects[b.id] || [])
-                        .filter(p => p.isPinned)
-                        .sort((a, b2) => (a.position ?? 0) - (b2.position ?? 0))
-                }
-                setBoards(visibleBoards)
-                setProjectsByBoard(visibleProjects)
-            } catch {
-                if (!cancelled) { setBoards([]); setProjectsByBoard({}) }
-            }
-        }
-        load()
-        const onRefresh = () => load()
-        window.addEventListener('sidebar:refresh', onRefresh)
-        return () => {
-            cancelled = true
-            window.removeEventListener('sidebar:refresh', onRefresh)
-        }
-    }, [])
-
+    // Дерево: загружаем дневную сводку, пока оно видимо. Обновление после
+    // мутаций — через dispatch(fetchStats()) (раньше: событие 'tree:refresh').
     useEffect(() => {
         if (!user || !treeVisible) return
-        const load = () => {
-            statsApi.get('day')
-                .then(({ data }) => setDoneTasks(data.done || 0))
-                .catch(() => {})
-        }
-        load()
-        window.addEventListener('tree:refresh', load)
-        return () => window.removeEventListener('tree:refresh', load)
-    }, [user, treeVisible])
-
-    useEffect(() => {
-        localStorage.setItem('sidebar_collapsed', String(collapsed))
-    }, [collapsed])
+        dispatch(fetchStats('day'))
+    }, [user, treeVisible, dispatch])
 
     const displayName = user?.profile?.displayName || user?.username || 'User'
-
-    const activeAvatar = shop?.avatars?.find(a => a.active) || null
-    const activeFrame = shop?.frames?.find(f => f.active) || null
 
     const hasPinned = boards.length > 0
 
@@ -149,14 +112,14 @@ export default function Sidebar() {
     const handleUnpinBoard = async (board) => {
         try {
             await boardsApi.update(board.id, { isPinned: false })
-            window.dispatchEvent(new Event('sidebar:refresh'))
+            dispatch(fetchPinned())
         } catch {}
     }
 
     const handleUnpinProject = async (project) => {
         try {
             await projectsApi.update(project.id, { isPinned: false })
-            window.dispatchEvent(new Event('sidebar:refresh'))
+            dispatch(fetchPinned())
         } catch {}
     }
 
@@ -185,7 +148,7 @@ export default function Sidebar() {
 
                     <button
                         className="sidebar__icon-btn"
-                        onClick={() => setCollapsed(v => !v)}
+                        onClick={ui.toggleCollapsed}
                         title={collapsed ? 'Развернуть' : 'Свернуть'}
                     >
                         {collapsed ? '»' : '«'}
@@ -193,6 +156,16 @@ export default function Sidebar() {
                 </div>
 
                 <nav className="sidebar__nav">
+                    <NavLink
+                        to="/"
+                        end
+                        className={({ isActive }) => `sidebar__link ${isActive ? 'active' : ''}`}
+                        title={t.home || 'Главная'}
+                    >
+                        <span>🏠</span>
+                        {!collapsed && <span>{t.home || 'Главная'}</span>}
+                    </NavLink>
+
                     <div className="sidebar__group-row">
                         <NavLink to="/boards" className="sidebar__group-link" title={t.boards}>
                             <span className="sidebar__group-icon">📋</span>
@@ -332,4 +305,4 @@ export default function Sidebar() {
             />
         </>
     )
-}
+})

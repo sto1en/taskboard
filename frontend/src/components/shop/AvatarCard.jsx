@@ -1,5 +1,6 @@
-import { SvgAvatar } from '../Layout/SvgAvatars'
-import { resolveUrl } from '../../utils/format'
+import ShopPreview from './ShopPreview'
+import ShopPrice from './ShopPrice'
+import useT from '../../hooks/useT'
 
 const NEW_DAYS = 7
 
@@ -13,13 +14,10 @@ function hasDiscount(price, oldPrice) {
     return oldPrice != null && oldPrice > price
 }
 
-export default function AvatarCard({ item, onBuy, onEquip }) {
+export default function AvatarCard({ item, onBuy, onEquip, userFrame }) {
+    const t = useT()
     const owned = item.owned
     const active = item.active
-    const code = item.code || 'default'
-
-    const svgNode = SvgAvatar({ code })
-    const imageUrl = item.imageUrl ? resolveUrl(item.imageUrl) : null
 
     const showNew = isNew(item.createdAt)
     const showDiscount = hasDiscount(item.price, item.oldPrice)
@@ -29,8 +27,11 @@ export default function AvatarCard({ item, onBuy, onEquip }) {
 
     return (
         <div className={`shop-card ${active ? 'shop-card--active' : ''}`}>
-            {(showNew || showDiscount) && (
-                <div className="shop-card__badges">
+            {(showNew || showDiscount || owned) && (
+                <div className="shop-card__badges shop-card__badges--right">
+                    {owned && (
+                        <span className="shop-badge shop-badge--owned">{t.shopOwned}</span>
+                    )}
                     {showNew && <span className="shop-badge shop-badge--new">Новинка</span>}
                     {showDiscount && (
                         <span className="shop-badge shop-badge--discount">−{discountPct}%</span>
@@ -39,25 +40,7 @@ export default function AvatarCard({ item, onBuy, onEquip }) {
             )}
 
             <div className="shop-card__preview">
-                <div
-                    className={`avatar-frame ${item.cssClass || ''}`}
-                    style={{ width: 80, height: 80 }}
-                >
-                    <div className="avatar-frame__inner">
-                        {svgNode ? (
-                            svgNode
-                        ) : imageUrl ? (
-                            <img
-                                src={imageUrl}
-                                alt={item.title}
-                                className="avatar-frame__img"
-                                draggable={false}
-                            />
-                        ) : (
-                            <span className="avatar-frame__emoji">{item.emoji || '👤'}</span>
-                        )}
-                    </div>
-                </div>
+                <ShopPreview kind="avatars" item={item} userFrame={userFrame} />
             </div>
 
             <div className="shop-card__body">
@@ -80,24 +63,25 @@ export default function AvatarCard({ item, onBuy, onEquip }) {
                 <div className="shop-card__footer">
                     {!owned && (
                         <>
-                            <span className="shop-card__price">
-                                {showDiscount && (
-                                    <span className="shop-card__price-old">🍃 {item.oldPrice}</span>
-                                )}
-                                <span className="shop-card__price-current">🍃 {item.price}</span>
-                            </span>
+                            <ShopPrice item={item} showDiscount={showDiscount}/>
                             <button className="btn btn-primary shop-card__btn" onClick={onBuy}>
-                                Купить
+                                {t.shopBuy}
                             </button>
                         </>
                     )}
                     {owned && !active && (
-                        <button className="btn btn-primary shop-card__btn" onClick={onEquip}>
-                            Надеть
-                        </button>
+                        <>
+                            <ShopPrice item={item} owned/>
+                            <button className="btn btn-primary shop-card__btn" onClick={onEquip}>
+                                {t.shopEquip}
+                            </button>
+                        </>
                     )}
                     {owned && active && (
-                        <span className="shop-card__badge">Активно</span>
+                        <>
+                            <ShopPrice item={item} owned/>
+                            <span className="shop-card__badge">{t.shopActive}</span>
+                        </>
                     )}
                 </div>
             </div>

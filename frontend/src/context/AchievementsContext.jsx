@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import AchievementToast from '../components/Achievement/AchievementToast'
+import AchievementToast from '../components/achievement/AchievementToast'
 import { setAchievementsHandler } from '../api/api'
 
 const AchievementsContext = createContext(null)

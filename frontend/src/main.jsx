@@ -1,6 +1,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { Provider } from 'react-redux'
 import App from './App.jsx'
+import store from './store/store'
+import { StoreProvider } from './store/StoreContext'
 
 import './styles/index.css'
 import './styles/login.css'
@@ -22,12 +25,17 @@ import './styles/info-page.css'
 import './styles/hotkeys.css'
 import './styles/search.css'
 import './styles/shop.css'
+import './styles/dashboard.css'
 import './styles/recurrence.css'
 import './styles/create-task.css'
 import './styles/admin.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
-        <App />
+        <Provider store={store}>
+            <StoreProvider>
+                <App />
+            </StoreProvider>
+        </Provider>
     </React.StrictMode>,
 )

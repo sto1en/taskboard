@@ -1,0 +1,107 @@
+# ============================================================
+#  TaskBoard — прод-развёртывание в Docker.
+#
+#  Поднимает три сервиса:
+#    db       — PostgreSQL 16 (данные в томе pgdata)
+#    backend  — Spring Boot API   (слушает 8080 внутри сети)
+#    frontend — nginx со SPA + реверс-прокси на backend
+#
+#  Наружу открыт только frontend (порт из FRONTEND_PORT).
+#  Backend и БД доступны лишь внутри docker-сети.
+#
+#  Запуск:   docker compose up -d --build
+#  Логи:     docker compose logs -f
+#  Стоп:     docker compose down          (данные сохраняются)
+# ============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # PostgreSQL
+  # ----------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: taskboard-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-taskboard}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - taskboard
+    # Healthcheck: backend стартует только когда БД реально принимает запросы,
+    # иначе Liquibase упадёт на первом же коннекте.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # ----------------------------------------------------------
+  # Backend — Spring Boot
+  # ----------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+    image: taskboard-backend:latest
+    container_name: taskboard-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Порт внутри контейнера (в dev локально приложение слушает 8082).
+      SERVER_PORT: 8080
+      # Адрес БД — имя сервиса db, а не localhost.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-taskboard}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      # Секрет JWT пробрасываем из .env (обязательно длинный, >= 32 байт).
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?set APP_JWT_SECRET in .env}
+      APP_JWT_EXPIRATION_MS: ${APP_JWT_EXPIRATION_MS:-86400000}
+      JPA_SHOW_SQL: "false"
+      # Загрузки внутри контейнера. Базовый URL для фронта — относительный,
+      # потому что /uploads проксирует nginx, поэтому здесь он не нужен.
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - taskboard
+    healthcheck:
+      # /api/ping защищён Spring Security (403 без токена), поэтому
+      # считаем сервис живым при любом HTTP-ответе: сам факт ответа
+      # означает, что Tomcat поднялся и принимает соединения.
+      # -sS без -f: 403 не считается ошибкой.
+      test: ["CMD-SHELL", "curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/ping | grep -qE '^[0-9]{3}$' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # ----------------------------------------------------------
+  # Frontend — nginx + собранный SPA
+  # ----------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+    image: taskboard-frontend:latest
+    container_name: taskboard-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      # Единственный порт, открытый наружу. Смените через FRONTEND_PORT.
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - taskboard
+
+volumes:
+  pgdata:
+  uploads:
+
+networks:
+  taskboard:
+    driver: bridge

@@ -2,9 +2,11 @@ package coursework.taskboard.service.auth;
 
 import coursework.taskboard.dto.auth.*;
 import coursework.taskboard.model.shop.TreeSkin;
+import coursework.taskboard.model.shop.UserCurrency;
 import coursework.taskboard.model.shop.UserTreeSkin;
 import coursework.taskboard.model.user.*;
 import coursework.taskboard.repository.shop.TreeSkinRepository;
+import coursework.taskboard.repository.shop.UserCurrencyRepository;
 import coursework.taskboard.repository.shop.UserTreeSkinRepository;
 import coursework.taskboard.repository.user.*;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class AuthService {
     private final UserNotificationRepository userNotificationRepository;
     private final TreeSkinRepository treeSkinRepository;
     private final UserTreeSkinRepository userTreeSkinRepository;
+    private final UserCurrencyRepository userCurrencyRepository;
 
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -66,7 +69,14 @@ public class AuthService {
         // 9. Выдать бесплатное дерево «Яблоня» новому пользователю
         grantDefaultTree(user);
 
-        // 10. Токен
+        // 10. Создать кошелёк: иначе первый addLeaves падает на @MapsId
+        // (AssertionFailure: null identifier UserCurrency).
+        userCurrencyRepository.save(UserCurrency.builder()
+                .userId(user.getId())
+                .leaves(0)
+                .build());
+
+        // 11. Токен
         String token = jwtService.generateToken(user.getId(), user.getUsername());
 
         return authMapper.toAuthResponse(user, request.getDisplayName(), token);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import Modal from '../Modal/Modal'
+import Modal from '../modal/Modal'
 
 export default function ConfirmModal({
                                          open,

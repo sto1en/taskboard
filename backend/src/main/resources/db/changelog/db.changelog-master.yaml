@@ -39,3 +39,9 @@ databaseChangeLog:
       file: db/changelog/019-shop-categories-and-colors.yaml
   - include:
       file: db/changelog/020-add-achievement-rewards.yaml
+  - include:
+      file: db/changelog/021-shop-economy-rebalance.yaml
+  - include:
+      file: db/changelog/022-achievement-reward-cap.yaml
+  - include:
+      file: db/changelog/023-shop-taxonomy-and-accents.yaml

@@ -1,0 +1,341 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 021 — Переработка экономики магазина
+  #
+  # Проблема, которую решаем:
+  #   • за задачу даётся 10 листьев, за взрослое дерево +100 (см. TaskService)
+  #   • старые цены (200…2000 за дерево, 15…500 за рамку, 50…50 000 за ачивку)
+  #     жили в другом масштабе и не давали ясной цели «на что копить»
+  #
+  # Задача баланса: за первые ~3 дня активный пользователь должен уверенно
+  # брать ТОПОВЫЙ предмет, а дальше начинается длинный хвост.
+  #
+  # Модель дохода (TaskService.LEAVES_PER_TASK = 10, LEAVES_TREE_BONUS = 100):
+  #   день 1 (новичок):        ~3 задачи  → 30  + дерево 1×100            ≈ 130
+  #   день 2 (разогрев):       ~6 задач  → 60  + 100                      ≈ 160
+  #   день 3 (в потоке):       ~9 задач  → 90  + 100                      ≈ 190
+  #   + разовые ачивки первой недели                                      ≈ 200
+  #   ИТОГО за 3 дня                                                      ≈ 680
+  #   Опытный пользователь, который закрывает 15–25 задач в день,
+  #   получает 250–350 листьев в СУТКИ.
+  #
+  # Отсюда тиры цен (см. 021-02…021-05):
+  #   free/60/150/300/600/1200/2000     — аватарки
+  #   40/100/200/400/800/1500/2500/4000 — деревья
+  #   40/90/180/350/700/1200/2levels    — рамки
+  #   60/150/350/700/1500/2500          — акценты
+  #   «топовый предмет» = 2000–2500, т.е. ровно достижим за 3 дня.
+  #   Дальше — 4000 (Ёлка, Опал): это уже неделя+ и повод продолжать.
+  # ============================================================
+
+  # ------------------------------------------------------------
+  # 021-01. Флаг «предмет получен в награду» в user_* таблицах.
+  # Нужен, чтобы не показывать цену на подаренных ачивками предметах:
+  # пользователь за них ничего не платил.
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 021-01a-user-avatars-price-paid
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: user_avatars
+                columnName: price_paid
+      changes:
+        - addColumn:
+            tableName: user_avatars
+            columns:
+              - column:
+                  name: price_paid
+                  type: INT
+                  constraints: { nullable: true }
+
+  - changeSet:
+      id: 021-01b-user-frames-price-paid
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: user_frames
+                columnName: price_paid
+      changes:
+        - addColumn:
+            tableName: user_frames
+            columns:
+              - column:
+                  name: price_paid
+                  type: INT
+                  constraints: { nullable: true }
+
+  - changeSet:
+      id: 021-01c-user-tree-skins-price-paid
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: user_tree_skins
+                columnName: price_paid
+      changes:
+        - addColumn:
+            tableName: user_tree_skins
+            columns:
+              - column:
+                  name: price_paid
+                  type: INT
+                  constraints: { nullable: true }
+
+  - changeSet:
+      id: 021-01d-user-accents-price-paid
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: user_accents
+                columnName: price_paid
+      changes:
+        - addColumn:
+            tableName: user_accents
+            columns:
+              - column:
+                  name: price_paid
+                  type: INT
+                  constraints: { nullable: true }
+
+  # ------------------------------------------------------------
+  # 021-02. Аватарки.
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 021-02-avatars-price-rebalance
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: avatars }
+      changes:
+        - sql:
+            sql: |
+              UPDATE avatars SET price = 0    WHERE code IN ('default', 'owl', 'fox', 'cat', 'panda', 'bear', 'penguin', 'koala');
+              UPDATE avatars SET price = 60   WHERE price BETWEEN 1 AND 79;
+              UPDATE avatars SET price = 150  WHERE price BETWEEN 80 AND 199;
+              UPDATE avatars SET price = 300  WHERE price BETWEEN 200 AND 449;
+              UPDATE avatars SET price = 600  WHERE price BETWEEN 450 AND 899;
+              UPDATE avatars SET price = 1200 WHERE price BETWEEN 900 AND 1599;
+              UPDATE avatars SET price = 2000 WHERE price >= 1600;
+
+  # ------------------------------------------------------------
+  # 021-03. Деревья.
+  # Явные цены по коду: скины достойны быть отдельными ступенями,
+  # а не «побочным продуктом» аварьки.
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 021-03-tree-skins-price-rebalance
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: tree_skins }
+      changes:
+        - sql:
+            sql: |
+              UPDATE tree_skins SET price = CASE code
+                WHEN 'birch'      THEN 40     -- бесплатная классика
+                WHEN 'oak'        THEN 100
+                WHEN 'maple'      THEN 150
+                WHEN 'willow'     THEN 200
+                WHEN 'palm'       THEN 400
+                WHEN 'apple'      THEN 600
+                WHEN 'coconut'    THEN 700
+                WHEN 'mango'      THEN 700
+                WHEN 'orange'     THEN 700
+                WHEN 'lemon'      THEN 700
+                WHEN 'cypress'    THEN 800
+                WHEN 'banyan'     THEN 800
+                WHEN 'cherry'     THEN 1200
+                WHEN 'jacaranda'  THEN 1500
+                WHEN 'fir'        THEN 1500
+                WHEN 'eucalyptus' THEN 1500
+                WHEN 'sakura'     THEN 2000
+                WHEN 'neon'       THEN 2500
+                WHEN 'crystal'    THEN 2500
+                WHEN 'xmas'       THEN 4000
+                ELSE price
+              END
+              WHERE code IN ('birch','oak','maple','willow','palm','apple','coconut','mango',
+                             'orange','lemon','cypress','banyan','cherry','jacaranda','fir',
+                             'eucalyptus','sakura','neon','crystal','xmas');
+
+  # ------------------------------------------------------------
+  # 021-04. Рамки — по css_class (code заполнен не у всех записей).
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 021-04-frames-price-rebalance
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: frames }
+      changes:
+        - sql:
+            sql: |
+              UPDATE frames SET price = CASE css_class
+                WHEN 'frame--paper'      THEN 40
+                WHEN 'frame--steel'      THEN 90
+                WHEN 'frame--silver'     THEN 180
+                WHEN 'frame--wood'       THEN 180
+                WHEN 'frame--ice'        THEN 350
+                WHEN 'frame--honey'      THEN 350
+                WHEN 'frame--rose'       THEN 350
+                WHEN 'frame--sakura'     THEN 350
+                WHEN 'frame--carbon'     THEN 700
+                WHEN 'frame--glow'       THEN 700
+                WHEN 'frame--emerald'    THEN 700
+                WHEN 'frame--marble'     THEN 700
+                WHEN 'frame--gold'       THEN 1200
+                WHEN 'frame--lava'       THEN 1200
+                WHEN 'frame--candy'      THEN 1200
+                WHEN 'frame--venom'      THEN 1200
+                WHEN 'frame--royal'      THEN 1200
+                WHEN 'frame--oak'        THEN 1200
+                WHEN 'frame--royal-blue' THEN 1200
+                WHEN 'frame--neon'       THEN 2000
+                WHEN 'frame--fire'       THEN 2000
+                WHEN 'frame--thunder'    THEN 2000
+                WHEN 'frame--matrix'     THEN 2000
+                WHEN 'frame--pulse'      THEN 2000
+                WHEN 'frame--shadow'     THEN 2000
+                WHEN 'frame--crystal'    THEN 2000
+                WHEN 'frame--galaxy'     THEN 2500
+                WHEN 'frame--cosmic'     THEN 2500
+                WHEN 'frame--aurora'     THEN 4000
+                WHEN 'frame--holo'       THEN 5000
+                WHEN 'frame--opal'       THEN 5000
+                ELSE price
+              END
+              WHERE css_class IS NOT NULL;
+        - sql:
+            sql: |
+              UPDATE frames SET price = 2500
+              WHERE price > 5000 AND css_class NOT IN ('frame--holo', 'frame--opal');
+
+  # ------------------------------------------------------------
+  # 021-05. Акценты.
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 021-05-accents-price-rebalance
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: accent_skins }
+      changes:
+        - sql:
+            sql: |
+              -- градиентные — всегда дороже однотонных
+              UPDATE accent_skins SET price = 350  WHERE is_gradient = TRUE  AND price < 300;
+              UPDATE accent_skins SET price = 700  WHERE is_gradient = TRUE  AND price >= 300 AND price < 600;
+
+              UPDATE accent_skins SET price = 0    WHERE code IN ('blue','gray');
+              UPDATE accent_skins SET price = 60   WHERE price BETWEEN 1 AND 89;
+              UPDATE accent_skins SET price = 150  WHERE price BETWEEN 90 AND 249;
+              UPDATE accent_skins SET price = 350  WHERE price BETWEEN 250 AND 549;
+              UPDATE accent_skins SET price = 700  WHERE price BETWEEN 550 AND 1099;
+              UPDATE accent_skins SET price = 1500 WHERE price BETWEEN 1100 AND 1999;
+              UPDATE accent_skins SET price = 2500 WHERE price >= 2000;
+
+  # ------------------------------------------------------------
+  # 021-05b. Старая цена не должна «пережить» новую.
+  # После ребейза old_price может оказаться ниже новой цены — тогда на
+  # карточке появится бессмысленная скидка «−0%». Чистим такие записи.
+  # Если для всех предметов уже чисто — это no-op.
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 021-05b-clean-stale-old-price
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: avatars }
+      changes:
+        - sql:
+            sql: |
+              UPDATE avatars      SET old_price = NULL WHERE old_price IS NOT NULL AND old_price <= price;
+              UPDATE accent_skins SET old_price = NULL WHERE old_price IS NOT NULL AND old_price <= price;
+              UPDATE frames       SET old_price = NULL WHERE old_price IS NOT NULL AND old_price <= price;
+
+  # ------------------------------------------------------------
+  # 021-06. Награды ачивок — в новом масштабе.
+  # Потолок 2500 (топовый предмет), а не 50 000: ачивка не должна
+  # обесценивать магазин и обнулять смысл ежедневного фарма.
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 021-06-achievements-reward-rebalance
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: achievements }
+      changes:
+        - sql:
+            sql: |
+              UPDATE achievements SET reward = CASE code
+                -- первый день
+                WHEN 'FIRST_TASK'     THEN 50
+                WHEN 'DUCK'           THEN 30
+                WHEN 'JOKER'          THEN 30
+                WHEN 'COVER_SET'      THEN 80
+                WHEN 'FIRST_EXPIRED'  THEN 20
+                WHEN 'NIGHT_OWL'      THEN 80
+                -- первая неделя
+                WHEN 'TEN_TASKS'      THEN 150
+                WHEN 'MARATHON_10'    THEN 200
+                WHEN 'NINJA'          THEN 200
+                WHEN 'WEEK_STREAK'    THEN 300
+                WHEN 'FIVE_BOARDS'    THEN 200
+                WHEN 'ON_TIME_10'     THEN 250
+                WHEN 'DEBTOR'         THEN 50
+                WHEN 'TREE_YOUNG'     THEN 200
+                -- первый месяц
+                WHEN 'FIFTY_TASKS'    THEN 500
+                WHEN 'CLEAN_WEEK'     THEN 400
+                WHEN 'TREE_MATURE'    THEN 500
+                WHEN 'TEN_PROJECTS'   THEN 400
+                WHEN 'FIRE_25'        THEN 600
+                -- длинный хвост
+                WHEN 'HUNDRED_TASKS'  THEN 1000
+                WHEN 'TREE_HARVEST'   THEN 1000
+                WHEN 'MONTH_STREAK'   THEN 1500
+                WHEN 'XMAS_TREE'      THEN 1500
+                WHEN 'FIVE_HUNDRED'   THEN 2500
+                ELSE reward
+              END
+              WHERE code IN ('FIRST_TASK','DUCK','JOKER','COVER_SET','FIRST_EXPIRED','NIGHT_OWL',
+                             'TEN_TASKS','MARATHON_10','NINJA','WEEK_STREAK','FIVE_BOARDS',
+                             'ON_TIME_10','DEBTOR','TREE_YOUNG','FIFTY_TASKS','CLEAN_WEEK',
+                             'TREE_MATURE','TEN_PROJECTS','FIRE_25','HUNDRED_TASKS',
+                             'TREE_HARVEST','MONTH_STREAK','XMAS_TREE','FIVE_HUNDRED');
+
+  # ------------------------------------------------------------
+  # 021-07. Старая история покупок.
+  # Уже купленные предметы получают «цену на момент покупки» из текущего
+  # прайса, чтобы карточка могла честно сказать «куплено за N».
+  # Подаренные ачивками предметы цену не получают (остаётся NULL).
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 021-07-backfill-price-paid
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: user_avatars }
+      changes:
+        - sql:
+            sql: |
+              UPDATE user_avatars ua SET price_paid = a.price
+              FROM avatars a WHERE a.id = ua.avatar_id AND ua.price_paid IS NULL AND a.price > 0;
+
+              UPDATE user_frames uf SET price_paid = f.price
+              FROM frames f WHERE f.id = uf.frame_id AND uf.price_paid IS NULL AND f.price > 0;
+
+              UPDATE user_tree_skins ut SET price_paid = t.price
+              FROM tree_skins t WHERE t.id = ut.tree_skin_id AND ut.price_paid IS NULL AND t.price > 0;
+
+              UPDATE user_accents uac SET price_paid = s.price
+              FROM accent_skins s WHERE s.id = uac.accent_skin_id AND uac.price_paid IS NULL AND s.price > 0;

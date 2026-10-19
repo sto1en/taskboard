@@ -1,159 +1,139 @@
-import { Aura, SparkleRing, seededRandom } from './common'
+// frontend/src/components/layout/trees/CoconutTree.jsx
 
-// Большой перистый лист (пальмовый)
-function CoconutFrond({ x0, y0, x1, y1, tone = 'mid', side = 1, barbs = 14 }) {
-    const palette = {
-        light: { fill: '#8fc55e', vein: '#5e8f36', edge: '#4a7a28' },
-        mid:   { fill: '#5a9f3a', vein: '#3a7520', edge: '#2c5f18' },
-        deep:  { fill: '#3f7a2a', vein: '#265418', edge: '#1c4610' },
-    }
-    const c = palette[tone] || palette.mid
-    const midX = (x0 + x1) / 2
-    const midY = (y0 + y1) / 2 - 8
-    const items = []
-    // Основная ветка
-    items.push(
-        <path key="stem" d={`M${x0} ${y0} Q${midX} ${midY} ${x1} ${y1}`}
-              stroke={c.vein} strokeWidth="1.4" strokeLinecap="round" fill="none"/>
-    )
-    // Мелкие перья вдоль
-    for (let i = 1; i < barbs; i++) {
-        const t = i / barbs
-        const cx = x0 + (x1 - x0) * t + (midX - (x0 + x1) / 2) * (1 - Math.abs(2 * t - 1)) * 0.5
-        const cy = y0 + (y1 - y0) * t + (midY - (y0 + y1) / 2) * (1 - Math.abs(2 * t - 1)) * 0.5
-        const len = 4 + (1 - Math.abs(2 * t - 1)) * 4
-        items.push(
-            <path key={`a${i}`} d={`M${cx} ${cy} Q${cx + side * len * 0.6} ${cy - len * 0.4} ${cx + side * len} ${cy - len * 0.6}`}
-                  stroke={c.fill} strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.9"/>
-        )
-        items.push(
-            <path key={`b${i}`} d={`M${cx} ${cy} Q${cx + side * len * 0.6} ${cy + len * 0.3} ${cx + side * len} ${cy + len * 0.5}`}
-                  stroke={c.fill} strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.8"/>
-        )
-    }
-    return <g>{items}</g>
-}
+/**
+ * Кокосовая пальма — выше и тоньше обычной, ствол с сильным изгибом,
+ * а под кроной висят кокосы. Листья шире и «мясистее» пальмовых.
+ */
 
-// Кокос — коричневый овал с пятнами
-function Coconut({ cx, cy, r = 3 }) {
+import { PALETTE, Ground, Trunk, Stage } from './kit'
+
+const p = PALETTE.coconut
+
+function Frond({ angle, len = 26, width = 8, tone = 'mid', origin = [50, 20], droop = 7 }) {
+    const tones = {
+        light: { fill: '#8fd46c', dark: '#3f8b2c' },
+        mid: { fill: '#5faa44', dark: '#2a701f' },
+        deep: { fill: '#3c8a32', dark: '#1a5514' },
+    }
+    const c = tones[tone] || tones.mid
+    const rad = (angle * Math.PI) / 180
+    const ex = origin[0] + Math.cos(rad) * len
+    const ey = origin[1] + Math.sin(rad) * len + droop
+    const mx = origin[0] + Math.cos(rad) * len * 0.52
+    const my = origin[1] + Math.sin(rad) * len * 0.52 + droop * 0.24
+    const nx = -Math.sin(rad) * width
+    const ny = Math.cos(rad) * width
+
+    const teeth = 8
+    let edgeA = ''
+    let edgeB = ''
+    for (let i = 1; i <= teeth; i++) {
+        const t = i / (teeth + 1)
+        const bx = origin[0] + (mx - origin[0]) * t * 1.9
+        const by = origin[1] + (my - origin[1]) * t * 1.9 + droop * t * 0.55
+        const k = 0.4 + t * 0.55
+        edgeA += ` L${bx + nx * k} ${by + ny * k} L${bx + nx * 0.14} ${by + ny * 0.14}`
+        edgeB += ` L${bx - nx * k} ${by - ny * k} L${bx - nx * 0.14} ${by - ny * 0.14}`
+    }
+
     return (
         <g>
-            <ellipse cx={cx} cy={cy} rx={r} ry={r * 1.1} fill="#5c3a1e"/>
-            <ellipse cx={cx - r * 0.3} cy={cy - r * 0.3} rx={r * 0.35} ry={r * 0.3} fill="#7a5233" opacity="0.7"/>
-            <ellipse cx={cx + r * 0.3} cy={cy + r * 0.3} rx={r * 0.25} ry={r * 0.2} fill="#3a2412" opacity="0.6"/>
-            <circle cx={cx - r * 0.2} cy={cy - r * 0.4} r={r * 0.1} fill="#2f1d14"/>
+            <path d={`M${origin[0]} ${origin[1]} Q${mx} ${my + 1} ${ex} ${ey}${edgeB} Z`} fill={c.dark} opacity="0.92" />
+            <path d={`M${origin[0]} ${origin[1]} Q${mx} ${my} ${ex} ${ey}${edgeA} Z`} fill={c.fill} />
+            <path
+                d={`M${origin[0]} ${origin[1]} Q${mx} ${my} ${ex} ${ey}`}
+                stroke={c.dark}
+                strokeWidth="0.5"
+                fill="none"
+                opacity="0.55"
+            />
         </g>
     )
 }
 
-// Крона — веер листьев на макушке
-function CoconutCrown({ cx, cy, scale = 1 }) {
-    const fronds = [
-        { x1: cx - 32, y1: cy - 4,  tone: 'mid'   },
-        { x1: cx + 32, y1: cy - 4,  tone: 'light' },
-        { x1: cx - 24, y1: cy + 12, tone: 'deep'  },
-        { x1: cx + 24, y1: cy + 12, tone: 'mid'   },
-        { x1: cx - 20, y1: cy - 16, tone: 'light' },
-        { x1: cx + 20, y1: cy - 16, tone: 'deep'  },
-        { x1: cx - 10, y1: cy - 22, tone: 'mid'   },
-        { x1: cx + 10, y1: cy - 22, tone: 'light' },
+function Coconuts({ cx = 50, y = 24, s = 1 }) {
+    const nuts = [
+        { dx: -4.6, dy: 1.4, r: 3.1, fill: '#6b4a24', hi: '#a37c46' },
+        { dx: 0.6, dy: 2.6, r: 2.9, fill: '#5a3d1c', hi: '#8f6c3c' },
+        { dx: 4.4, dy: 1, r: 2.7, fill: '#7c5628', hi: '#b08a4e' },
     ]
     return (
         <g>
-            {fronds.map((f, i) => (
-                <CoconutFrond key={i}
-                              x0={cx} y0={cy}
-                              x1={f.x1} y1={f.y1}
-                              tone={f.tone}
-                              side={f.x1 < cx ? 1 : -1}
-                              barbs={14}/>
+            {nuts.map((n, i) => (
+                <g key={i}>
+                    <circle cx={cx + n.dx * s} cy={y + n.dy * s} r={n.r * s} fill={n.fill} />
+                    <circle cx={cx + n.dx * s - n.r * s * 0.32} cy={y + n.dy * s - n.r * s * 0.34} r={n.r * s * 0.3} fill={n.hi} opacity="0.7" />
+                </g>
             ))}
         </g>
     )
 }
 
-// Высокий изогнутый ствол
-function CoconutTrunk({ topY = 20, curve = 6 }) {
-    // Ствол изогнут вправо
-    const segments = []
-    for (let i = 0; i < 14; i++) {
-        const t = i / 13
-        const y = 96 - t * (96 - topY)
-        const x = 50 + Math.sin(t * 0.6) * curve
-        segments.push({ x, y })
-    }
-    const pathD = `M${segments[0].x} ${segments[0].y} ` +
-        segments.slice(1).map(s => `L${s.x} ${s.y}`).join(' ')
+const FRONDS_SMALL = [
+    { angle: 205, len: 18, width: 6, tone: 'mid', droop: 3 },
+    { angle: 335, len: 18, width: 6, tone: 'light', droop: 3 },
+    { angle: 235, len: 14, width: 5, tone: 'deep', droop: 2 },
+    { angle: 305, len: 14, width: 5, tone: 'mid', droop: 2 },
+    { angle: 270, len: 17, width: 5.5, tone: 'light', droop: 1 },
+]
 
-    return (
-        <g>
-            <path d={pathD}
-                  stroke="#8a6b3d" strokeWidth="5.5" strokeLinecap="round" fill="none"/>
-            <path d={pathD}
-                  stroke="#a88352" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.7"/>
-            {/* Кольца на стволе */}
-            {segments.filter((_, i) => i % 2 === 0).map((s, i) => (
-                <ellipse key={i} cx={s.x} cy={s.y} rx={2.6} ry={0.8}
-                         fill="#5c4322" opacity="0.85"/>
-            ))}
-        </g>
-    )
-}
-
-function CoconutGround() {
-    return (
-        <g>
-            <ellipse cx="50" cy="96" rx="38" ry="4" fill="#c8a878" opacity="0.85"/>
-            <ellipse cx="50" cy="95" rx="28" ry="2.6" fill="#e0c89a" opacity="0.9"/>
-            <Coconut cx={22} cy={96} r={2.2}/>
-            <Coconut cx={78} cy={96} r={2}/>
-        </g>
-    )
-}
+const FRONDS_MATURE = [
+    { angle: 200, len: 31, width: 9, tone: 'mid', droop: 9, origin: [55, 21] },
+    { angle: 340, len: 31, width: 9, tone: 'light', droop: 9, origin: [55, 21] },
+    { angle: 224, len: 26, width: 8, tone: 'deep', droop: 7, origin: [55, 20] },
+    { angle: 316, len: 26, width: 8, tone: 'mid', droop: 7, origin: [55, 20] },
+    { angle: 250, len: 27, width: 7.5, tone: 'light', droop: 5, origin: [55, 19] },
+    { angle: 290, len: 27, width: 7.5, tone: 'mid', droop: 5, origin: [55, 19] },
+    { angle: 272, len: 22, width: 6.5, tone: 'deep', droop: 3, origin: [55, 18] },
+]
 
 export function SproutSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <CoconutGround />
-            <path d="M50 94 C48 82 52 72 50 60" stroke="#8a6b3d" strokeWidth="3.6" strokeLinecap="round" fill="none"/>
-            <ellipse cx={50} cy={88} rx={2.4} ry={0.7} fill="#5c4322" opacity="0.9"/>
-            <ellipse cx={50} cy={78} rx={2.4} ry={0.7} fill="#5c4322" opacity="0.9"/>
-            <ellipse cx={50} cy={68} rx={2.4} ry={0.7} fill="#5c4322" opacity="0.9"/>
-            <CoconutCrown cx={50} cy={58} scale={0.55}/>
-        </svg>
+        <Stage>
+            <Ground rx={16} dry />
+            <Trunk d="M50 94 C50 87 52 80 51 72" width={3.2} bark={p.bark} />
+            <ellipse cx="51" cy="86" rx="2.4" ry="0.6" fill={p.bark.dark} opacity="0.55" />
+            <g transform="translate(51 72) scale(0.5) translate(-51 -72)">
+                {FRONDS_SMALL.map((f, i) => <Frond key={i} {...f} origin={[51, 72]} />)}
+            </g>
+        </Stage>
     )
 }
 
 export function YoungSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <CoconutGround />
-            <CoconutTrunk topY={34} curve={5}/>
-            <CoconutCrown cx={53} cy={32} scale={0.9}/>
-            {/* Несколько кокосов под кроной */}
-            <Coconut cx={45} cy={40} r={2.4}/>
-            <Coconut cx={57} cy={42} r={2.2}/>
-        </svg>
+        <Stage>
+            <Ground rx={21} dry />
+            <Trunk d="M50 94 C48 78 55 56 52 36" width={4.8} bark={p.bark} />
+            {[87, 79, 71, 63, 55, 47, 41].map((y, i) => (
+                <ellipse key={i} cx={i % 2 ? 51 : 52} cy={y} rx="3" ry="0.7" fill={p.bark.dark} opacity="0.5" />
+            ))}
+            {FRONDS_SMALL.map((f, i) => <Frond key={i} {...f} origin={[52, 36]} />)}
+            <Coconuts cx={52} y={39} s={0.7} />
+        </Stage>
     )
 }
 
 export function MatureSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <Aura id="coconutAura" color1="#a8d97b" color2="#5a9f3a" />
-            <circle cx="50" cy="45" r="46" fill="url(#coconutAura)" />
-            <CoconutGround />
-            <CoconutTrunk topY={18} curve={7}/>
-            <CoconutCrown cx={56} cy={16} scale={1.25}/>
-
-            {/* Много кокосов под кроной */}
-            <Coconut cx={44} cy={26} r={2.6}/>
-            <Coconut cx={52} cy={28} r={2.4}/>
-            <Coconut cx={60} cy={26} r={2.2}/>
-            <Coconut cx={48} cy={32} r={2.2}/>
-            <Coconut cx={56} cy={34} r={2.4}/>
-
-            <SparkleRing colorScheme="green" />
-        </svg>
+        <Stage>
+            <ellipse cx="52" cy="88" rx="25" ry="7" fill={p.shade} opacity="0.10" />
+            <Ground rx={27} dry />
+            <Trunk d="M50 96 C45 74 58 44 55 21" width={6.6} bark={p.bark} />
+            {[90, 84, 78, 72, 66, 60, 54, 48, 42, 36, 30, 25].map((y, i) => (
+                <ellipse
+                    key={i}
+                    cx={48 + i * 0.55}
+                    cy={y}
+                    rx={3.7}
+                    ry="0.85"
+                    fill={p.bark.dark}
+                    opacity="0.48"
+                    transform={`rotate(${i % 2 ? -6 : 6} ${48 + i * 0.55} ${y})`}
+                />
+            ))}
+            {FRONDS_MATURE.map((f, i) => <Frond key={i} {...f} />)}
+            <Coconuts cx={55} y={24} s={1} />
+        </Stage>
     )
 }

@@ -44,6 +44,18 @@ public class AdminAccentService {
                                        Boolean isGradient, Integer price, Integer oldPrice,
                                        Integer sortOrder, List<Long> categoryIds,
                                        MultipartFile file) {
+        return createAccent(title, description, code, hexColor, hexColorSecondary, null,
+                isGradient, null, price, oldPrice, sortOrder, categoryIds, file);
+    }
+
+    @Transactional
+    public AdminAccentDto createAccent(String title, String description,
+                                       String code, String hexColor, String hexColorSecondary,
+                                       String hexColorTertiary,
+                                       Boolean isGradient, Boolean isRare,
+                                       Integer price, Integer oldPrice,
+                                       Integer sortOrder, List<Long> categoryIds,
+                                       MultipartFile file) {
         if (title == null || title.isBlank()) {
             throw new IllegalArgumentException("Укажи название");
         }
@@ -71,7 +83,9 @@ public class AdminAccentService {
                 .description(description != null ? description : "")
                 .hexColor(hexColor)
                 .hexColorSecondary(hexColorSecondary)
+                .hexColorTertiary(hexColorTertiary)
                 .isGradient(Boolean.TRUE.equals(isGradient))
+                .isRare(Boolean.TRUE.equals(isRare))
                 .imageUrl(imageUrl)
                 .price(price != null ? price : 0)
                 .oldPrice(oldPrice)
@@ -89,6 +103,18 @@ public class AdminAccentService {
                                        Boolean isGradient, Integer price, Integer oldPrice,
                                        Integer sortOrder, List<Long> categoryIds,
                                        MultipartFile file, Boolean clearImage) {
+        return updateAccent(id, title, description, hexColor, hexColorSecondary, null,
+                isGradient, null, price, oldPrice, sortOrder, categoryIds, file, clearImage);
+    }
+
+    @Transactional
+    public AdminAccentDto updateAccent(Long id, String title, String description,
+                                       String hexColor, String hexColorSecondary,
+                                       String hexColorTertiary,
+                                       Boolean isGradient, Boolean isRare,
+                                       Integer price, Integer oldPrice,
+                                       Integer sortOrder, List<Long> categoryIds,
+                                       MultipartFile file, Boolean clearImage) {
         AccentSkin a = accentSkinRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Акцент не найден"));
 
@@ -96,7 +122,9 @@ public class AdminAccentService {
         if (description != null) a.setDescription(description);
         if (hexColor != null) a.setHexColor(hexColor);
         if (hexColorSecondary != null) a.setHexColorSecondary(hexColorSecondary.isBlank() ? null : hexColorSecondary);
+        if (hexColorTertiary != null) a.setHexColorTertiary(hexColorTertiary.isBlank() ? null : hexColorTertiary);
         if (isGradient != null) a.setIsGradient(isGradient);
+        if (isRare != null) a.setIsRare(isRare);
         if (price != null) a.setPrice(price);
         if (oldPrice != null) a.setOldPrice(oldPrice);
         if (sortOrder != null) a.setSortOrder(sortOrder);
@@ -210,7 +238,9 @@ public class AdminAccentService {
                 .description(a.getDescription())
                 .hexColor(a.getHexColor())
                 .hexColorSecondary(a.getHexColorSecondary())
+                .hexColorTertiary(a.getHexColorTertiary())
                 .isGradient(a.getIsGradient())
+                .isRare(a.getIsRare())
                 .imageUrl(a.getImageUrl())
                 .price(a.getPrice())
                 .oldPrice(a.getOldPrice())

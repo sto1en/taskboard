@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDispatch } from 'react-redux'
+import { invalidateStats } from '../../store/slices/statsSlice'
 import { useSearchParams } from 'react-router-dom'
-import Modal from '../Modal/Modal'
+import Modal from '../modal/Modal'
 import ConfirmModal from '../common/ConfirmModal'
 import { tasksApi } from '../../api/api'
 import useT from '../../hooks/useT'
 import useHotkeys from '../../hooks/useHotkeys'
 import useConfirmDelete from '../../hooks/useConfirmDelete'
 import { useAuth } from '../../context/AuthContext'
-import TaskCard from '../Task/TaskCard'
+import TaskCard from '../task/TaskCard'
 
 function isDoneCategory(cat) {
     return cat === 'DONE' || cat === 'ARCHIVED' || cat === 'CANCELLED'
@@ -39,6 +41,7 @@ export default function DayTasksModal({
                                           columns,
                                       }) {
     const t = useT()
+    const dispatch = useDispatch()
     const [searchParams] = useSearchParams()
     const { user, updateUser } = useAuth()
 
@@ -139,7 +142,7 @@ export default function DayTasksModal({
         try {
             await tasksApi.update(task.id, { statusId: targetStatusId })
             onTaskMoved && onTaskMoved()
-            window.dispatchEvent(new Event('tree:refresh'))
+            dispatch(invalidateStats())
         } catch (err) {
             console.error('Toggle done failed:', err)
             setFullTasks(prev => prev.map(x =>
@@ -171,7 +174,7 @@ export default function DayTasksModal({
         try {
             await tasksApi.update(task.id, { statusId: targetStatusId })
             onTaskMoved && onTaskMoved()
-            window.dispatchEvent(new Event('tree:refresh'))
+            dispatch(invalidateStats())
         } catch (err) {
             console.error('Toggle cancel failed:', err)
             setFullTasks(prev => prev.map(x =>
@@ -193,7 +196,7 @@ export default function DayTasksModal({
             await tasksApi.delete(task.id)
             setFullTasks(prev => prev.filter(x => x.id !== task.id))
             onTaskMoved && onTaskMoved()
-            window.dispatchEvent(new Event('tree:refresh'))
+            dispatch(invalidateStats())
             setHoveredTaskId(null)
         } catch (err) {
             alert(err.response?.data?.message || 'Не удалось удалить')

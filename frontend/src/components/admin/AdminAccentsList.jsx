@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import AccentCard from '../Shop/AccentCard'
+import AccentCard from '../shop/AccentCard'
 import AdminAccentEditorModal from './AdminAccentEditorModal'
 import SortArrows from './SortArrows'
 import { adminApi } from '../../api/api'

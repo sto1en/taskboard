@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import AvatarCard from '../Shop/AvatarCard'
+import AvatarCard from '../shop/AvatarCard'
 import AdminAvatarEditorModal from './AdminAvatarEditorModal'
 import SortArrows from './SortArrows'
 import { adminApi } from '../../api/api'

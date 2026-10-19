@@ -1,6 +1,6 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import SortableTaskCard from '../Task/SortableTaskCard'
+import SortableTaskCard from '../task/SortableTaskCard'
 import InlineEdit from '../common/InlineEdit'
 import useT from '../../hooks/useT'
 import { useAuth } from '../../context/AuthContext'

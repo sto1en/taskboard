@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { statusesApi } from '../../api/api'
-import Modal from '../Modal/Modal'
+import Modal from '../modal/Modal'
 import useT from '../../hooks/useT'
 import { localizeCategoryLabel } from '../../utils/statusNames'
 

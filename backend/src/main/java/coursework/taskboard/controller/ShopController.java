@@ -1,5 +1,6 @@
 package coursework.taskboard.controller;
 
+import coursework.taskboard.dto.shop.CategoryDto;
 import coursework.taskboard.dto.shop.UserShopDto;
 import coursework.taskboard.model.user.User;
 import coursework.taskboard.service.auth.CurrentUserService;
@@ -76,9 +77,40 @@ public class ShopController {
         return ResponseEntity.ok(shopService.unequipTreeSkin(currentUserService.getCurrentUser()));
     }
 
+    /** Типы деревьев — нужны фильтрам магазина (доступно любому авторизованному). */
+    @GetMapping("/tree-categories")
+    public ResponseEntity<List<CategoryDto>> treeCategories() {
+        return ResponseEntity.ok(shopService.getTreeCategories());
+    }
+
+    // ============================================================
+    // Категории для чипов магазина.
+    //
+    // Магазин — обычная страница для всех пользователей, но категории он
+    // брал из /api/admin/shop/*, где стоит checkAdmin() и кидается
+    // IllegalArgumentException. Без обработчика ошибок Spring отдаёт на него
+    // 403, фронт (api.js) трактует 403 как «токен протух» — чистит токен и
+    // выкидывает на /login. Отсюда «магазин выкидывает из аккаунта» у всех,
+    // кроме админов. Эти три ручки — только чтение справочников.
+    // ============================================================
+
+    @GetMapping("/avatar-categories")
+    public ResponseEntity<List<CategoryDto>> avatarCategories() {
+        return ResponseEntity.ok(shopService.getAvatarCategories());
+    }
+
+    @GetMapping("/frame-categories")
+    public ResponseEntity<List<CategoryDto>> frameCategories() {
+        return ResponseEntity.ok(shopService.getFrameCategories());
+    }
+
+    @GetMapping("/accent-categories")
+    public ResponseEntity<List<CategoryDto>> accentCategories() {
+        return ResponseEntity.ok(shopService.getAccentCategories());
+    }
+
     // Акценты
-    @PostMapping("/accents/{id}/buy")
-    public ResponseEntity<UserShopDto> buyAccent(@PathVariable Long id) {
+    @PostMapping("/accents/{id}/buy")    public ResponseEntity<UserShopDto> buyAccent(@PathVariable Long id) {
         return ResponseEntity.ok(shopService.buyAccent(currentUserService.getCurrentUser(), id));
     }
 

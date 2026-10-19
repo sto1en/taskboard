@@ -3,6 +3,7 @@
 export const MESSAGES = {
     ru: {
         // Sidebar
+        home: 'Главная',
         boards: 'Доски',
         calendar: 'Календарь',
         stats: 'Статистика',
@@ -336,6 +337,35 @@ export const MESSAGES = {
         nothingFound: 'Ничего не найдено',
         noTasks: 'Нет задач',
 
+        // Магазин
+        shopTitle: 'Магазин',
+        shopLeaves: 'Листья',
+        shopBuy: 'Купить',
+        shopGet: 'Получить',
+        shopEquip: 'Надеть',
+        shopUnequip: 'Снять',
+        shopFree: 'Бесплатно',
+        shopActive: 'Активно',
+        shopOwned: 'Куплено',
+        shopPaidFor: (n) => `Куплено за 🍃 ${n}`,
+        shopGifted: 'Получено в награду за ачивку',
+        shopNotEnough: 'Недостаточно листьев',
+        shopPricesTitle: 'Как копятся листья',
+        shopPreview: 'Превью',
+        shopPreviewHint: 'Посмотреть дерево во всех стадиях',
+        shopStageSprout: 'Росток',
+        shopStageYoung: 'Молодое',
+        shopStageMature: 'Взрослое',
+        shopSortPopular: 'Популярные',
+        shopSortPriceAsc: 'Цена ↑',
+        shopSortPriceDesc: 'Цена ↓',
+        shopSortType: 'По типу',
+        shopSortDefault: 'По порядку',
+        shopSortCycle: 'Сортировка: популярные → цена ↑ → цена ↓ → по типу → по порядку',
+        shopTypeAll: 'Все',
+        shopRare: 'Редкий',
+        shopMiscType: 'Прочее',
+
         // Default statuses
         defaultStatusInProgress: 'В процессе',
         defaultStatusDone: 'Выполнено',
@@ -348,6 +378,7 @@ export const MESSAGES = {
     },
     en: {
         // Sidebar
+        home: 'Home',
         boards: 'My Boards',
         calendar: 'Calendar',
         stats: 'Stats',
@@ -690,6 +721,35 @@ export const MESSAGES = {
         taskListDoneSuffix: 'done',
         taskListArchivedSuffix: 'archived',
         overdueLabel: 'overdue',
+
+        // Shop
+        shopTitle: 'Shop',
+        shopLeaves: 'Leaves',
+        shopBuy: 'Buy',
+        shopGet: 'Get',
+        shopEquip: 'Equip',
+        shopUnequip: 'Unequip',
+        shopFree: 'Free',
+        shopActive: 'Active',
+        shopOwned: 'Owned',
+        shopPaidFor: (n) => `Bought for 🍃 ${n}`,
+        shopGifted: 'Earned as an achievement reward',
+        shopNotEnough: 'Not enough leaves',
+        shopPricesTitle: 'How leaves add up',
+        shopPreview: 'Preview',
+        shopPreviewHint: 'See the tree at every stage',
+        shopStageSprout: 'Sprout',
+        shopStageYoung: 'Young',
+        shopStageMature: 'Mature',
+        shopSortPopular: 'Popular',
+        shopSortPriceAsc: 'Price ↑',
+        shopSortPriceDesc: 'Price ↓',
+        shopSortType: 'By type',
+        shopSortDefault: 'Default',
+        shopSortCycle: 'Sort: popular → price ↑ → price ↓ → by type → default',
+        shopTypeAll: 'All',
+        shopRare: 'Rare',
+        shopMiscType: 'Other',
     },
 }
 

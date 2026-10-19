@@ -46,8 +46,27 @@ import java.util.Objects;
 public class TaskService {
 
     private static final int MAX_SUBTASKS = 20;
-    private static final int LEAVES_PER_TASK = 10;
-    private static final int LEAVES_TREE_BONUS = 50;
+    /**
+     * Убывающая отдача за задачи в течение дня. Доход зависит от того, какой
+     * по счёту задачу за сегодня закрывает пользователь:
+     *   1–10-я  → ×10 листьев (базовая ставка, как раньше)
+     *   11–30-я → ×7
+     *   31-я+   → ×5
+     * Благодаря этому «топ за 3 дня» становится честной прогрессией, а не
+     * бесконечным фармом. Расчёт вынесен в leavesForTask(...) и используется
+     * как при начислении, так и при откате — иначе отмена вернула бы больше,
+     * чем дали.
+     */
+    private static final int LEAVES_TIER_FULL = 10;    // задач/день по полной ставке
+    private static final int LEAVES_TIER_MID = 30;     // до этой границы — пониженная ставка
+    private static final int LEAVES_DAILY_BASE = 10;   // листьев за задачу в 1-м тире
+    private static final int LEAVES_DAILY_MID = 7;     // листьев за задачу во 2-м тире
+    private static final int LEAVES_DAILY_TAIL = 5;    // листьев за задачу в 3-м тире
+    /**
+     * Бонус «за взросление дерева»: каждые 10 закрытых задач дают +100 листьев.
+     * Начисляется отдельно и НЕ участвует в убывании (не зависит от дневного тира).
+     */
+    private static final int LEAVES_TREE_BONUS = 100;
 
     private final TaskRepository taskRepository;
     private final TaskSettingsRepository taskSettingsRepository;
@@ -584,6 +603,29 @@ public class TaskService {
     }
 
     // ============================================================
+    // РАСЧЁТ НАГРАДЫ ЗА ЗАДАЧУ (единая точка для начисления и отката)
+    // ============================================================
+    /**
+     * Возвращает количество листьев за одну закрытую задачу с учётом убывающей
+     * отдачи в течение дня.
+     *
+     * @param doneCount порядковый номер этой задачи среди закрытых сегодня
+     *                  (1 — первая задача дня, 11 — одиннадцатая и т.д.).
+     *                  Для начисления передаётся значение ПОСЛЕ закрытия,
+     *                  для отката — то же значение, которое использовалось
+     *                  при начислении, чтобы списать ровно столько же.
+     */
+    private int leavesForTask(long doneCount) {
+        if (doneCount <= LEAVES_TIER_FULL) {
+            return LEAVES_DAILY_BASE;
+        }
+        if (doneCount <= LEAVES_TIER_MID) {
+            return LEAVES_DAILY_MID;
+        }
+        return LEAVES_DAILY_TAIL;
+    }
+
+    // ============================================================
     // НАГРАДА — возвращает список новых ачивок
     // ============================================================
     private List<AchievementDto> onTaskCompleted(User user, Task task, TaskSchedule schedule,
@@ -595,11 +637,12 @@ public class TaskService {
             return result;
         }
 
-        // +10 за задачу
-        shopService.addLeaves(user, LEAVES_PER_TASK);
-
-        // Бонус за дерево
+        // Награда за задачу с убывающей отдачей. doneAfter — порядковый номер
+        // этой задачи среди закрытых сегодня, т.е. её «тир».
         long doneAfter = countDoneTasksToday(user);
+        shopService.addLeaves(user, leavesForTask(doneAfter));
+
+        // Бонус за дерево — считается отдельно и не участвует в убывании
         long doneBefore = doneAfter - 1;
         int bonusDelta = (int) ((doneAfter / 10 - doneBefore / 10) * LEAVES_TREE_BONUS);
         if (bonusDelta > 0) {
@@ -639,10 +682,14 @@ public class TaskService {
     // СПИСАНИЕ ПРИ ОТМЕНЕ
     // ============================================================
     private void onTaskReopened(User user, Task task, long doneBeforeOverride) {
-        shopService.deductLeavesSafe(user, LEAVES_PER_TASK);
-
         long doneBefore = doneBeforeOverride;
         long doneAfter = doneBefore - 1;
+
+        // Зеркалим убывающую логику начисления: откатываемая задача всё ещё
+        // числится закрытой сегодня, поэтому doneBefore — это её порядковый
+        // номер (= тир). Списываем ровно столько же, сколько начислили.
+        shopService.deductLeavesSafe(user, leavesForTask(doneBefore));
+
         int bonusDelta = (int) ((doneAfter / 10 - doneBefore / 10) * LEAVES_TREE_BONUS);
         if (bonusDelta < 0) {
             shopService.deductLeavesSafe(user, -bonusDelta);

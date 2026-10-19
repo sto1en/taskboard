@@ -1,241 +1,133 @@
-import { Aura, SparkleRing, seededRandom } from './common'
+// frontend/src/components/layout/trees/CherryTree.jsx
 
-const PETAL = {
-    light: { petal: '#ffd6e7', edge: '#f8a8c8', core: '#fff5c2' },
-    mid:   { petal: '#ffa8c8', edge: '#e86a9a', core: '#ffd97a' },
-    deep:  { petal: '#e86a9a', edge: '#b83e6c', core: '#f4b942' },
-    blush: { petal: '#ffc0d4', edge: '#e89ab5', core: '#fff0b8' },
-}
+/**
+ * Черешня — розовая крона (в мае), тёмные вишни парами на длинных черешках.
+ * От сакуры отличается плодами и более плотной, «зернистой» кроной.
+ */
 
-// Мелкий цветок вишни (одиночный лепесток с точкой)
-function CherryBlossom({ cx, cy, r = 2.2, rot = 0, tone = 'mid' }) {
-    const p = PETAL[tone] || PETAL.mid
-    return (
-        <g transform={`rotate(${rot} ${cx} ${cy})`}>
-            {/* 5 мелких лепестков */}
-            {[0, 72, 144, 216, 288].map((a, i) => {
-                const rad = a * Math.PI / 180
-                const px = cx + Math.cos(rad) * r * 0.6
-                const py = cy + Math.sin(rad) * r * 0.6
-                return (
-                    <ellipse key={i} cx={px} cy={py} rx={r * 0.45} ry={r * 0.35}
-                             transform={`rotate(${a} ${px} ${py})`}
-                             fill={p.petal} stroke={p.edge} strokeWidth={r * 0.08}/>
-                )
-            })}
-            <circle cx={cx} cy={cy} r={r * 0.22} fill={p.core}/>
-        </g>
-    )
-}
+import { PALETTE, Ground, Crown, Texture, Edge, ringPoints, Trunk, Branches, Stage } from './kit'
 
-// Тёмная вишенка (ягода) с бликом
-function CherryBerry({ cx, cy, r = 2.4 }) {
+const p = PALETTE.cherry
+
+function CherryPair({ x, y, s = 1 }) {
     return (
         <g>
-            <circle cx={cx} cy={cy} r={r} fill="#8b0a2a"/>
-            <circle cx={cx - r * 0.3} cy={cy - r * 0.3} r={r * 0.4} fill="#c9305a" opacity="0.8"/>
-            <circle cx={cx - r * 0.4} cy={cy - r * 0.4} r={r * 0.15} fill="#fff" opacity="0.9"/>
+            <path
+                d={`M${x} ${y - 5 * s} C${x + 1.2 * s} ${y - 3 * s} ${x + 0.6 * s} ${y - 1.4 * s} ${x + 0.9 * s} ${y}`}
+                stroke="#3f6b28"
+                strokeWidth={0.5 * s}
+                strokeLinecap="round"
+                fill="none"
+            />
+            <path
+                d={`M${x} ${y - 5 * s} C${x - 1.4 * s} ${y - 3.4 * s} ${x - 1 * s} ${y - 1.4 * s} ${x - 1.1 * s} ${y}`}
+                stroke="#3f6b28"
+                strokeWidth={0.5 * s}
+                strokeLinecap="round"
+                fill="none"
+            />
+            <circle cx={x + 0.9 * s} cy={y + 1 * s} r={1.5 * s} fill="#b3142f" />
+            <circle cx={x + 0.55 * s} cy={y + 0.6 * s} r={0.5 * s} fill="#ff8a9e" opacity="0.8" />
+            <circle cx={x - 1.1 * s} cy={y + 1.2 * s} r={1.35 * s} fill="#97102a" />
+            <circle cx={x - 1.4 * s} cy={y + 0.8 * s} r={0.45 * s} fill="#ff8a9e" opacity="0.8" />
+            <path
+                d={`M${x} ${y - 5 * s} C${x + 2 * s} ${y - 6.6 * s} ${x + 3.4 * s} ${y - 5.4 * s} ${x + 3.6 * s} ${y - 4 * s}
+                    C${x + 2.2 * s} ${y - 3.6 * s} ${x + 0.8 * s} ${y - 4.1 * s} ${x} ${y - 5 * s} Z`}
+                fill="#5b9440"
+            />
         </g>
     )
 }
 
-// Гроздь — 3-5 цветков плотно + редкая ягода
-function BlossomCluster({ cx, cy, radius = 5, seed = 0, withBerry = true }) {
-    const flowers = []
-    const tones = ['light', 'mid', 'deep', 'blush']
-    const count = 4 + Math.floor(seededRandom(seed, 0) * 3)
+const MATURE_BLOBS = [
+    { cx: 50, cy: 30, rx: 30, ry: 22 },
+    { cx: 23, cy: 40, rx: 15, ry: 12 },
+    { cx: 77, cy: 40, rx: 15, ry: 12 },
+    { cx: 32, cy: 20, rx: 16, ry: 12 },
+    { cx: 68, cy: 20, rx: 16, ry: 12 },
+    { cx: 50, cy: 14, rx: 17, ry: 10 },
+    { cx: 21, cy: 58, rx: 11, ry: 8 },
+    { cx: 79, cy: 58, rx: 11, ry: 8 },
+    { cx: 50, cy: 45, rx: 19, ry: 11 },
+]
 
-    for (let i = 0; i < count; i++) {
-        const a = seededRandom(seed, i + 1) * Math.PI * 2
-        const d = radius * (0.1 + seededRandom(seed, i + 10) * 0.9)
-        const px = cx + Math.cos(a) * d
-        const py = cy + Math.sin(a) * d * 0.7
-        flowers.push(
-            <CherryBlossom key={i} cx={px} cy={py}
-                           r={radius * 0.4 + seededRandom(seed, i + 20) * radius * 0.15}
-                           rot={seededRandom(seed, i + 30) * 360}
-                           tone={tones[i % tones.length]}/>
-        )
-    }
-    if (withBerry && seededRandom(seed, 100) > 0.55) {
-        flowers.push(
-            <CherryBerry key="b" cx={cx - radius * 0.3} cy={cy + radius * 0.4}
-                         r={radius * 0.45}/>
-        )
-    }
-    return <g>{flowers}</g>
-}
-
-// Каскад — серия гроздьев вдоль ветки
-function BlossomCascade({ x1, y1, x2, y2, seed = 0, count = 4 }) {
-    const items = []
-    for (let i = 0; i < count; i++) {
-        const t = (i + 1) / (count + 1)
-        const cx = x1 + (x2 - x1) * t
-        const cy = y1 + (y2 - y1) * t
-        items.push(
-            <BlossomCluster key={i} cx={cx} cy={cy}
-                            radius={3.5 + seededRandom(seed, i) * 2}
-                            seed={seed + i * 100}
-                            withBerry={i % 2 === 0}/>
-        )
-    }
-    return <g>{items}</g>
-}
-
-// Прямой ствол с небольшим наклоном вправо
-function CherryTrunk({ topY = 18 }) {
-    return (
-        <g>
-            {/* Основной ствол — прямо, слегка наклонён */}
-            <path d={`M50 96 C50.5 84 51.5 72 52 60 C52.5 48 53 36 52 ${topY}`}
-                  stroke="#4a2418" strokeWidth="6" strokeLinecap="round" fill="none"/>
-            {/* Блик */}
-            <path d={`M47.5 90 C48 78 49 66 49.5 54 C50 42 50.5 30 50 ${topY + 2}`}
-                  stroke="#7a4230" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity="0.7"/>
-            {/* Полоски коры */}
-            {[88, 78, 68, 58, 48, 38, 28].filter(y => y > topY).map((y, i) => (
-                <line key={i}
-                      x1={48 + (i % 2) * 0.5} y1={y}
-                      x2={50 + (i % 2) * 0.5} y2={y + 2}
-                      stroke="#2a1410" strokeWidth="0.5" strokeLinecap="round"/>
-            ))}
-        </g>
-    )
-}
-
-// Свисающие ветки-каскады
-function CherryBranches({ topY = 18 }) {
-    // Каждая ветка — длинная, свисает вниз
-    return (
-        <g stroke="#4a2418" strokeLinecap="round" fill="none">
-            {/* Верхние ветки — веером вверх */}
-            <path d={`M52 ${topY + 6} C48 ${topY} 42 ${topY - 2} 36 ${topY + 2}`} strokeWidth="2.4"/>
-            <path d={`M52 ${topY + 6} C56 ${topY} 62 ${topY - 2} 68 ${topY + 2}`} strokeWidth="2.4"/>
-
-            {/* Средние ветки — раскидистые, дугой */}
-            <path d={`M52 ${topY + 18} C44 ${topY + 14} 34 ${topY + 14} 26 ${topY + 22}`} strokeWidth="2.2"/>
-            <path d={`M52 ${topY + 18} C60 ${topY + 14} 70 ${topY + 14} 78 ${topY + 22}`} strokeWidth="2.2"/>
-
-            {/* Нижние ветки — каскадом вниз */}
-            <path d={`M52 ${topY + 30} C44 ${topY + 26} 32 ${topY + 30} 22 ${topY + 40}`} strokeWidth="2"/>
-            <path d={`M52 ${topY + 30} C60 ${topY + 26} 72 ${topY + 30} 82 ${topY + 40}`} strokeWidth="2"/>
-
-            {/* Мелкие веточки-«косички», свисают длинными линиями */}
-            <path d={`M36 ${topY + 2} C32 ${topY + 6} 28 ${topY + 12} 24 ${topY + 20}`} strokeWidth="1.2"/>
-            <path d={`M68 ${topY + 2} C72 ${topY + 6} 76 ${topY + 12} 80 ${topY + 20}`} strokeWidth="1.2"/>
-
-            <path d={`M26 ${topY + 22} C22 ${topY + 26} 16 ${topY + 32} 12 ${topY + 42}`} strokeWidth="1"/>
-            <path d={`M78 ${topY + 22} C82 ${topY + 26} 88 ${topY + 32} 92 ${topY + 42}`} strokeWidth="1"/>
-
-            <path d={`M22 ${topY + 40} C18 ${topY + 46} 14 ${topY + 52} 12 ${topY + 62}`} strokeWidth="0.9"/>
-            <path d={`M82 ${topY + 40} C86 ${topY + 46} 90 ${topY + 52} 92 ${topY + 62}`} strokeWidth="0.9"/>
-        </g>
-    )
-}
-
-function CherryGround() {
-    return (
-        <g>
-            <ellipse cx="50" cy="96" rx="38" ry="4" fill="#6b4a3a" opacity="0.7"/>
-            <ellipse cx="50" cy="95" rx="28" ry="2.6" fill="#8a6553" opacity="0.85"/>
-            <path d="M20 96 L18 92 M24 96 L25 91 M28 96 L27 92"
-                  stroke="#5c8f4a" strokeWidth="0.7" strokeLinecap="round" fill="none"/>
-            <path d="M72 96 L73 91 M76 96 L78 92 M80 96 L79 91"
-                  stroke="#5c8f4a" strokeWidth="0.7" strokeLinecap="round" fill="none"/>
-            {/* Опавшие цветы и вишенки */}
-            <ellipse cx="30" cy="94" rx="1.2" ry="0.7" fill="#ffa8c8" opacity="0.85"/>
-            <ellipse cx="48" cy="95" rx="1.3" ry="0.8" fill="#ffd6e7" opacity="0.8"/>
-            <ellipse cx="66" cy="94" rx="1.1" ry="0.7" fill="#ffa8c8" opacity="0.85"/>
-            <circle cx="40" cy="96" r="0.9" fill="#8b0a2a" opacity="0.9"/>
-            <circle cx="58" cy="96" r="0.8" fill="#8b0a2a" opacity="0.9"/>
-        </g>
-    )
-}
+const YOUNG_BLOBS = [
+    { cx: 50, cy: 33, rx: 18, ry: 14 },
+    { cx: 34, cy: 41, rx: 10, ry: 8 },
+    { cx: 66, cy: 41, rx: 10, ry: 8 },
+    { cx: 43, cy: 24, rx: 10, ry: 8 },
+    { cx: 57, cy: 24, rx: 10, ry: 8 },
+]
 
 export function SproutSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <CherryGround />
-            {/* Тонкий росток с двумя каскадными веточками */}
-            <path d="M50 94 C50 84 51 74 51 62" stroke="#4a2418" strokeWidth="2.8" strokeLinecap="round" fill="none"/>
-            <path d="M51 78 C46 74 42 70 40 64" stroke="#4a2418" strokeWidth="1.6" strokeLinecap="round" fill="none"/>
-            <path d="M51 74 C56 70 60 66 62 60" stroke="#4a2418" strokeWidth="1.6" strokeLinecap="round" fill="none"/>
-            <BlossomCascade x1={40} y1={66} x2={36} y2={58} seed={1} count={3}/>
-            <BlossomCascade x1={62} y1={62} x2={66} y2={54} seed={2} count={3}/>
-            <BlossomCluster cx={51} cy={56} radius={5} seed={3}/>
-        </svg>
+        <Stage>
+            <Ground rx={17} />
+            <path d="M50 94 C48 85 52 77 50 68" stroke={p.bark.base} strokeWidth="3.2" strokeLinecap="round" fill="none" />
+            <path d="M50 81 C44 78 41 74 40 70" stroke={p.bark.base} strokeWidth="1.9" strokeLinecap="round" fill="none" />
+            <path d="M50 78 C56 75 59 71 60 67" stroke={p.bark.base} strokeWidth="1.9" strokeLinecap="round" fill="none" />
+            <Crown
+                p={p}
+                seed={7}
+                shadow={0.2}
+                gloss={0.3}
+                depth={2}
+                blobs={[
+                    { cx: 41, cy: 67, rx: 6.5, ry: 4.5 },
+                    { cx: 59, cy: 65, rx: 6.5, ry: 4.5 },
+                    { cx: 50, cy: 60, rx: 8, ry: 6 },
+                ]}
+            />
+            <Texture p={p} seed={17} count={12} size={1.1} area={{ cx: 50, cy: 64, rx: 14, ry: 8 }} />
+            <CherryPair x={46} y={71} s={0.8} />
+        </Stage>
     )
 }
 
 export function YoungSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <CherryGround />
-            <CherryTrunk topY={28}/>
-            <CherryBranches topY={28}/>
-
-            {/* Каскадные гроздья вдоль веток */}
-            <BlossomCascade x1={36} y1={30} x2={24} y2={20} seed={10} count={3}/>
-            <BlossomCascade x1={68} y1={30} x2={80} y2={20} seed={11} count={3}/>
-
-            <BlossomCascade x1={26} y1={46} x2={12} y2={42} seed={12} count={4}/>
-            <BlossomCascade x1={78} y1={46} x2={92} y2={42} seed={13} count={4}/>
-
-            <BlossomCascade x1={22} y1={68} x2={12} y2={82} seed={14} count={4}/>
-            <BlossomCascade x1={82} y1={68} x2={92} y2={82} seed={15} count={4}/>
-
-            <BlossomCascade x1={24} y1={48} x2={16} y2={62} seed={16} count={3}/>
-            <BlossomCascade x1={80} y1={48} x2={88} y2={62} seed={17} count={3}/>
-
-            <BlossomCluster cx={52} cy={26} radius={6} seed={20}/>
-            <BlossomCluster cx={48} cy={40} radius={5} seed={21}/>
-        </svg>
+        <Stage>
+            <Ground rx={23} />
+            <Trunk d="M50 94 C48 75 53 54 50 36" width={4.4} bark={p.bark} />
+            <Branches
+                bark={p.bark}
+                width={2.2}
+                ds={['M50 65 C43 61 38 54 36 47', 'M50 59 C58 55 62 49 64 43', 'M50 49 C46 45 44 39 44 33']}
+            />
+            <Crown p={p} seed={19} blobs={YOUNG_BLOBS} shadow={0.24} gloss={0.26} />
+            <Texture p={p} seed={29} count={18} size={1.2} area={{ cx: 50, cy: 33, rx: 19, ry: 14 }} />
+            <Edge p={p} seed={39} count={10} size={1.5} ring={ringPoints(50, 33, 18, 13, 20, 9)} />
+            <CherryPair x={38} y={49} s={1.1} />
+            <CherryPair x={60} y={46} s={1} />
+            <CherryPair x={50} y={52} s={0.95} />
+        </Stage>
     )
 }
 
 export function MatureSVG() {
     return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-            <Aura id="cherryAura" color1="#ffc0d4" color2="#e86a9a" />
-            <circle cx="50" cy="45" r="46" fill="url(#cherryAura)" />
-            <CherryGround />
-            <CherryTrunk topY={12}/>
-            <CherryBranches topY={12}/>
-
-            {/* Очень много гроздьев — каскады по всем веткам */}
-            <BlossomCascade x1={36} y1={18} x2={22} y2={10} seed={100} count={4}/>
-            <BlossomCascade x1={68} y1={18} x2={82} y2={10} seed={101} count={4}/>
-
-            <BlossomCascade x1={26} y1={34} x2={8} y2={30} seed={102} count={5}/>
-            <BlossomCascade x1={78} y1={34} x2={96} y2={30} seed={103} count={5}/>
-
-            <BlossomCascade x1={22} y1={52} x2={6} y2={56} seed={104} count={5}/>
-            <BlossomCascade x1={82} y1={52} x2={98} y2={56} seed={105} count={5}/>
-
-            <BlossomCascade x1={22} y1={72} x2={10} y2={86} seed={106} count={5}/>
-            <BlossomCascade x1={82} y1={72} x2={94} y2={86} seed={107} count={5}/>
-
-            <BlossomCascade x1={12} y1={42} x2={8} y2={62} seed={108} count={4}/>
-            <BlossomCascade x1={92} y1={42} x2={96} y2={62} seed={109} count={4}/>
-
-            {/* Кульминация — много гроздьев в центре */}
-            <BlossomCluster cx={52} cy={14} radius={7} seed={110}/>
-            <BlossomCluster cx={48} cy={24} radius={6} seed={111}/>
-            <BlossomCluster cx={52} cy={36} radius={6} seed={112}/>
-            <BlossomCluster cx={48} cy={48} radius={6} seed={113}/>
-
-            {/* Одиночные вишенки между цветами */}
-            <CherryBerry cx={16} cy={24} r={2}/>
-            <CherryBerry cx={84} cy={22} r={2}/>
-            <CherryBerry cx={10} cy={50} r={2.2}/>
-            <CherryBerry cx={90} cy={52} r={2.2}/>
-            <CherryBerry cx={14} cy={80} r={2}/>
-            <CherryBerry cx={88} cy={78} r={2}/>
-            <CherryBerry cx={30} cy={12} r={1.8}/>
-            <CherryBerry cx={70} cy={10} r={1.8}/>
-
-            <SparkleRing colorScheme="pink" />
-        </svg>
+        <Stage>
+            <ellipse cx="50" cy="88" rx="36" ry="9" fill={p.shade} opacity="0.09" />
+            <Ground rx={31} />
+            <Trunk d="M50 96 C45 74 56 50 50 24" width={7.5} bark={p.bark} />
+            <Branches
+                bark={p.bark}
+                width={3.2}
+                ds={[
+                    'M50 68 C40 62 30 52 26 41',
+                    'M51 61 C62 55 71 45 74 35',
+                    'M50 48 C42 42 37 32 36 25',
+                    'M50 42 C59 36 63 28 65 21',
+                ]}
+            />
+            <Crown p={p} seed={109} blobs={MATURE_BLOBS} shadow={0.28} gloss={0.26} depth={4} />
+            <Texture p={p} seed={129} count={32} size={1.4} area={{ cx: 50, cy: 32, rx: 31, ry: 23 }} />
+            <Edge p={p} seed={149} count={18} size={1.8} ring={ringPoints(50, 32, 30, 22, 24, 6)} />
+            <CherryPair x={30} y={52} s={1.4} />
+            <CherryPair x={50} y={46} s={1.3} />
+            <CherryPair x={68} y={50} s={1.4} />
+            <CherryPair x={40} y={34} s={1.2} />
+            <CherryPair x={60} y={32} s={1.2} />
+        </Stage>
     )
 }

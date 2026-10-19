@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import FrameCard from '../Shop/FrameCard'
+import FrameCard from '../shop/FrameCard'
 import AdminFrameEditorModal from './AdminFrameEditorModal'
 import SortArrows from './SortArrows'
 import { adminApi } from '../../api/api'

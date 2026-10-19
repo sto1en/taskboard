@@ -1,5 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useRef, useEffect } from 'react'
+import { observer } from 'mobx-react-lite'
 import useT from '../../hooks/useT'
+import { useUiStore } from '../../store/useUiStore'
 
 const MODES = [
     { code: 'kanban',  icon: '▦' },
@@ -9,32 +11,26 @@ const MODES = [
 
 const PANEL_ID = 'view-switcher'
 
-export default function ViewSwitcher({ mode, onChange }) {
+export default observer(function ViewSwitcher({ mode, onChange }) {
     const t = useT()
-    const [open, setOpen] = useState(false)
+    const ui = useUiStore()
+    const open = ui.activeToolbar === PANEL_ID
     const ref = useRef(null)
 
     useEffect(() => {
         if (!open) return
         const onClick = (e) => {
-            if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-        }
-        const onCloseOthers = (e) => {
-            if (e.detail !== PANEL_ID) setOpen(false)
+            if (ref.current && !ref.current.contains(e.target)) ui.closeToolbar(PANEL_ID)
         }
         window.addEventListener('mousedown', onClick)
-        window.addEventListener('toolbar:close', onCloseOthers)
         return () => {
             window.removeEventListener('mousedown', onClick)
-            window.removeEventListener('toolbar:close', onCloseOthers)
         }
-    }, [open])
+    }, [open, ui])
 
     const toggle = () => {
-        if (!open) {
-            window.dispatchEvent(new CustomEvent('toolbar:close', { detail: PANEL_ID }))
-        }
-        setOpen(v => !v)
+        if (open) ui.closeToolbar(PANEL_ID)
+        else ui.openToolbar(PANEL_ID)
     }
 
     const modeLabel = (code) => {
@@ -65,7 +61,7 @@ export default function ViewSwitcher({ mode, onChange }) {
                         <button
                             key={m.code}
                             className={`view-switcher__item ${m.code === mode ? 'view-switcher__item--active' : ''}`}
-                            onClick={() => { onChange(m.code); setOpen(false) }}
+                            onClick={() => { onChange(m.code); ui.closeToolbar(PANEL_ID) }}
                         >
                             <span className="view-switcher__item-icon">{m.icon}</span>
                             <span>{modeLabel(m.code)}</span>
@@ -75,4 +71,4 @@ export default function ViewSwitcher({ mode, onChange }) {
             )}
         </div>
     )
-}
+})

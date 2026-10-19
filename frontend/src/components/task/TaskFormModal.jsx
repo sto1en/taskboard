@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { useDispatch } from 'react-redux'
+import { invalidateTasks } from '../../store/slices/tasksSlice'
 import { tasksApi, tagsApi, attachmentsApi, projectsApi, boardsApi, recurrenceApi } from '../../api/api'
-import Modal from '../Modal/Modal'
+import Modal from '../modal/Modal'
 import useT from '../../hooks/useT'
 import { resolveUrl } from '../../utils/format'
 import { useAuth } from '../../context/AuthContext'
@@ -27,6 +29,7 @@ export default function TaskFormModal({
                                       }) {
     const t = useT()
     const { user } = useAuth()
+    const dispatch = useDispatch()
 
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
@@ -104,7 +107,9 @@ export default function TaskFormModal({
         if (isProjectFixed) {
             setSelectedBoardId(fixedBoardId || null)
             setSelectedProjectId(fixedProjectId)
-            setColumns(presetColumns || [])
+            // Колонки для фиксированного проекта синхронизирует отдельный
+            // эффект по presetColumns — здесь не трогаем их, чтобы не
+            // перезапускать сброс формы на каждый новый массив из родителя.
         } else {
             setSelectedBoardId(null)
             setSelectedProjectId(null)
@@ -117,7 +122,7 @@ export default function TaskFormModal({
         } else {
             setStatusId('')
         }
-    }, [open, presetDeadline, isProjectFixed, fixedProjectId, fixedBoardId, presetColumns, presetStatusId])
+    }, [open, presetDeadline, isProjectFixed, fixedProjectId, fixedBoardId, presetStatusId])
 
     // 3. Доска по умолчанию (только режим календаря)
     useEffect(() => {
@@ -160,13 +165,13 @@ export default function TaskFormModal({
     // 5. Колонки (статусы) выбранного проекта
     useEffect(() => {
         if (!open) return
+        // В режиме фиксированного проекта колонки приходят пропом presetColumns
+        // и синхронизируются отдельным эффектом ниже — сетевой запрос не нужен
+        // и раньше дублировал GET /kanban на каждый ре-рендер.
+        if (isProjectFixed) return
         if (!selectedProjectId) {
             setColumns([])
             if (!presetStatusId) setStatusId('')
-            return
-        }
-        if (isProjectFixed && presetColumns?.length) {
-            setColumns(presetColumns)
             return
         }
         setLoadingColumns(true)
@@ -188,8 +193,17 @@ export default function TaskFormModal({
             })
             .catch(() => setColumns([]))
             .finally(() => setLoadingColumns(false))
+        // presetColumns намеренно НЕ в deps: новый массив из родителя
+        // перезапускал эффект и плодил запросы.
         // eslint-disable-next-line
-    }, [open, selectedProjectId, isProjectFixed, presetColumns, presetStatusId])
+    }, [open, selectedProjectId, isProjectFixed, presetStatusId])
+
+    // Синхронизация колонок из пропа для фиксированного проекта БЕЗ сетевого
+    // запроса — отдельно от эффекта загрузки выше.
+    useEffect(() => {
+        if (!open || !isProjectFixed) return
+        setColumns(presetColumns || [])
+    }, [open, isProjectFixed, presetColumns])
 
     // 6. Теги для доски
     useEffect(() => {
@@ -332,7 +346,7 @@ export default function TaskFormModal({
                 } catch (err) { console.error(err) }
             }
 
-            window.dispatchEvent(new Event('tasks:refresh'))
+            dispatch(invalidateTasks())
             onCreated()
         } catch (err) {
             setError(err.response?.data?.message || 'Error')

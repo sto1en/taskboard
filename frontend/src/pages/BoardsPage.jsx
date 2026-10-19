@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { observer } from 'mobx-react-lite'
 import {
     DndContext,
     DragOverlay,
@@ -14,16 +15,21 @@ import {
     rectSortingStrategy,
     arrayMove,
 } from '@dnd-kit/sortable'
+import { useDispatch } from 'react-redux'
+import { fetchPinned } from '../store/slices/sidebarSlice'
+import { useUiStore } from '../store/useUiStore'
 import { boardsApi, projectsApi } from '../api/api'
 import useT from '../hooks/useT'
-import SortableBoardCard from '../components/Board/SortableBoardCard'
-import BoardCard from '../components/Board/BoardCard'
-import CreateBoardModal from '../components/Board/CreateBoardModal'
-import EditBoardModal from '../components/Board/EditBoardModal'
+import SortableBoardCard from '../components/board/SortableBoardCard'
+import BoardCard from '../components/board/BoardCard'
+import CreateBoardModal from '../components/board/CreateBoardModal'
+import EditBoardModal from '../components/board/EditBoardModal'
 
-export default function BoardsPage() {
+export default observer(function BoardsPage() {
     const nav = useNavigate()
     const t = useT()
+    const dispatch = useDispatch()
+    const ui = useUiStore()
     const [boards, setBoards] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -53,28 +59,27 @@ export default function BoardsPage() {
 
     useEffect(() => { load() }, [])
 
-    // ============================================================
-    // Горячая клавиша N: на странице /boards → новая доска
-    // ============================================================
+    // Горячая клавиша N: на странице /boards → новая доска.
+    // Раньше: подписка на событие 'hotkey:new' (detail === 'board').
+    // Сигнал одноразовый — pendingCreate очищается в consumeCreate().
+    // Без массива зависимостей: эффект перезапускается после каждого
+    // рендера, что защищает от «потерянного» сигнала, пришедшего в тот же
+    // коммит, что и монтирование страницы (StrictMode монтирует дважды).
     useEffect(() => {
-        const handler = (e) => {
-            if (e.detail === 'board') {
-                setShowCreate(true)
-            }
+        if (ui.consumeCreate() === 'board') {
+            setShowCreate(true)
         }
-        window.addEventListener('hotkey:new', handler)
-        return () => window.removeEventListener('hotkey:new', handler)
-    }, [])
+    })
 
     const handleCreated = (newBoard) => {
         setBoards(prev => [...prev, newBoard])
-        window.dispatchEvent(new Event('sidebar:refresh'))
+        dispatch(fetchPinned())
     }
 
     const handleUpdated = (updated) => {
         setBoards(prev => prev.map(b => b.id === updated.id ? updated : b))
         setEditBoard(null)
-        window.dispatchEvent(new Event('sidebar:refresh'))
+        dispatch(fetchPinned())
     }
 
     const countPins = async () => {
@@ -106,7 +111,7 @@ export default function BoardsPage() {
                 isPinned: !board.isPinned,
             })
             setBoards(prev => prev.map(b => b.id === data.id ? data : b))
-            window.dispatchEvent(new Event('sidebar:refresh'))
+            dispatch(fetchPinned())
         } catch (err) {
             alert(err.response?.data?.message || 'Ошибка')
         }
@@ -151,7 +156,7 @@ export default function BoardsPage() {
             await Promise.all(
                 updated.map(b => boardsApi.move(b.id, { position: b.position }))
             )
-            window.dispatchEvent(new Event('sidebar:refresh'))
+            dispatch(fetchPinned())
         } catch (err) {
             console.error('Move failed:', err)
             load()
@@ -235,4 +240,4 @@ export default function BoardsPage() {
             />
         </div>
     )
-}
+})
