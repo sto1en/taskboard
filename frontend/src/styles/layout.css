@@ -309,6 +309,38 @@ html[data-theme="dark"] .topbar__search:focus {
     font-size: 15px;
 }
 
+.sidebar__user-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar__profile-link {
+    align-self: flex-start;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.3;
+    text-decoration: none;
+    opacity: 0.75;
+    transition: color .15s, opacity .15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.sidebar__profile-link:hover {
+    color: var(--primary);
+    opacity: 1;
+    text-decoration: none;
+}
+
 .sidebar__icon-btn {
     display: inline-flex;
     align-items: center;
@@ -592,6 +624,41 @@ html[data-theme="dark"] .sidebar__sublink.active {
     overflow: visible;
     position: relative;
     z-index: 50;
+}
+
+.sidebar__tree-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 2px 8px;
+    border: 0;
+    background: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.sidebar__tree-head:hover {
+    color: var(--text);
+}
+
+.sidebar__tree-caret {
+    font-size: 10px;
+    opacity: .7;
+}
+
+.sidebar__tree-hint {
+    padding: 0 10px;
+    font-size: 10px;
+    line-height: 1.35;
+    color: var(--text-muted);
+    text-align: center;
+    opacity: .8;
 }
 
 .tree-avatar-wrap {

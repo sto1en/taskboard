@@ -394,9 +394,9 @@ export default observer(function ProjectKanbanPage() {
                 <button
                     className="btn btn-ghost board-detail__back"
                     onClick={() => nav(`/boards/${boardId}`)}
-                    title="Назад к доске"
+                    title="На уровень вверх — к доске"
                 >
-                    ← Назад
+                    ↑ К доске
                 </button>
 
                 <div className="board-detail__title-wrap">
@@ -429,6 +429,15 @@ export default observer(function ProjectKanbanPage() {
                 </div>
 
                 <div className="board-detail__toolbar">
+                    <button
+                        type="button"
+                        className="btn btn-primary board-detail__new-task"
+                        onClick={() => handleAddTask(null)}
+                        title="Создать задачу"
+                    >
+                        + Задача
+                    </button>
+
                     <ViewSwitcher mode={viewMode} onChange={setViewMode} />
 
                     <SortSwitcher

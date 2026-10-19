@@ -23,6 +23,11 @@ export default function AttachmentsModal({
     //  - уже привязанные к задаче (attachments)
     //  - плюс «черновики» (pendingAttachments) в pendingMode
     useEffect(() => {
+        // Пока модалка закрыта, список не собираем. Иначе родитель,
+        // передающий `attachments || []`, создаёт новый массив на каждый
+        // рендер и эффект уходит в бесконечный цикл setItems → render.
+        if (!open) return
+
         const already = (attachments || []).map(a => ({
             ...a,
             url: resolveUrl(a.url),
@@ -34,7 +39,7 @@ export default function AttachmentsModal({
             _pending: true,
         }))
         setItems([...already, ...pending])
-    }, [attachments, pendingAttachments])
+    }, [open, attachments, pendingAttachments])
 
     useEffect(() => {
         if (!open) {

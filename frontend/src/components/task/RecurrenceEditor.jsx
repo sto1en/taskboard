@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { recurrenceApi } from '../../api/api'
 
 const UNITS = [
@@ -10,11 +10,37 @@ const UNITS = [
 
 const MAX_COPIES = 100
 
+const WEEKDAYS = [
+    { n: 1, label: 'Пн' },
+    { n: 2, label: 'Вт' },
+    { n: 3, label: 'Ср' },
+    { n: 4, label: 'Чт' },
+    { n: 5, label: 'Пт' },
+    { n: 6, label: 'Сб' },
+    { n: 7, label: 'Вс' },
+]
+
+const PRESETS = [
+    { code: 'daily', label: 'Каждый день' },
+    { code: 'weekly', label: 'Каждую неделю' },
+    { code: 'monthly', label: 'Каждый месяц' },
+    { code: 'yearly', label: 'Каждый год' },
+    { code: 'custom', label: 'Другое' },
+]
+
 /** Единицы, которые больше не поддерживаются — конвертируем в дни. */
 const DEPRECATED_UNITS = new Set(['m', 'h'])
 
 function parseRule(rule) {
-    if (!rule) return { n: 1, unit: 'd' }
+    if (!rule) return { n: 1, unit: 'd', mode: 'daily', weekdays: [] }
+
+    if (rule.startsWith('weekly:')) {
+        const weekdays = rule.slice(7)
+            .split(',')
+            .map(v => parseInt(v, 10))
+            .filter(v => v >= 1 && v <= 7)
+        return { n: 1, unit: 'w', mode: 'weekly', weekdays: weekdays.length ? weekdays : [1] }
+    }
 
     if (rule.startsWith('every:')) {
         const arg = rule.slice(6)
@@ -22,24 +48,36 @@ function parseRule(rule) {
         const n = parseInt(arg.slice(0, -1), 10)
         // если единица устаревшая — принудительно день
         if (DEPRECATED_UNITS.has(unit)) {
-            return { n: Math.max(1, isNaN(n) ? 1 : n), unit: 'd' }
+            return { n: Math.max(1, isNaN(n) ? 1 : n), unit: 'd', mode: 'custom', weekdays: [] }
         }
         if (!UNITS.some(u => u.code === unit)) {
-            return { n: 1, unit: 'd' }
+            return { n: 1, unit: 'd', mode: 'daily', weekdays: [] }
         }
-        return { n: isNaN(n) ? 1 : n, unit }
+        const safeN = isNaN(n) ? 1 : n
+        const mode = safeN === 1
+            ? ({ d: 'daily', w: 'weekly', M: 'monthly', y: 'yearly' }[unit] || 'custom')
+            : 'custom'
+        return { n: safeN, unit, mode, weekdays: [] }
     }
 
     // 'hourly:*' и 'daily/weekly/...' — нормализуем
     if (rule.startsWith('hourly')) {
         // бывшие часовые повторения — переводим в 1 день
-        return { n: 1, unit: 'd' }
+        return { n: 1, unit: 'd', mode: 'daily', weekdays: [] }
     }
-    if (rule === 'daily')   return { n: 1, unit: 'd' }
-    if (rule === 'weekly')  return { n: 1, unit: 'w' }
-    if (rule === 'monthly') return { n: 1, unit: 'M' }
-    if (rule === 'yearly')  return { n: 1, unit: 'y' }
-    return { n: 1, unit: 'd' }
+    if (rule === 'daily')   return { n: 1, unit: 'd', mode: 'daily', weekdays: [] }
+    if (rule === 'weekly')  return { n: 1, unit: 'w', mode: 'weekly', weekdays: [1] }
+    if (rule === 'monthly') return { n: 1, unit: 'M', mode: 'monthly', weekdays: [] }
+    if (rule === 'yearly')  return { n: 1, unit: 'y', mode: 'yearly', weekdays: [] }
+    return { n: 1, unit: 'd', mode: 'daily', weekdays: [] }
+}
+
+function todayLocalIso() {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
 }
 
 function fmtDate(iso) {
@@ -65,13 +103,15 @@ export default function RecurrenceEditor({ taskId, initial, onChange, disabled =
     const parsed = parseRule(initial?.rule)
 
     const [enabled, setEnabled] = useState(!!initial)
+    const [mode, setMode] = useState(parsed.mode)
     const [n, setN] = useState(parsed.n)
     const [unit, setUnit] = useState(parsed.unit)
+    const [weekdays, setWeekdays] = useState(parsed.weekdays)
 
     const [startDate, setStartDate] = useState(
         initial?.startAt
             ? initial.startAt.slice(0, 10)
-            : new Date().toISOString().slice(0, 10)
+            : todayLocalIso()
     )
     const [startTime, setStartTime] = useState(
         initial?.startAt
@@ -85,7 +125,21 @@ export default function RecurrenceEditor({ taskId, initial, onChange, disabled =
     const [preview, setPreview] = useState([])
     const [loadingPreview, setLoadingPreview] = useState(false)
 
-    const finalRule = useMemo(() => `every:${Math.max(1, n)}${unit}`, [n, unit])
+    // Первый прогон эффекта — это инициализация формы, а не правка пользователя.
+    // Без этого TaskDetailModal сразу считал задачу «изменённой» и спрашивал
+    // подтверждение при любом закрытии.
+    const initializedRef = useRef(false)
+
+    const finalRule = useMemo(() => {
+        if (mode === 'daily') return 'daily'
+        if (mode === 'weekly') {
+            const days = [...new Set(weekdays)].sort((a, b) => a - b)
+            return days.length ? `weekly:${days.join(',')}` : 'weekly'
+        }
+        if (mode === 'monthly') return 'monthly'
+        if (mode === 'yearly') return 'yearly'
+        return `every:${Math.max(1, n)}${unit}`
+    }, [mode, weekdays, n, unit])
 
     const startAtIso = useMemo(() => {
         if (!startDate) return null
@@ -110,6 +164,13 @@ export default function RecurrenceEditor({ taskId, initial, onChange, disabled =
             return
         }
         setError(null)
+        if (!initializedRef.current) {
+            initializedRef.current = true
+            // Пропускаем только стартовую нормализацию уже сохранённого
+            // правила. Если повторения не было, включение тумблера — это
+            // действие пользователя, его нельзя терять.
+            if (initial) return
+        }
         onChange({
             rule: finalRule,
             timeOfDay: null,
@@ -184,33 +245,88 @@ export default function RecurrenceEditor({ taskId, initial, onChange, disabled =
                         </div>
                     </div>
 
-                    <div className="modal__row">
-                        <div className="modal__field">
-                            <label className="modal__label">Каждые</label>
-                            <input
-                                className="input"
-                                type="number"
-                                min="1"
-                                max="999"
-                                value={n}
-                                onChange={(e) => setN(Math.max(1, Number(e.target.value) || 1))}
-                                disabled={disabled}
-                            />
-                        </div>
-                        <div className="modal__field">
-                            <label className="modal__label">Единица</label>
-                            <select
-                                className="input"
-                                value={unit}
-                                onChange={(e) => setUnit(e.target.value)}
-                                disabled={disabled}
-                            >
-                                {UNITS.map(u => (
-                                    <option key={u.code} value={u.code}>{u.label}</option>
-                                ))}
-                            </select>
+                    <div className="modal__field">
+                        <label className="modal__label">Как повторять</label>
+                        <div className="recurrence-editor__presets">
+                            {PRESETS.map(p => (
+                                <button
+                                    key={p.code}
+                                    type="button"
+                                    className={`recurrence-editor__preset ${mode === p.code ? 'recurrence-editor__preset--active' : ''}`}
+                                    onClick={() => {
+                                        setMode(p.code)
+                                        if (p.code === 'weekly' && weekdays.length === 0) {
+                                            setWeekdays([1])
+                                        }
+                                    }}
+                                    disabled={disabled}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
+
+                    {mode === 'weekly' && (
+                        <div className="modal__field">
+                            <label className="modal__label">Дни недели</label>
+                            <div className="recurrence-editor__weekdays">
+                                {WEEKDAYS.map(day => {
+                                    const on = weekdays.includes(day.n)
+                                    return (
+                                        <button
+                                            key={day.n}
+                                            type="button"
+                                            className={`recurrence-editor__weekday ${on ? 'recurrence-editor__weekday--on' : ''}`}
+                                            onClick={() => setWeekdays(prev => {
+                                                if (prev.includes(day.n)) {
+                                                    const next = prev.filter(x => x !== day.n)
+                                                    return next.length ? next : prev
+                                                }
+                                                return [...prev, day.n]
+                                            })}
+                                            disabled={disabled}
+                                        >
+                                            {day.label}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                            <div className="recurrence-editor__hint">
+                                Например, только по средам и пятницам.
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'custom' && (
+                        <div className="modal__row">
+                            <div className="modal__field">
+                                <label className="modal__label">Каждые</label>
+                                <input
+                                    className="input"
+                                    type="number"
+                                    min="1"
+                                    max="999"
+                                    value={n}
+                                    onChange={(e) => setN(Math.max(1, Number(e.target.value) || 1))}
+                                    disabled={disabled}
+                                />
+                            </div>
+                            <div className="modal__field">
+                                <label className="modal__label">Единица</label>
+                                <select
+                                    className="input"
+                                    value={unit}
+                                    onChange={(e) => setUnit(e.target.value)}
+                                    disabled={disabled}
+                                >
+                                    {UNITS.map(u => (
+                                        <option key={u.code} value={u.code}>{u.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="modal__field">
                         <label className="modal__label">

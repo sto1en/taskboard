@@ -86,6 +86,16 @@ export default function KanbanColumn({
                 </div>
 
                 <span className="kanban-col__count">{column.count}</span>
+
+                <button
+                    type="button"
+                    className="kanban-col__add-top"
+                    onClick={() => onAddTask && onAddTask(column.statusId)}
+                    title={t.addTask}
+                    aria-label={t.addTask}
+                >
+                    +
+                </button>
             </div>
 
             <div className="kanban-col__body" ref={setNodeRef}>
@@ -107,14 +117,17 @@ export default function KanbanColumn({
                         />
                     ))}
                 </SortableContext>
-            </div>
 
-            <button
-                className="kanban-col__add"
-                onClick={() => onAddTask && onAddTask(column.statusId)}
-            >
-                {t.addTask}
-            </button>
+                {column.tasks.length === 0 && !reorderMode && (
+                    <button
+                        type="button"
+                        className="kanban-col__empty-add"
+                        onClick={() => onAddTask && onAddTask(column.statusId)}
+                    >
+                        <span>＋</span> {t.addTask}
+                    </button>
+                )}
+            </div>
         </div>
     )
 }

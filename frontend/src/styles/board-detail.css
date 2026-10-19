@@ -16,6 +16,7 @@
     margin-bottom: 16px;
     flex-shrink: 0;
     min-height: 48px;
+    flex-wrap: wrap;
 }
 
 .board-detail__back {
@@ -85,7 +86,7 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
-    flex-shrink: 0;
+    flex-shrink: 1;
     max-width: 60%;
 }
 
@@ -120,8 +121,17 @@
     align-items: center;
     gap: 8px;
     margin-left: auto;
-    flex-shrink: 0;
-    flex-wrap: nowrap;
+    flex: 1 1 320px;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.board-detail__new-task {
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .reorder-btn {
@@ -224,7 +234,8 @@
 }
 
 .kanban-col {
-    background: var(--bg);
+    background: var(--surface, var(--bg));
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: var(--density-padding, 12px);
     display: flex;
@@ -319,6 +330,55 @@ html[data-theme="dark"] .kanban-col__count {
     width: 100%;
 }
 .kanban-col__add:hover {
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
+    background: color-mix(in srgb, var(--accent, var(--primary)) 4%, transparent);
+}
+
+.kanban-col__add-top {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+}
+
+.kanban-col__add-top:hover {
+    border-color: var(--accent, var(--primary));
+    color: var(--accent, var(--primary));
+    background: color-mix(in srgb, var(--accent, var(--primary)) 8%, transparent);
+}
+
+.kanban-col__empty-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+}
+
+.kanban-col__empty-add:hover {
     border-color: var(--accent, var(--primary));
     color: var(--accent, var(--primary));
     background: color-mix(in srgb, var(--accent, var(--primary)) 4%, transparent);
@@ -1317,6 +1377,74 @@ html[data-theme="dark"] .compact-group__title--editable:hover {
 .task-detail__author-name {
     color: var(--text);
     word-break: break-word;
+}
+
+.task-detail__authors--solo .task-detail__author-label {
+    min-width: 0;
+}
+
+/* ============================================================
+   Приоритет звёздами
+   ============================================================ */
+
+.priority-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    color: var(--accent-amber, #ffab00);
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0;
+    flex-shrink: 0;
+}
+
+.priority-stars__star {
+    opacity: 0.25;
+    transition: opacity .15s;
+}
+
+.priority-stars__star--on {
+    opacity: 1;
+    text-shadow: 0 0 6px color-mix(in srgb, var(--accent-amber, #ffab00) 45%, transparent);
+}
+
+.priority-picker {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-height: 38px;
+    padding: 0 4px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.priority-picker__btn {
+    border: 0;
+    background: transparent;
+    color: var(--border);
+    font-size: 22px;
+    line-height: 1;
+    padding: 2px 3px;
+    cursor: pointer;
+    transition: color .15s, transform .15s;
+    font-family: inherit;
+}
+
+.priority-picker__btn:hover {
+    transform: scale(1.12);
+}
+
+.priority-picker__btn--on {
+    color: var(--accent-amber, #ffab00);
+    text-shadow: 0 0 8px color-mix(in srgb, var(--accent-amber, #ffab00) 45%, transparent);
+}
+
+.priority-picker__hint {
+    margin-left: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
 }
 
 .task-detail__author-date {

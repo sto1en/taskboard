@@ -161,6 +161,14 @@ export default function BoardToolbar({ board, onUpdate, onDelete }) {
                 </div>
 
                 <div className="board-toolbar__title-wrap">
+                    <button
+                        type="button"
+                        className="board-toolbar__up"
+                        onClick={() => nav('/boards')}
+                        title="На уровень вверх — ко всем доскам"
+                    >
+                        ↑ Все доски
+                    </button>
                     <div className="board-toolbar__eyebrow">Доска</div>
                     <InlineEdit
                         value={localBoard.title}

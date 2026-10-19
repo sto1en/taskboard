@@ -220,6 +220,32 @@ html[data-theme="dark"] .calendar__cell--weekend {
     background: color-mix(in srgb, #ffffff 4%, var(--surface));
 }
 
+/* GitHub-style heat: чем больше выполнено за день, тем зеленее ячейка. */
+.calendar__cell--heat-1 {
+    background: color-mix(in srgb, #36b37e 7%, var(--surface));
+}
+.calendar__cell--heat-2 {
+    background: color-mix(in srgb, #36b37e 14%, var(--surface));
+}
+.calendar__cell--heat-3 {
+    background: color-mix(in srgb, #36b37e 22%, var(--surface));
+}
+.calendar__cell--heat-4 {
+    background: color-mix(in srgb, #36b37e 32%, var(--surface));
+}
+html[data-theme="dark"] .calendar__cell--heat-1 {
+    background: color-mix(in srgb, #36b37e 9%, var(--surface));
+}
+html[data-theme="dark"] .calendar__cell--heat-2 {
+    background: color-mix(in srgb, #36b37e 17%, var(--surface));
+}
+html[data-theme="dark"] .calendar__cell--heat-3 {
+    background: color-mix(in srgb, #36b37e 26%, var(--surface));
+}
+html[data-theme="dark"] .calendar__cell--heat-4 {
+    background: color-mix(in srgb, #36b37e 38%, var(--surface));
+}
+
 /* ---------- Активный день — мягкое выделение ---------- */
 
 .calendar__cell--today {
@@ -396,6 +422,41 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
     text-align: center;
     color: var(--text-muted);
     font-size: 15px;
+}
+
+.calendar__heat-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    padding: 10px 4px 0;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.calendar__heat-legend-label {
+    margin-right: 2px;
+}
+
+.calendar__heat-legend-cell {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+}
+
+.calendar__heat-legend-cell--1 { background: color-mix(in srgb, #36b37e 7%, var(--surface)); }
+.calendar__heat-legend-cell--2 { background: color-mix(in srgb, #36b37e 14%, var(--surface)); }
+.calendar__heat-legend-cell--3 { background: color-mix(in srgb, #36b37e 22%, var(--surface)); }
+.calendar__heat-legend-cell--4 { background: color-mix(in srgb, #36b37e 32%, var(--surface)); }
+
+.calendar__heat-legend-more {
+    margin-left: 2px;
+}
+
+.calendar__heat-legend-less {
+    margin-right: 2px;
 }
 
 /* ---------- Нагрузка дня: 1/2/3 палочки ---------- */

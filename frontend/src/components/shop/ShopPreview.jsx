@@ -43,6 +43,7 @@ export function accentVars(item) {
 
     if (solid) {
         vars['--accent'] = solid
+        vars['--accent-color'] = solid
         vars['--accent-solid'] = solid
         vars['--accent-fill'] = solid
         vars['--accent-outline'] = solid

@@ -857,6 +857,12 @@ html[data-theme="dark"] .task-detail__subtask-ac-status {
     background: rgba(76, 154, 255, 0.1);
     color: var(--primary);
 }
+.subtask-card__btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+    background: transparent;
+    color: var(--text-muted);
+}
 .subtask-card__btn--danger:hover {
     background: rgba(255, 86, 48, 0.1);
     color: var(--danger);

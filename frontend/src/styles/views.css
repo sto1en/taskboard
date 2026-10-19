@@ -1,15 +1,6 @@
 /* ============================================================
-   Toolbar
+   Toolbar (layout задаётся в board-detail.css)
    ============================================================ */
-
-.board-detail__toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-    flex-shrink: 0;
-    flex-wrap: nowrap;
-}
 
 /* ============================================================
    ViewSwitcher

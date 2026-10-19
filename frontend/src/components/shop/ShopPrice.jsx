@@ -15,6 +15,7 @@
 
 import { formatPrice } from '../../utils/format'
 import useT from '../../hooks/useT'
+import LeafIcon from './LeafIcon'
 
 export default function ShopPrice({ item, owned = false, showDiscount = false }) {
     const t = useT()
@@ -31,7 +32,9 @@ export default function ShopPrice({ item, owned = false, showDiscount = false })
         return (
             <span className="shop-card__price shop-card__price--paid" title={t.shopPaidFor(item.pricePaid)}>
                 <span className="shop-card__price-current">
-                    {item.pricePaid === 0 ? t.shopFree : `🍃 ${formatPrice(item.pricePaid)}`}
+                    {item.pricePaid === 0
+                        ? t.shopFree
+                        : <><LeafIcon/>{formatPrice(item.pricePaid)}</>}
                 </span>
             </span>
         )
@@ -40,10 +43,12 @@ export default function ShopPrice({ item, owned = false, showDiscount = false })
     return (
         <span className="shop-card__price">
             {showDiscount && (
-                <span className="shop-card__price-old">🍃 {formatPrice(item.oldPrice)}</span>
+                <span className="shop-card__price-old">
+                    <LeafIcon size={11}/>{formatPrice(item.oldPrice)}
+                </span>
             )}
             <span className="shop-card__price-current">
-                {free ? t.shopFree : `🍃 ${formatPrice(item.price)}`}
+                {free ? t.shopFree : <><LeafIcon/>{formatPrice(item.price)}</>}
             </span>
         </span>
     )

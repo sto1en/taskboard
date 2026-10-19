@@ -21,6 +21,10 @@ export function useShopSync() {
     const dispatch = useDispatch()
 
     useEffect(() => {
+        // Первичная загрузка: без неё TopBar/Sidebar показывали 0 листьев
+        // после каждого F5, пока какая-нибудь мутация не вызовет инвалидацию.
+        dispatch(fetchShop())
+
         const onInvalidate = () => dispatch(fetchShop())
         window.addEventListener('shop:invalidate', onInvalidate)
         return () => window.removeEventListener('shop:invalidate', onInvalidate)

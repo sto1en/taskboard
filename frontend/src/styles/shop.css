@@ -325,6 +325,11 @@
    ============================================================ */
 
 .shop-card {
+    /* Accent of the skin itself (set inline by accentVars); the user's theme
+       accent is only a fallback for cards without their own colour. */
+    --accent-color: var(--accent-solid, var(--accent, var(--primary)));
+    --shop-card-bg: var(--surface);
+
     position: relative;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -338,11 +343,93 @@
 .shop-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
-    border-color: color-mix(in srgb, var(--accent, var(--primary)) 40%, var(--border));
+    border-color: color-mix(in srgb, var(--accent-color) 40%, var(--border));
 }
-.shop-card--active {
-    border-color: var(--accent, var(--primary));
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, var(--primary)) 25%, transparent);
+
+/* Selected / equipped: solid outline in the skin colour + neon glow. */
+.shop-card.shop-card--active {
+    border-color: var(--accent-color);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent-color) 45%, transparent),
+        0 0 14px color-mix(in srgb, var(--accent-color) 38%, transparent),
+        0 0 30px color-mix(in srgb, var(--accent-color) 16%, transparent);
+}
+.shop-card.shop-card--active:hover {
+    border-color: var(--accent-color);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent-color) 55%, transparent),
+        0 0 18px color-mix(in srgb, var(--accent-color) 48%, transparent),
+        0 0 38px color-mix(in srgb, var(--accent-color) 22%, transparent);
+}
+
+/* ---------- Holographic skin: animated rainbow outline ---------- */
+
+.shop-card.shop-card--holo.shop-card--active {
+    border: 2px solid transparent;
+    background:
+        linear-gradient(var(--shop-card-bg), var(--shop-card-bg)) padding-box,
+        linear-gradient(90deg,
+            #00e5ff 0%,
+            #ff00e5 33%,
+            #ffd600 66%,
+            #00e5ff 100%) border-box;
+    background-size: 100% 100%, 300% 100%;
+    background-position: 0 0, 0 50%;
+    animation:
+        shop-holo-border 4s linear infinite,
+        shop-holo-glow 4s ease-in-out infinite;
+}
+.shop-card.shop-card--holo.shop-card--active:hover {
+    border-color: transparent;
+    transform: translateY(-2px);
+}
+.shop-card.shop-card--holo.shop-card--active::after {
+    display: none;
+}
+
+@keyframes shop-holo-border {
+    to { background-position: 0 0, 300% 50%; }
+}
+
+@keyframes shop-holo-glow {
+    0%, 100% {
+        box-shadow:
+            0 0 0 1px rgba(0, 229, 255, 0.55),
+            0 0 16px rgba(0, 229, 255, 0.45),
+            0 0 34px rgba(255, 0, 229, 0.22);
+    }
+    33% {
+        box-shadow:
+            0 0 0 1px rgba(255, 0, 229, 0.55),
+            0 0 16px rgba(255, 0, 229, 0.45),
+            0 0 34px rgba(255, 214, 0, 0.22);
+    }
+    66% {
+        box-shadow:
+            0 0 0 1px rgba(255, 214, 0, 0.55),
+            0 0 16px rgba(255, 214, 0, 0.45),
+            0 0 34px rgba(0, 229, 255, 0.22);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shop-card--holo.shop-card--active {
+        animation: none;
+        background:
+            linear-gradient(var(--shop-card-bg), var(--shop-card-bg)) padding-box,
+            linear-gradient(135deg, #00e5ff, #ff00e5, #ffd600) border-box;
+        background-size: 100% 100%, 100% 100%;
+        background-position: 0 0;
+    }
+}
+
+/* Dark theme: slightly lighter card surface so the neon outline reads well. */
+html[data-theme="dark"] .shop-card {
+    --shop-card-bg: #24292e;
+}
+
+html[data-theme="dark"] .shop-card--active:not(.shop-card--holo) {
+    background: linear-gradient(180deg, #262c31 0%, #1e2226 100%);
 }
 
 .shop-card__preview {
@@ -379,16 +466,19 @@
 
 .shop-card__price {
     display: inline-flex;
-    align-items: baseline;
+    align-items: center;
     gap: 6px;
     flex-wrap: wrap;
     min-width: 0;
     font-size: 13px;
     font-weight: 700;
-    color: var(--accent, var(--primary));
+    color: var(--accent-color);
 }
 
 .shop-card__price-old {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     font-size: 11px;
     font-weight: 500;
     color: var(--text-muted);
@@ -397,9 +487,18 @@
 }
 
 .shop-card__price-current {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 13px;
     font-weight: 700;
-    color: var(--accent, var(--primary));
+    color: var(--accent-color);
+}
+
+.shop-leaf-icon {
+    display: block;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 35%, transparent));
 }
 
 .shop-card__btn { padding: 8px 14px !important; font-size: 13px !important; }
@@ -407,9 +506,36 @@
 .shop-card__badge {
     font-size: 11px;
     font-weight: 700;
-    color: var(--accent, var(--primary));
+    color: var(--accent-color);
     text-transform: uppercase;
     letter-spacing: 0.3px;
+}
+
+/* Selected card: UI details inherit the skin's own accent colour. */
+.shop-card--active .shop-card__price,
+.shop-card--active .shop-card__price-current,
+.shop-card--active .shop-card__badge,
+.shop-card--active .shop-card__category,
+.shop-card--active .shop-preview__rare-tag {
+    color: var(--accent-color);
+}
+
+.shop-card--active .shop-preview__rare-tag {
+    text-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.35),
+        0 0 8px color-mix(in srgb, var(--accent-color) 55%, transparent);
+}
+
+/* "Снять" on the selected card: transparent with an accent outline. */
+.shop-card--active .shop-card__btn.btn-ghost {
+    color: var(--accent-color);
+    border-color: color-mix(in srgb, var(--accent-color) 60%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+}
+.shop-card--active .shop-card__btn.btn-ghost:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent-color) 20%, transparent);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent-color) 30%, transparent);
 }
 
 /* ---------- Категории (АКЦЕНТНЫЙ цвет) ---------- */
@@ -433,13 +559,13 @@
     line-height: 1.4;
     white-space: nowrap;
 
-    color: var(--accent, var(--primary));
-    background: color-mix(in srgb, var(--accent, var(--primary)) 20%, transparent);
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 20%, transparent);
 }
 
 html[data-theme="dark"] .shop-card__category {
-    color: color-mix(in srgb, var(--accent, var(--primary)) 85%, #fff);
-    background: color-mix(in srgb, var(--accent, var(--primary)) 25%, transparent);
+    color: color-mix(in srgb, var(--accent-color) 85%, #fff);
+    background: color-mix(in srgb, var(--accent-color) 25%, transparent);
 }
 
 /* ---------- Бейджи «Новинка» / «Скидка» ----------
@@ -669,8 +795,18 @@ html[data-theme="dark"] .shop-card__category {
     letter-spacing: 0.6px;
 }
 
+/* Selected: the rarity badge turns into a translucent accent chip. */
+.shop-card--active .shop-badge--rare {
+    color: var(--accent-color);
+    background-color: color-mix(in srgb, var(--accent-color) 20%, transparent);
+    background-image: none;
+    border: 1px solid var(--accent-color);
+    text-shadow: none;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent-color) 35%, transparent);
+}
+
 .shop-card--accent.shop-card--rare {
-    border-color: color-mix(in srgb, var(--accent, var(--primary)) 55%, var(--border));
+    border-color: color-mix(in srgb, var(--accent-color) 55%, var(--border));
 }
 
 .shop-card--rare::after {
@@ -679,7 +815,7 @@ html[data-theme="dark"] .shop-card__category {
     inset: 0;
     border-radius: inherit;
     pointer-events: none;
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, var(--primary)) 45%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-color) 45%, transparent);
 }
 
 /* ---------- Кнопка «Превью» вместо тяжёлого дерева ----------
@@ -990,6 +1126,24 @@ html[data-theme="dark"] .shop-card__category {
 .shop-preview--rare .shop-demo__accent-outline-label {
     color: var(--accent-metal-1);
     background: var(--surface);
+}
+
+/* Hologram preview: the "Aa" sheen slowly drifts across the glyphs. */
+.shop-card--holo .shop-demo__accent-text,
+.shop-card--holo .shop-demo__accent-fill {
+    background-size: 220% 100%;
+    animation: shop-holo-text 3.2s linear infinite;
+}
+
+@keyframes shop-holo-text {
+    to { background-position: 220% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shop-card--holo .shop-demo__accent-text,
+    .shop-card--holo .shop-demo__accent-fill {
+        animation: none;
+    }
 }
 
 /* ---------- Кружок-превью акцента ---------- */

@@ -528,6 +528,18 @@ export default observer(function CalendarPage() {
 
                         const active = dayTasksRaw.filter(x => !isDoneCategory(x.statusCategoryCode))
                         const done = dayTasksRaw.filter(x => isDoneCategory(x.statusCategoryCode))
+                        const doneCount = dayTasksRaw.filter(x =>
+                            x.statusCategoryCode === 'DONE' || x.statusCategoryCode === 'ARCHIVED'
+                        ).length
+                        const heatLevel = doneCount === 0
+                            ? 0
+                            : doneCount <= 1
+                                ? 1
+                                : doneCount <= 3
+                                    ? 2
+                                    : doneCount <= 5
+                                        ? 3
+                                        : 4
                         const dayTasks = [...active, ...done]
 
                         const visible = dayTasks.slice(0, MAX_VISIBLE_TASKS)
@@ -542,6 +554,7 @@ export default observer(function CalendarPage() {
                                     !day ? 'calendar__cell--empty' : '',
                                     isToday ? 'calendar__cell--today' : '',
                                     isWeekend && day ? 'calendar__cell--weekend' : '',
+                                    day ? `calendar__cell--heat-${heatLevel}` : '',
                                     isHover ? 'calendar__cell--drop-over' : '',
                                 ].filter(Boolean).join(' ')}
                                 onClick={day ? () => handleDayClick(day) : undefined}
@@ -602,6 +615,21 @@ export default observer(function CalendarPage() {
                             </div>
                         )
                     })}
+                </div>
+            )}
+
+            {!loading && (
+                <div className="calendar__heat-legend">
+                    <span className="calendar__heat-legend-label">Выполнено за день:</span>
+                    <span className="calendar__heat-legend-less">меньше</span>
+                    {[0, 1, 2, 3, 4].map(level => (
+                        <span
+                            key={level}
+                            className={`calendar__heat-legend-cell calendar__heat-legend-cell--${level}`}
+                            title={level === 0 ? 'нет задач' : `${level === 1 ? '1' : level === 2 ? '2–3' : level === 3 ? '4–5' : '6+'} задач`}
+                        />
+                    ))}
+                    <span className="calendar__heat-legend-more">больше</span>
                 </div>
             )}
 

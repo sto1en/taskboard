@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -152,7 +153,12 @@ public class RecurrenceService {
         int effectiveLimit = Math.min(count, Math.max(limit, 5));
 
         List<LocalDateTime> result = new ArrayList<>();
+        // startAt — вхождение корневой задачи. В превью показываем только
+        // будущие копии, иначе первая дата в списке дублировала бы корень.
         LocalDateTime cursor = start;
+        if (!cursor.toLocalDate().isAfter(LocalDate.now())) {
+            cursor = nextOccurrence(cursor, req.getRule());
+        }
         int guard = 0;
 
         while (result.size() < effectiveLimit && guard++ < 5000) {
@@ -166,8 +172,28 @@ public class RecurrenceService {
     // Создание N копий
     // ============================================================
     private void createInstances(Task template, TaskRecurrence rec, int count) {
+        LocalTime timeOfDay = rec.getStartAt().toLocalTime();
+
+        // День корневой задачи: её дедлайн, а если дедлайна нет — сегодня.
+        // Корень занимает это вхождение серии, копии начинаются со следующего.
+        LocalDate rootDate = taskScheduleRepository.findById(template.getId())
+                .map(TaskSchedule::getDeadline)
+                .map(LocalDateTime::toLocalDate)
+                .orElse(LocalDate.now());
+
+        // Будущая дата старта — это первая копия. Если startAt указывает на
+        // день корня (или раньше), начинаем со следующего вхождения.
         LocalDateTime cursor = rec.getStartAt();
-        LocalTime timeOfDay = cursor.toLocalTime();
+        if (!cursor.toLocalDate().isAfter(rootDate)) {
+            cursor = nextOccurrence(cursor, rec.getRule());
+        }
+
+        int guard = 0;
+        while (guard++ < 1000
+                && (cursor.toLocalDate().isBefore(LocalDate.now())
+                    || cursor.toLocalDate().equals(rootDate))) {
+            cursor = nextOccurrence(cursor, rec.getRule());
+        }
 
         for (int i = 0; i < count; i++) {
             LocalDate date = cursor.toLocalDate();
@@ -191,13 +217,26 @@ public class RecurrenceService {
                 .build();
         taskRepository.save(instance);
 
-        // Копируем статус/приоритет — без дедлайна
         TaskSettings settings = taskSettingsRepository.findById(template.getId()).orElse(null);
-        if (settings != null) {
+        BoardStatus status = settings != null ? settings.getStatus() : null;
+
+        // Будущие вхождения ждут своей даты в «Отложено», а не висят
+        // все сразу в «В процессе». Если статуса FROZEN нет — оставляем
+        // статус корневой задачи.
+        if (date.isAfter(LocalDate.now())) {
+            BoardStatus frozen = boardStatusRepository
+                    .findByBoardIdAndScopeAndCode(
+                            template.getProject().getBoard().getId(), "task", "FROZEN")
+                    .orElse(null);
+            if (frozen != null) status = frozen;
+        }
+
+        if (status != null) {
             TaskSettings s = TaskSettings.builder()
                     .task(instance)
-                    .status(settings.getStatus())
-                    .priority(settings.getPriority())
+                    .status(status)
+                    .priority(settings != null && settings.getPriority() != null
+                            ? settings.getPriority() : (short) 0)
                     .isPinned(false)
                     .build();
             taskSettingsRepository.save(s);
@@ -218,10 +257,12 @@ public class RecurrenceService {
             }
         }
 
-        // task_schedule создаём ПУСТОЙ (без deadline)
+        // У каждого вхождения свой дедлайн — дата вхождения + время серии.
+        // Раньше здесь всегда был null, из-за чего «дедлайн применился
+        // только к корню, а у повторов его нет».
         TaskSchedule sh = TaskSchedule.builder()
                 .task(instance)
-                .deadline(null)
+                .deadline(date.atTime(timeOfDay))
                 .build();
         taskScheduleRepository.save(sh);
     }
@@ -239,7 +280,25 @@ public class RecurrenceService {
         return switch (kind) {
             case "hourly" -> cursor.plusHours(parseIntOr(arg, 1));
             case "daily" -> cursor.plusDays(1);
-            case "weekly" -> cursor.plusWeeks(1);
+            case "weekly" -> {
+                // weekly:1,3,5 — только по Пн/Ср/Пт (ISO: 1=Пн … 7=Вс).
+                if (arg == null || arg.isBlank()) yield cursor.plusWeeks(1);
+                Set<DayOfWeek> days = new HashSet<>();
+                for (String part : arg.split(",")) {
+                    try {
+                        days.add(DayOfWeek.of(Integer.parseInt(part.trim())));
+                    } catch (Exception ignored) {
+                        // пропускаем мусор в правиле
+                    }
+                }
+                if (days.isEmpty()) yield cursor.plusWeeks(1);
+                LocalDateTime next = cursor.plusDays(1);
+                int guard = 0;
+                while (!days.contains(next.getDayOfWeek()) && guard++ < 14) {
+                    next = next.plusDays(1);
+                }
+                yield next;
+            }
             case "monthly" -> cursor.plusMonths(1);
             case "yearly" -> cursor.plusYears(1);
             case "every" -> {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useDispatch } from 'react-redux'
 import { invalidateTasks } from '../../store/slices/tasksSlice'
-import { tasksApi, tagsApi, attachmentsApi, projectsApi, recurrenceApi } from '../../api/api'
+import { tasksApi, tagsApi, attachmentsApi, projectsApi, recurrenceApi, boardMembersApi } from '../../api/api'
 import Modal from '../modal/Modal'
 import ConfirmModal from '../common/ConfirmModal'
 import AttachmentPreview from './AttachmentPreview'
@@ -9,6 +9,7 @@ import DetailTextEditor from './DetailTextEditor'
 import RecurrenceEditor from './RecurrenceEditor'
 import TaskHistory from './TaskHistory'
 import TaskChat from './TaskChat'
+import { PriorityPicker, PriorityStars } from './PriorityStars'
 import {
     formatDeadline,
     splitDeadline,
@@ -24,6 +25,31 @@ const TAG_ICONS = [
     '', '📌', '⭐', '🔥', '✅', '❗', '💡', '🎯', '📎', '📁',
     '🏷️', '🎨', '🚀', '🐛', '📝', '💼', '🎓', '❤️', '⚡', '🔔',
 ]
+
+function describeRecurrence(rec) {
+    const rule = rec?.rule || ''
+    if (rule === 'daily') return 'Повторяется каждый день.'
+    if (rule === 'weekly') return 'Повторяется каждую неделю.'
+    if (rule === 'monthly') return 'Повторяется каждый месяц.'
+    if (rule === 'yearly') return 'Повторяется каждый год.'
+    if (rule.startsWith('every:')) {
+        const arg = rule.slice(6)
+        const unit = arg.slice(-1)
+        const n = parseInt(arg.slice(0, -1), 10) || 1
+        const unitLabel = { d: 'дн.', w: 'нед.', M: 'мес.', y: 'г.' }[unit] || ''
+        return `Повторяется каждые ${n} ${unitLabel}.`
+    }
+    return 'Повторяющаяся задача.'
+}
+
+const RECURRENCE_FIELDS = ['rule', 'startAt', 'endMode', 'endUntil', 'endCount', 'timeOfDay']
+
+/** Сравнивает только поля, которые редактирует RecurrenceEditor. */
+function sameRecurrence(a, b) {
+    if (!a && !b) return true
+    if (!a || !b) return false
+    return RECURRENCE_FIELDS.every(key => (a[key] ?? null) === (b[key] ?? null))
+}
 
 export default function TaskDetailModal({
                                             open,
@@ -52,6 +78,7 @@ export default function TaskDetailModal({
 
     const [boardId, setBoardId] = useState(boardIdProp || null)
     const [columns, setColumns] = useState(columnsProp || [])
+    const [isGroupProject, setIsGroupProject] = useState(false)
 
     const [form, setForm] = useState({
         title: '',
@@ -70,6 +97,7 @@ export default function TaskDetailModal({
     const [newTagIcon, setNewTagIcon] = useState('')
     const [editingTag, setEditingTag] = useState(null)
     const [dirty, setDirty] = useState(false)
+    const [discardAction, setDiscardAction] = useState(null)
     const [previewAttachment, setPreviewAttachment] = useState(null)
     const fileInputRef = useRef(null)
 
@@ -91,6 +119,8 @@ export default function TaskDetailModal({
 
     const load = async () => {
         if (!taskId) return
+        // Не показываем данные предыдущей задачи, пока грузится новая.
+        setTask(null)
         setLoading(true)
         setError(null)
 
@@ -146,6 +176,14 @@ export default function TaskDetailModal({
                     setTags(tagsData)
                 } catch {
                     setTags([])
+                }
+                // Групповой проект = в доске больше одного участника.
+                // В соло-доске авторы/редакторы — шум, показываем только дату.
+                try {
+                    const { data: members } = await boardMembersApi.list(bid)
+                    setIsGroupProject((members?.length || 0) > 1)
+                } catch {
+                    setIsGroupProject(false)
                 }
             }
 
@@ -478,12 +516,61 @@ export default function TaskDetailModal({
         }
     }
 
+    /**
+     * Перестановка подзадач внутри задачи.
+     *
+     * Раньше подзадачи таскали dnd-kit'ом прямо в карточке — они выезжали
+     * за границы задачи. Теперь порядок меняется явными кнопками ↑/↓,
+     * а позиции сохраняются на сервере.
+     */
+    const moveExistingSubtask = async (subtaskId, direction) => {
+        const index = existingSubtasks.findIndex(s => s.id === subtaskId)
+        const target = index + direction
+        if (index < 0 || target < 0 || target >= existingSubtasks.length) return
+
+        const next = [...existingSubtasks]
+        const [moved] = next.splice(index, 1)
+        next.splice(target, 0, moved)
+        setExistingSubtasks(next)
+        setDirty(true)
+
+        try {
+            await Promise.all(next.map((s, i) => tasksApi.update(s.id, { position: i })))
+            onUpdated && onUpdated()
+        } catch (err) {
+            setError(err.response?.data?.message || 'Error')
+            const { data } = await tasksApi.get(taskId)
+            setExistingSubtasks(data.subtasks || [])
+        }
+    }
+
     const openSubtask = (subtaskId) => {
         if (!onOpenTask) return
         if (dirty) {
-            if (!confirm(t.searchUnsavedChanges || 'Unsaved changes. Continue?')) return
+            setDiscardAction({ type: 'subtask', subtaskId })
+            return
         }
         onOpenTask(subtaskId)
+    }
+
+    const requestClose = () => {
+        if (saving || discardAction) return
+        if (dirty || recurrenceDirty) {
+            setDiscardAction({ type: 'close' })
+            return
+        }
+        onClose && onClose()
+    }
+
+    const confirmDiscard = () => {
+        const action = discardAction
+        setDiscardAction(null)
+        if (!action) return
+        if (action.type === 'subtask' && action.subtaskId != null) {
+            onOpenTask && onOpenTask(action.subtaskId)
+        } else {
+            onClose && onClose()
+        }
     }
 
     const handleSubtaskKeyDown = (e) => {
@@ -505,7 +592,7 @@ export default function TaskDetailModal({
         <>
             <Modal
                 open={open}
-                onClose={onClose}
+                onClose={requestClose}
                 title={loading ? t.loading : t.taskLabel}
                 footer={
                     <>
@@ -518,7 +605,7 @@ export default function TaskDetailModal({
                             🗑
                         </button>
                         <div className="modal__foot-spacer" />
-                        <button type="button" className="btn btn-ghost" onClick={onClose}>
+                        <button type="button" className="btn btn-ghost" onClick={requestClose}>
                             {t.close}
                         </button>
                         {detailTab === 'details' && (
@@ -564,7 +651,7 @@ export default function TaskDetailModal({
                         ) : (
                             <div className="task-detail">
 
-                                {(task.startedBy || task.lastEditedBy) && (
+                                {isGroupProject && (task.startedBy || task.lastEditedBy) && (
                                     <div className="task-detail__authors">
                                         {task.startedBy && (
                                             <div className="task-detail__author-row">
@@ -590,17 +677,45 @@ export default function TaskDetailModal({
                                     </div>
                                 )}
 
+                                {!isGroupProject && task.lastEditedAt && (
+                                    <div className="task-detail__authors task-detail__authors--solo">
+                                        <div className="task-detail__author-row">
+                                            <span className="task-detail__author-label">Изменено:</span>
+                                            <span className="task-detail__author-name">
+                                                {new Date(task.lastEditedAt).toLocaleString('ru-RU')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {task.recurrence && !isRecurrenceInstance && (
+                                    <div className="recurrence-banner recurrence-banner--root">
+                                        <span className="recurrence-banner__icon">🔁</span>
+                                        <div className="recurrence-banner__text">
+                                            <b>Корневая задача повторения.</b>{' '}
+                                            {describeRecurrence(task.recurrence)}
+                                            {' '}Будущие вхождения — отдельные задачи со ссылкой на эту корневую.
+                                        </div>
+                                    </div>
+                                )}
+
                                 {isRecurrenceInstance && (
                                     <div className="recurrence-banner">
                                         <span className="recurrence-banner__icon">🔁</span>
                                         <div className="recurrence-banner__text">
-                                            Это повторение от{' '}
-                                            <b>
-                                                {task.occurrenceDate
-                                                    ? new Date(task.occurrenceDate).toLocaleDateString()
-                                                    : '—'}
-                                            </b>
-                                            . Изменения применятся ко всем вхождениям.
+                                            Это повторение корневой задачи
+                                            {task.occurrenceDate && (
+                                                <> на <b>{new Date(task.occurrenceDate).toLocaleDateString()}</b></>
+                                            )}.
+                                            {task.recurrenceParentId && onOpenTask && (
+                                                <button
+                                                    type="button"
+                                                    className="recurrence-banner__link"
+                                                    onClick={() => onOpenTask(task.recurrenceParentId)}
+                                                >
+                                                    Открыть корневую
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -645,15 +760,10 @@ export default function TaskDetailModal({
 
                                         <div className="modal__field">
                                             <label className="modal__label">{t.priorityLabel}</label>
-                                            <select
-                                                className="input"
+                                            <PriorityPicker
                                                 value={form.priority}
-                                                onChange={(e) => setField('priority', Number(e.target.value))}
-                                            >
-                                                <option value={0}>{t.priorityNormal}</option>
-                                                <option value={1}>{t.priorityHigh}</option>
-                                                <option value={2}>{t.priorityUrgent}</option>
-                                            </select>
+                                                onChange={(value) => setField('priority', value)}
+                                            />
                                         </div>
                                     </div>
 
@@ -663,6 +773,7 @@ export default function TaskDetailModal({
                                             className="input"
                                             type="date"
                                             value={form.deadlineDate}
+                                            min={new Date().toLocaleDateString('sv-SE')}
                                             onChange={(e) => setField('deadlineDate', e.target.value)}
                                         />
                                     </div>
@@ -692,11 +803,14 @@ export default function TaskDetailModal({
                                 {!isSubtask && !isRecurrenceInstance && (
                                     <div className="task-detail__group">
                                         <RecurrenceEditor
+                                            key={taskId}
                                             taskId={taskId}
                                             initial={recurrence}
                                             onChange={(val) => {
+                                                if (!sameRecurrence(recurrence, val)) {
+                                                    setRecurrenceDirty(true)
+                                                }
                                                 setRecurrence(val)
-                                                setRecurrenceDirty(true)
                                             }}
                                         />
                                     </div>
@@ -885,6 +999,20 @@ export default function TaskDetailModal({
                                                             <button
                                                                 type="button"
                                                                 className="subtask-card__btn"
+                                                                onClick={(e) => { e.stopPropagation(); moveExistingSubtask(st.id, -1) }}
+                                                                disabled={existingSubtasks[0]?.id === st.id}
+                                                                title="Поднять выше"
+                                                            >↑</button>
+                                                            <button
+                                                                type="button"
+                                                                className="subtask-card__btn"
+                                                                onClick={(e) => { e.stopPropagation(); moveExistingSubtask(st.id, 1) }}
+                                                                disabled={existingSubtasks[existingSubtasks.length - 1]?.id === st.id}
+                                                                title="Опустить ниже"
+                                                            >↓</button>
+                                                            <button
+                                                                type="button"
+                                                                className="subtask-card__btn"
                                                                 onClick={(e) => { e.stopPropagation(); detachSubtask(st.id) }}
                                                                 title={t.makeStandalone}
                                                             >↗</button>
@@ -898,9 +1026,10 @@ export default function TaskDetailModal({
 
                                                         <div className="subtask-card__meta">
                                                             {st.priority > 0 && (
-                                                                <span className="subtask-card__priority">
-                                                                    {st.priority === 2 ? '❗' : '⚡'}
-                                                                </span>
+                                                                <PriorityStars
+                                                                    priority={st.priority}
+                                                                    className="subtask-card__priority"
+                                                                />
                                                             )}
                                                             {st.deadline && (
                                                                 <span className="subtask-card__deadline">
@@ -1129,6 +1258,19 @@ export default function TaskDetailModal({
             />
 
             <ConfirmModal {...modalProps} />
+
+            <ConfirmModal
+                open={!!discardAction}
+                title="Закрыть без сохранения?"
+                text={discardAction?.type === 'subtask'
+                    ? 'В задаче есть несохранённые изменения. Перейти к подзадаче и потерять их?'
+                    : 'В задаче есть несохранённые изменения. Если закрыть её сейчас, они пропадут.'}
+                confirmLabel={discardAction?.type === 'subtask' ? 'Перейти' : 'Закрыть без сохранения'}
+                cancelLabel="Продолжить редактирование"
+                danger
+                onConfirm={confirmDiscard}
+                onClose={() => setDiscardAction(null)}
+            />
         </>
     )
 }

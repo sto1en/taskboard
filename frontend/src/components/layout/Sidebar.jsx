@@ -69,6 +69,16 @@ export default observer(function Sidebar() {
     // событие 'tree:toggle' из AppLayout).
     const treeEnabledByUser = user?.appearance?.treeEnabled !== false
     const treeVisible = treeEnabledByUser && ui.treeEnabledLocal
+    const [treeOpen, setTreeOpen] = useState(() => {
+        try { return localStorage.getItem('sidebar:treeOpen') !== '0' } catch { return true }
+    })
+    const toggleTree = () => {
+        setTreeOpen(v => {
+            const next = !v
+            try { localStorage.setItem('sidebar:treeOpen', next ? '1' : '0') } catch { /* ignore */ }
+            return next
+        })
+    }
 
     // Первичная загрузка пиннутых досок/проектов при монтировании панели.
     // Событие 'sidebar:refresh' больше не слушается: инвалидация идёт через
@@ -132,7 +142,9 @@ export default observer(function Sidebar() {
         <>
             <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
                 <div className="sidebar__user">
-                    <Link to="/profile" className="sidebar__user-avatar" title="Настройки профиля">
+                    {/* Клик по аватарке ведёт на главную: так «Главная» больше
+                        не занимает первую строку меню, а доски остаются сверху. */}
+                    <Link to="/" className="sidebar__user-avatar" title="Главная">
                         <AvatarWithFrame
                             avatar={activeAvatar}
                             frame={activeFrame}
@@ -143,7 +155,12 @@ export default observer(function Sidebar() {
                     </Link>
 
                     {!collapsed && (
-                        <div className="sidebar__name" title={displayName}>{displayName}</div>
+                        <div className="sidebar__user-meta">
+                            <div className="sidebar__name" title={displayName}>{displayName}</div>
+                            <Link to="/profile" className="sidebar__profile-link">
+                                смотреть профиль
+                            </Link>
+                        </div>
                     )}
 
                     <button
@@ -156,16 +173,6 @@ export default observer(function Sidebar() {
                 </div>
 
                 <nav className="sidebar__nav">
-                    <NavLink
-                        to="/"
-                        end
-                        className={({ isActive }) => `sidebar__link ${isActive ? 'active' : ''}`}
-                        title={t.home || 'Главная'}
-                    >
-                        <span>🏠</span>
-                        {!collapsed && <span>{t.home || 'Главная'}</span>}
-                    </NavLink>
-
                     <div className="sidebar__group-row">
                         <NavLink to="/boards" className="sidebar__group-link" title={t.boards}>
                             <span className="sidebar__group-icon">📋</span>
@@ -261,7 +268,24 @@ export default observer(function Sidebar() {
                 <div className="sidebar__bottom">
                     {treeVisible && !collapsed && (
                         <div className="sidebar__tree">
-                            <TreeAvatar done={doneTasks} kind={treeKind} maxHeight={400} />
+                            <button
+                                type="button"
+                                className="sidebar__tree-head"
+                                onClick={toggleTree}
+                                aria-expanded={treeOpen}
+                                title="Дерево растёт, когда вы выполняете задачи. Клик по дереву — листья."
+                            >
+                                <span className="sidebar__tree-title">🌳 Дерево</span>
+                                <span className="sidebar__tree-caret">{treeOpen ? '▾' : '▸'}</span>
+                            </button>
+                            {treeOpen && (
+                                <>
+                                    <TreeAvatar done={doneTasks} kind={treeKind} maxHeight={400} />
+                                    <div className="sidebar__tree-hint">
+                                        Растёт от выполненных задач. Клик — листья.
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
 

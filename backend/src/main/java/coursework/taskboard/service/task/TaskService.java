@@ -37,6 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -104,6 +106,11 @@ public class TaskService {
     public TaskDto createTask(Long projectId, CreateTaskRequest request, User user) {
         Project project = getProjectWithAccess(projectId, user);
         Board board = project.getBoard();
+
+        if (request.getDeadline() != null
+                && request.getDeadline().toLocalDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("Нельзя поставить дедлайн в прошлом");
+        }
 
         Task parent = null;
         if (request.getParentId() != null) {
@@ -491,6 +498,12 @@ public class TaskService {
             LocalDateTime oldDl = schedule.getDeadline();
             LocalDateTime newDeadline = request.getDeadline();
 
+            if (newDeadline.toLocalDate().isBefore(LocalDate.now())
+                    && (oldDl == null
+                        || !oldDl.toLocalDate().equals(newDeadline.toLocalDate()))) {
+                throw new IllegalArgumentException("Нельзя поставить дедлайн в прошлом");
+            }
+
             boolean wasOverdue = oldDl != null
                     && oldDl.isBefore(OverduePolicyService.thresholdNow())
                     && schedule.getCompletedAt() == null;
@@ -515,6 +528,11 @@ public class TaskService {
             }
         }
         taskScheduleRepository.save(schedule);
+
+        // Корневая задача повторения — источник правды для серии:
+        // название/описание/приоритет и время дедлайна применяем к копиям.
+        // Сдвиг даты корня сдвигает и все будущие вхождения.
+        propagateRecurrenceChanges(task, request, oldDeadline, schedule);
 
         if (request.getTagIds() != null) {
             taskTagRepository.deleteAll(taskTagRepository.findByTaskId(taskId));
@@ -602,9 +620,76 @@ public class TaskService {
         return dto;
     }
 
+    /**
+     * Синхронизация серии повторений с корневой задачей.
+     *
+     * Раньше изменение дедлайна/названия корня не доходило до копий:
+     * у вхождений оставался старый дедлайн (или null). Теперь корень —
+     * источник правды: текст, приоритет и время дедлайна применяются ко
+     * всем вхождениям, а сдвиг даты корня сдвигает всю серию.
+     */
+    private void propagateRecurrenceChanges(Task template,
+                                            UpdateTaskRequest request,
+                                            LocalDateTime oldDeadline,
+                                            TaskSchedule templateSchedule) {
+        TaskRecurrence rec = taskRecurrenceRepository.findByTaskId(template.getId()).orElse(null);
+        if (rec == null) return;
+
+        List<Task> instances = taskRepository.findByRecurrenceParentId(template.getId());
+        if (instances.isEmpty()) return;
+
+        LocalDateTime newDeadline = templateSchedule.getDeadline();
+        long deltaDays = 0;
+        if (oldDeadline != null && newDeadline != null) {
+            deltaDays = ChronoUnit.DAYS.between(
+                    oldDeadline.toLocalDate(), newDeadline.toLocalDate());
+        }
+        LocalTime newTime = newDeadline != null ? newDeadline.toLocalTime() : null;
+
+        for (Task instance : instances) {
+            if (request.getTitle() != null) {
+                instance.setTitle(template.getTitle());
+            }
+            if (request.getDescription() != null) {
+                instance.setDescription(template.getDescription());
+            }
+            if (request.getPriority() != null) {
+                TaskSettings instanceSettings = taskSettingsRepository
+                        .findById(instance.getId()).orElse(null);
+                if (instanceSettings != null) {
+                    instanceSettings.setPriority(request.getPriority());
+                    taskSettingsRepository.save(instanceSettings);
+                }
+            }
+
+            if (instance.getOccurrenceDate() != null) {
+                LocalDate occurrence = instance.getOccurrenceDate();
+                if (deltaDays != 0) {
+                    occurrence = occurrence.plusDays(deltaDays);
+                    instance.setOccurrenceDate(occurrence);
+                }
+                if (newTime != null) {
+                    TaskSchedule instanceSchedule = taskScheduleRepository
+                            .findById(instance.getId()).orElse(null);
+                    if (instanceSchedule != null) {
+                        instanceSchedule.setDeadline(occurrence.atTime(newTime));
+                        taskScheduleRepository.save(instanceSchedule);
+                    }
+                }
+            }
+            taskRepository.save(instance);
+        }
+
+        if (deltaDays != 0) {
+            rec.setStartAt(rec.getStartAt().plusDays(deltaDays));
+            taskRecurrenceRepository.save(rec);
+        }
+    }
+
     // ============================================================
     // РАСЧЁТ НАГРАДЫ ЗА ЗАДАЧУ (единая точка для начисления и отката)
     // ============================================================
+
     /**
      * Возвращает количество листьев за одну закрытую задачу с учётом убывающей
      * отдачи в течение дня.

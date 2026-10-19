@@ -7,6 +7,7 @@ import DetailTextEditor from './DetailTextEditor'
 import AvatarWithFrame from '../layout/AvatarWithFrame'
 import { formatDeadline } from '../../utils/format'
 import { isDone as checkIsDone, isCancelled as checkIsCancelled, isExpired as checkIsExpired } from '../../utils/sortTasks'
+import { PriorityStars } from './PriorityStars'
 import useT from '../../hooks/useT'
 
 export default function TaskCard({
@@ -167,10 +168,11 @@ export default function TaskCard({
                     title={t.edit}
                 />
 
-                {task.priority > 0 && (
-                    <span className="task-card__priority task-card__priority--big">
-                        {task.priority === 2 ? '❗' : '⚡'}
-                    </span>
+                {task.priority !== 0 && task.priority != null && (
+                    <PriorityStars
+                        priority={task.priority}
+                        className="task-card__priority"
+                    />
                 )}
                 <div className="task-card__actions">
                     {task.attachmentNames?.length > 0 && (

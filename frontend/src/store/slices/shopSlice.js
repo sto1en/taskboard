@@ -67,8 +67,9 @@ const shopSlice = createSlice({
          * Вызывается вместо старого window.dispatchEvent('shop:refresh').
          */
         invalidate(state) {
-            state.data = null
-            state.leaves = 0
+            // Не обнуляем leaves/data: пока новый ответ не пришёл, UI должен
+            // показывать последний известный баланс. Иначе на время запроса
+            // (или при сетевой ошибке) листья «исчезают» из TopBar.
             state.error = null
         },
     },

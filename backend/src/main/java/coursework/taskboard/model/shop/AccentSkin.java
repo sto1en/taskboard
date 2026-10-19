@@ -39,12 +39,10 @@ public class AccentSkin {
     @Builder.Default
     private Boolean isGradient = false;
 
-    /** Редкий акцент: собственный визуальный стиль (металл/контур), не заливка. */
     @Column(name = "is_rare", nullable = false)
     @Builder.Default
     private Boolean isRare = false;
 
-    /** Третий стоп металлического/радужного редкого акцента. */
     @Column(name = "hex_color_tertiary", length = 9)
     private String hexColorTertiary;
 

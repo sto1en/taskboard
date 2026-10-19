@@ -3,10 +3,12 @@ import { useDispatch } from 'react-redux'
 import { invalidateTasks } from '../../store/slices/tasksSlice'
 import { tasksApi, tagsApi, attachmentsApi, projectsApi, boardsApi, recurrenceApi } from '../../api/api'
 import Modal from '../modal/Modal'
+import ConfirmModal from '../common/ConfirmModal'
 import useT from '../../hooks/useT'
 import { resolveUrl } from '../../utils/format'
 import { useAuth } from '../../context/AuthContext'
 import RecurrenceEditor from './RecurrenceEditor'
+import { PriorityPicker } from './PriorityStars'
 
 /**
  * Универсальная модалка создания задачи.
@@ -67,8 +69,30 @@ export default function TaskFormModal({
 
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
+    const [confirmDiscard, setConfirmDiscard] = useState(false)
 
     const isProjectFixed = mode === 'project' || !!fixedProjectId
+
+    // «Есть ли что терять»: считаем только то, что пользователь реально
+    // ввёл/выбрал, а не предзаполненные статус и дату из календаря.
+    const isDirty = !!title.trim()
+        || !!description.trim()
+        || priority !== 0
+        || deadlineDate !== (presetDeadline || '')
+        || hasTime
+        || selectedTagIds.length > 0
+        || subtasks.length > 0
+        || attachments.length > 0
+        || !!recurrence
+
+    const requestClose = () => {
+        if (loading) return
+        if (isDirty) {
+            setConfirmDiscard(true)
+            return
+        }
+        onClose()
+    }
 
     // 1. Список досок (только для режима календаря)
     useEffect(() => {
@@ -103,6 +127,7 @@ export default function TaskFormModal({
         setAttachments([])
         setRecurrence(null)
         setError(null)
+        setConfirmDiscard(false)
 
         if (isProjectFixed) {
             setSelectedBoardId(fixedBoardId || null)
@@ -356,13 +381,14 @@ export default function TaskFormModal({
     }
 
     return (
+        <>
         <Modal
             open={open}
-            onClose={onClose}
+            onClose={requestClose}
             title={t.newTask}
             footer={
                 <>
-                    <button type="button" className="btn btn-ghost" onClick={onClose} disabled={loading}>
+                    <button type="button" className="btn btn-ghost" onClick={requestClose} disabled={loading}>
                         {t.cancel}
                     </button>
                     <button
@@ -473,15 +499,10 @@ export default function TaskFormModal({
 
                             <div className="modal__field">
                                 <label className="modal__label">{t.priorityLabel}</label>
-                                <select
-                                    className="input"
+                                <PriorityPicker
                                     value={priority}
-                                    onChange={(e) => setPriority(Number(e.target.value))}
-                                >
-                                    <option value={0}>{t.priorityNormal}</option>
-                                    <option value={1}>{t.priorityHigh}</option>
-                                    <option value={2}>{t.priorityUrgent}</option>
-                                </select>
+                                    onChange={setPriority}
+                                />
                             </div>
                         </div>
 
@@ -491,6 +512,7 @@ export default function TaskFormModal({
                                 className="input"
                                 type="date"
                                 value={deadlineDate}
+                                min={new Date().toLocaleDateString('sv-SE')}
                                 onChange={(e) => setDeadlineDate(e.target.value)}
                             />
                         </div>
@@ -668,5 +690,16 @@ export default function TaskFormModal({
                 {error && <div className="modal__error">{error}</div>}
             </form>
         </Modal>
+        <ConfirmModal
+            open={confirmDiscard}
+            title="Закрыть без сохранения?"
+            text="В задаче есть несохранённые данные. Если закрыть сейчас, они пропадут."
+            confirmLabel="Закрыть без сохранения"
+            cancelLabel="Продолжить редактирование"
+            danger
+            onConfirm={() => { setConfirmDiscard(false); onClose() }}
+            onClose={() => setConfirmDiscard(false)}
+        />
+        </>
     )
 }

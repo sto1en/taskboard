@@ -25,10 +25,13 @@ export default function AccentCard({ item, onBuy, onEquip, onUnequip }) {
         ? Math.round((1 - item.price / item.oldPrice) * 100)
         : 0
     const free = !item.price || item.price === 0
+    // The holographic accent gets an animated rainbow outline when equipped.
+    // Other accents keep a solid outline in their own accent color.
+    const isHolo = item.code === 'hologram' || item.isHologram === true
 
     return (
         <div
-            className={`shop-card shop-card--accent ${active ? 'shop-card--active' : ''} ${item.isRare ? 'shop-card--rare' : ''}`}
+            className={`shop-card shop-card--accent ${active ? 'shop-card--active' : ''} ${item.isRare ? 'shop-card--rare' : ''} ${isHolo ? 'shop-card--holo' : ''}`}
             data-accent={item.code}
             style={accentVars(item)}
         >

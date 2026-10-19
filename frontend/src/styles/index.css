@@ -419,6 +419,24 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
   font-size: 15px;
 }
 
+.loading::before,
+.calendar__loading::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 9px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  vertical-align: -3px;
+  animation: loading-spin .8s linear infinite;
+}
+
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Экран фатальной ошибки рендера (ErrorBoundary) */
 .error-boundary {
   min-height: 100vh;
