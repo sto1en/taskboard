@@ -26,6 +26,8 @@ public class CalendarTaskDto {
     private String statusCategoryCode;
     private String statusAccentCode;
     private Boolean isOverdue;
+    /** Приоритет задачи: -1 низкий, 0 обычный, 1/2 высокий. */
+    private Short priority;
 
     // Вложения (только имена, для скрепки)
     private List<String> attachmentNames;

@@ -113,6 +113,7 @@ public class CalendarService {
                             ? settings.getStatus().getCategoryCode() : null)
                     .statusAccentCode(appearance != null ? appearance.getAccentCode() : null)
                     .isOverdue(isOverdue)
+                    .priority(settings != null ? settings.getPriority() : 0)
                     .attachmentNames(attachmentNames)
                     .isRecurrenceInstance(task.getIsRecurrenceInstance())
                     .recurrenceParentId(task.getRecurrenceParent() != null
