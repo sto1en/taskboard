@@ -1,6 +1,6 @@
 // frontend/src/pages/ShopPage.jsx
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { shopApi } from '../api/api'
 import { fetchShop } from '../store/slices/shopSlice'
@@ -16,6 +16,7 @@ import CategoryChips from '../components/shop/CategoryChips'
 import SortToggle from '../components/shop/SortToggle'
 import ShopEmptyState from '../components/shop/ShopEmptyState'
 import ShopPagination from '../components/shop/ShopPagination'
+import TreeThumb from '../components/shop/TreeThumb'
 
 const PAGE_SIZE = 24
 
@@ -68,6 +69,11 @@ export default function ShopPage() {
     const [chestResult, setChestResult] = useState(null)
     const [revealed, setRevealed] = useState(false)
     const [buyingKey, setBuyingKey] = useState(false)
+    // Полный (нефильтрованный) каталог: по itemId берём картинку/название/цену
+    // именно предмета магазина, даже если на вкладке активны фильтры.
+    const [chestCatalog, setChestCatalog] = useState(null)
+    const [chestAction, setChestAction] = useState(null)
+    const chestBusyRef = useRef(false)
 
     useEffect(() => {
         Promise.all([
@@ -162,6 +168,16 @@ export default function ShopPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab])
 
+    // Каталог без фильтров — источник истины для экрана награды.
+    useEffect(() => {
+        if (tab !== 'chests') return
+        let alive = true
+        shopApi.get()
+            .then(({ data }) => { if (alive) setChestCatalog(data) })
+            .catch(() => {})
+        return () => { alive = false }
+    }, [tab])
+
     // Анимация открытия: 1.3 с «крутим» сундук, затем показываем лут.
     useEffect(() => {
         if (!chestResult) return
@@ -191,6 +207,85 @@ export default function ShopPage() {
         setChestResult(null)
         setRevealed(false)
         setOpeningChest(null)
+    }
+
+    // Награда-предмет: ищем её в полном каталоге магазина по itemId+типу.
+    // DTO сундука — только фолбэк, если предмет уже удалён из магазина.
+    const chestReward = useMemo(() => {
+        if (!chestResult || chestResult.rewardType !== 'item') return null
+
+        const source = chestCatalog || data
+        const lists = {
+            avatar: asArray(source?.avatars),
+            frame: asArray(source?.frames),
+            tree: asArray(source?.treeSkins),
+            accent: asArray(source?.accents),
+        }
+        const matches = (item) => String(item.id) === String(chestResult.itemId)
+
+        let type = chestResult.itemType && lists[chestResult.itemType] ? chestResult.itemType : null
+        let item = type ? lists[type].find(matches) || null : null
+
+        if (!item) {
+            for (const key of Object.keys(lists)) {
+                const found = lists[key].find(matches)
+                if (found) {
+                    item = found
+                    type = key
+                    break
+                }
+            }
+        }
+
+        return { item, type: type || chestResult.itemType || null }
+    }, [chestResult, chestCatalog, data])
+
+    const refreshAfterChest = () => {
+        load()
+        loadChests()
+        dispatch(fetchShop())
+    }
+
+    // «Забрать» и «Получить листья» ничего не выдают: предмет уже выдан
+    // (или листья за дубликат уже начислены) сервером при открытии сундука.
+    const claimChestReward = () => {
+        if (chestBusyRef.current) return
+        chestBusyRef.current = true
+        setChestAction('claim')
+        closeChestResult()
+        refreshAfterChest()
+        setChestAction(null)
+        chestBusyRef.current = false
+    }
+
+    const equipChestReward = async () => {
+        if (chestBusyRef.current) return
+        const type = chestReward?.type
+        const id = chestResult?.itemId
+        const equip = {
+            avatar: shopApi.equipAvatar,
+            frame: shopApi.equipFrame,
+            tree: shopApi.equipTreeSkin,
+            accent: shopApi.equipAccent,
+        }[type]
+
+        if (!equip || id == null) {
+            alert('Не удалось определить предмет')
+            return
+        }
+
+        chestBusyRef.current = true
+        setChestAction('equip')
+        try {
+            await equip(id)
+            closeChestResult()
+            refreshAfterChest()
+        } catch (err) {
+            alert(err.response?.data?.message || 'Не удалось надеть предмет')
+        } finally {
+            chestBusyRef.current = false
+            setChestAction(null)
+        }
     }
 
     const buyKey = async () => {
@@ -347,6 +442,18 @@ export default function ShopPage() {
     const tabCount = (list) => list.length > 0 && (
         <span className="shop__tab-count">{list.length}</span>
     )
+
+    // Поля награды: магазин — источник истины, DTO — фолбэк.
+    const chestItem = chestReward?.item || null
+    const chestItemType = chestReward?.type || null
+    const chestTitle = chestItem?.title || chestResult?.title
+    const chestDesc = chestItem?.description || chestResult?.description
+    const chestImage = chestItem?.imageUrl || chestResult?.imageUrl
+    const chestEmoji = chestItem?.emoji || chestResult?.emoji || '🎁'
+    const chestPrice = chestItem?.price ?? chestResult?.price ?? null
+    const chestRarityLabel = RARITY_LABELS[chestResult?.rarity] || 'Предмет'
+    const duplicateLeaves = chestResult?.duplicateLeaves ?? chestPrice ?? 0
+    const chestBusy = Boolean(chestAction)
 
     return (
         <div className="shop">
@@ -506,41 +613,118 @@ export default function ShopPage() {
                                 <div className="chest-reveal__text">Сундук открывается…</div>
                             </div>
                         ) : (
-                            <div className={`chest-result chest-result--${chestResult.rewardType} ${chestResult.rarity ? `chest-result--${chestResult.rarity}` : ''}`}>
-                                <div className="chest-result__rarity">
-                                    {chestResult.rewardType === 'leaves'
-                                        ? 'Лесные дары'
-                                        : RARITY_LABELS[chestResult.rarity] || 'Предмет'}
-                                </div>
-
-                                <div className="chest-result__art">
-                                    {chestResult.imageUrl
-                                        ? <img
-                                            src={resolveUrl(chestResult.imageUrl)}
-                                            alt={chestResult.title || 'Награда'}
-                                            className="chest-result__img"
-                                        />
-                                        : <span className="chest-result__emoji">{chestResult.emoji || '🎁'}</span>}
-                                </div>
-
-                                <div className="chest-result__title">{chestResult.title}</div>
-                                {chestResult.description && (
-                                    <div className="chest-result__desc">{chestResult.description}</div>
-                                )}
-
+                            <div className={`chest-result chest-result--${chestResult.rewardType} ${chestResult.rarity ? `chest-result--${chestResult.rarity}` : ''} ${chestResult.owned ? 'chest-result--owned' : ''}`}>
                                 {chestResult.rewardType === 'leaves' ? (
-                                    <div className="chest-result__amount">+{chestResult.leaves} 🍃</div>
-                                ) : chestResult.price != null ? (
-                                    <div className="chest-result__price">🍃 {formatPrice(chestResult.price)}</div>
-                                ) : null}
+                                    <>
+                                        <div className="chest-result__rarity">Лесные дары</div>
 
-                                <button
-                                    type="button"
-                                    className="btn btn-primary chest-result__btn"
-                                    onClick={closeChestResult}
-                                >
-                                    Забрать
-                                </button>
+                                        <div className="chest-result__art">
+                                            <span className="chest-result__emoji">{chestResult.emoji || '🍃'}</span>
+                                        </div>
+
+                                        <div className="chest-result__title">{chestResult.title}</div>
+                                        {chestResult.description && (
+                                            <div className="chest-result__desc">{chestResult.description}</div>
+                                        )}
+                                        <div className="chest-result__amount">+{chestResult.leaves} 🍃</div>
+
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary chest-result__btn"
+                                            onClick={claimChestReward}
+                                            disabled={chestBusy}
+                                        >
+                                            Забрать
+                                        </button>
+                                    </>
+                                ) : chestResult.owned ? (
+                                    <>
+                                        <span className="chest-result__owned-tag">{t.shopOwned}</span>
+
+                                        <div className="chest-result__art">
+                                            {chestItemType === 'tree' && chestItem?.code
+                                                ? <TreeThumb kind={chestItem.code} size={92}/>
+                                                : chestImage
+                                                    ? <img
+                                                        src={resolveUrl(chestImage)}
+                                                        alt={chestTitle || 'Награда'}
+                                                        className="chest-result__img"
+                                                    />
+                                                    : <span className="chest-result__emoji">{chestEmoji}</span>}
+                                        </div>
+
+                                        <div className="chest-result__title">{chestTitle}</div>
+                                        <span className="chest-result__rarity-tag">{chestRarityLabel}</span>
+                                        {chestDesc && (
+                                            <div className="chest-result__desc">{chestDesc}</div>
+                                        )}
+                                        <div className="chest-result__duplicate">
+                                            +{formatPrice(duplicateLeaves)} 🍃
+                                        </div>
+
+                                        <div className="chest-result__actions">
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary chest-result__btn"
+                                                onClick={equipChestReward}
+                                                disabled={chestBusy}
+                                            >
+                                                {t.shopEquip}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn chest-result__btn chest-result__btn--leaves"
+                                                onClick={claimChestReward}
+                                                disabled={chestBusy}
+                                            >
+                                                Получить листья
+                                            </button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="chest-result__rarity">{chestRarityLabel}</div>
+
+                                        <div className="chest-result__art">
+                                            {chestItemType === 'tree' && chestItem?.code
+                                                ? <TreeThumb kind={chestItem.code} size={92}/>
+                                                : chestImage
+                                                    ? <img
+                                                        src={resolveUrl(chestImage)}
+                                                        alt={chestTitle || 'Награда'}
+                                                        className="chest-result__img"
+                                                    />
+                                                    : <span className="chest-result__emoji">{chestEmoji}</span>}
+                                        </div>
+
+                                        <div className="chest-result__title">{chestTitle}</div>
+                                        {chestDesc && (
+                                            <div className="chest-result__desc">{chestDesc}</div>
+                                        )}
+                                        {chestPrice != null && (
+                                            <div className="chest-result__price">🍃 {formatPrice(chestPrice)}</div>
+                                        )}
+
+                                        <div className="chest-result__actions">
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary chest-result__btn"
+                                                onClick={claimChestReward}
+                                                disabled={chestBusy}
+                                            >
+                                                Забрать
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost chest-result__btn"
+                                                onClick={equipChestReward}
+                                                disabled={chestBusy}
+                                            >
+                                                {t.shopEquip}
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>

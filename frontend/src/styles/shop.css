@@ -2085,10 +2085,12 @@ html[data-theme="dark"] .shop-card__category {
 }
 
 .chest-result {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
+    width: 100%;
     animation: chest-result-in .3s ease-out;
 }
 
@@ -2173,6 +2175,87 @@ html[data-theme="dark"] .shop-card__category {
 .chest-result__btn {
     margin-top: 10px;
     padding: 10px 28px !important;
+}
+
+/* ---------- Награда-предмет: сценарии «новый» и «дубликат» ---------- */
+
+/* Серый тег «Куплено» в правом верхнем углу — как бейдж в магазине. */
+.chest-result__owned-tag {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .4px;
+    line-height: 1.3;
+    text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, .2);
+    background-color: #42526e;
+    background-image: linear-gradient(120deg, #344563 0%, #6b7f9e 100%);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+}
+
+/* Цветной тег редкости под названием (дубликат). */
+.chest-result__rarity-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .5px;
+    line-height: 1.3;
+    text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, .2);
+    background-color: #8a94a6;
+}
+
+.chest-result--uncommon .chest-result__rarity-tag  { background-color: #36b37e; }
+.chest-result--rare .chest-result__rarity-tag      { background-color: #4c9aff; }
+.chest-result--very_rare .chest-result__rarity-tag { background-color: #b06bff; }
+
+/* Сумма компенсации за дубликат. */
+.chest-result__duplicate {
+    font-size: 18px;
+    font-weight: 800;
+    color: #36b37e;
+    text-shadow: 0 0 12px rgba(54, 179, 126, .35);
+}
+
+.chest-result__actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    margin-top: 12px;
+}
+
+.chest-result__actions .chest-result__btn {
+    flex: 1 1 0;
+    margin-top: 0;
+    padding: 10px 12px !important;
+    white-space: nowrap;
+}
+
+/* «Получить листья» — второстепенная, но зелёная (цвет листьев). */
+.chest-result__btn--leaves {
+    color: #2f9e6c;
+    border: 1px solid #36b37e;
+    background: transparent;
+}
+
+.chest-result__btn--leaves:hover:not(:disabled) {
+    background: rgba(54, 179, 126, .12);
+}
+
+.chest-result__btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -43,8 +43,9 @@ import java.util.concurrent.ThreadLocalRandom;
  * Лут: 60% листья, 27% обычный предмет, 9% необычный, 3% редкий,
  * 1% очень редкий. Редкость предмета определяется его ценой:
  * обычный &lt; 500, необычный 500–1199, редкий 1200–2500, очень редкий &gt; 2500.
- * Предметы выдаются только из ещё не купленных; если подходящих нет —
- * выпадают листья.
+ * Повторно выпавший предмет не дублирует строку инвентаря: вместо него
+ * начисляются листья в размере цены предмета. Если подходящих предметов
+ * нет вовсе — выпадают листья.
  */
 @Service
 @RequiredArgsConstructor
@@ -213,11 +214,35 @@ public class ChestService {
     private ChestOpenResultDto itemReward(User user, String rarity, String chestCode) {
         List<LootCandidate> candidates = candidates(user, rarity);
         if (candidates.isEmpty()) {
-            // Подходящих непокупленных предметов нет — выдаём листья.
+            // Подходящих предметов нет — выдаём листья.
             return leavesReward(user, chestCode);
         }
 
         LootCandidate pick = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+
+        if (pick.owned()) {
+            // Дубликат: вторую строку инвентаря не создаём (unique user_id+item_id),
+            // вместо предмета начисляем его цену листьями.
+            int refund = pick.price() == null ? 0 : Math.max(0, pick.price());
+            if (refund > 0) {
+                shopService.addLeaves(user, refund);
+            }
+            return ChestOpenResultDto.builder()
+                    .rewardType(REWARD_ITEM)
+                    .rarity(rarity)
+                    .title(pick.title())
+                    .description(pick.description())
+                    .itemId(pick.id())
+                    .itemType(pick.type())
+                    .owned(true)
+                    .duplicateLeaves(refund)
+                    .imageUrl(pick.imageUrl())
+                    .emoji(pick.emoji())
+                    .cssClass(pick.cssClass())
+                    .price(pick.price())
+                    .build();
+        }
+
         grant(user, pick);
 
         return ChestOpenResultDto.builder()
@@ -226,6 +251,8 @@ public class ChestService {
                 .title(pick.title())
                 .description(pick.description())
                 .itemId(pick.id())
+                .itemType(pick.type())
+                .owned(false)
                 .imageUrl(pick.imageUrl())
                 .emoji(pick.emoji())
                 .cssClass(pick.cssClass())
@@ -274,10 +301,11 @@ public class ChestService {
             ownedAvatars.add(ua.getAvatar().getId());
         }
         for (Avatar a : avatarRepository.findAllByOrderBySortOrderAsc()) {
-            if (ownedAvatars.contains(a.getId()) || !rarityMatches(a.getPrice(), rarity)) continue;
+            if (!rarityMatches(a.getPrice(), rarity)) continue;
             result.add(new LootCandidate(
                     "avatar", a.getId(), a.getTitle(), a.getDescription(),
-                    a.getPrice(), a.getEmoji(), a.getImageUrl(), a.getCssClass()));
+                    a.getPrice(), a.getEmoji(), a.getImageUrl(), a.getCssClass(),
+                    ownedAvatars.contains(a.getId())));
         }
 
         Set<Long> ownedFrames = new HashSet<>();
@@ -285,10 +313,11 @@ public class ChestService {
             ownedFrames.add(uf.getFrame().getId());
         }
         for (Frame f : frameRepository.findAllByOrderBySortOrderAsc()) {
-            if (ownedFrames.contains(f.getId()) || !rarityMatches(f.getPrice(), rarity)) continue;
+            if (!rarityMatches(f.getPrice(), rarity)) continue;
             result.add(new LootCandidate(
                     "frame", f.getId(), f.getTitle(), f.getDescription(),
-                    f.getPrice(), "🖼️", f.getImageUrl(), f.getCssClass()));
+                    f.getPrice(), "🖼️", f.getImageUrl(), f.getCssClass(),
+                    ownedFrames.contains(f.getId())));
         }
 
         Set<Long> ownedTrees = new HashSet<>();
@@ -296,10 +325,11 @@ public class ChestService {
             ownedTrees.add(ut.getTreeSkin().getId());
         }
         for (TreeSkin t : treeSkinRepository.findAllByOrderBySortOrderAsc()) {
-            if (ownedTrees.contains(t.getId()) || !rarityMatches(t.getPrice(), rarity)) continue;
+            if (!rarityMatches(t.getPrice(), rarity)) continue;
             result.add(new LootCandidate(
                     "tree", t.getId(), t.getTitle(), t.getDescription(),
-                    t.getPrice(), "🌳", null, null));
+                    t.getPrice(), "🌳", null, null,
+                    ownedTrees.contains(t.getId())));
         }
 
         Set<Long> ownedAccents = new HashSet<>();
@@ -307,10 +337,11 @@ public class ChestService {
             ownedAccents.add(ua.getAccentSkin().getId());
         }
         for (AccentSkin a : accentSkinRepository.findAllByOrderBySortOrderAsc()) {
-            if (ownedAccents.contains(a.getId()) || !rarityMatches(a.getPrice(), rarity)) continue;
+            if (!rarityMatches(a.getPrice(), rarity)) continue;
             result.add(new LootCandidate(
                     "accent", a.getId(), a.getTitle(), a.getDescription(),
-                    a.getPrice(), "🎨", a.getImageUrl(), a.getCode()));
+                    a.getPrice(), "🎨", a.getImageUrl(), a.getCode(),
+                    ownedAccents.contains(a.getId())));
         }
 
         return result;
@@ -373,8 +404,9 @@ public class ChestService {
     }
 
     /**
-     * Кандидат на лут. type нужен только для выдачи в нужную таблицу,
-     * наружу отдаём itemId + данные для превью.
+     * Кандидат на лут. type нужен для выдачи в нужную таблицу и для фронта
+     * (itemId неоднозначен между типами). owned — предмет уже в инвентаре,
+     * тогда вместо выдачи начисляются листья.
      */
     private record LootCandidate(
             String type,
@@ -384,7 +416,8 @@ public class ChestService {
             Integer price,
             String emoji,
             String imageUrl,
-            String cssClass
+            String cssClass,
+            boolean owned
     ) {
     }
 }

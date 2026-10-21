@@ -20,6 +20,16 @@ public class ChestOpenResultDto {
     private String description;
 
     private Long itemId;
+
+    /** avatar / frame / tree / accent; null для листьев. */
+    private String itemType;
+
+    /** Был ли предмет уже в инвентаре (выпал дубликат). */
+    private Boolean owned;
+
+    /** Листья, начисленные за дубликат; null, если предмет новый. */
+    private Integer duplicateLeaves;
+
     private String imageUrl;
     private String emoji;
     private String cssClass;
