@@ -60,6 +60,9 @@ export default observer(function SortSwitcher({ sortMode, sortDir, onChange }) {
                 className="sort-switcher__dir"
                 onClick={toggleDir}
                 title={sortDir === 'asc' ? t.asc : t.desc}
+                style={sortMode === 'by_priority' ? { visibility: 'hidden' } : undefined}
+                aria-hidden={sortMode === 'by_priority'}
+                tabIndex={sortMode === 'by_priority' ? -1 : undefined}
             >
                 {sortDir === 'asc' ? '↑' : '↓'}
             </button>

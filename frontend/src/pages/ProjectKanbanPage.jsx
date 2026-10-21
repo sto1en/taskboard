@@ -21,6 +21,7 @@ import InlineEdit from '../components/common/InlineEdit'
 import useHotkeys from '../hooks/useHotkeys'
 import useConfirmDelete from '../hooks/useConfirmDelete'
 import { useAuth } from '../context/AuthContext'
+import { sortTasks } from '../utils/sortTasks'
 
 const ACCENTS = [
     'blue', 'purple', 'green', 'orange', 'red', 'pink', 'gray', 'teal',
@@ -48,7 +49,7 @@ export default observer(function ProjectKanbanPage() {
     const [error, setError] = useState(null)
 
     const [viewMode, setViewMode] = useState('kanban')
-    const [sortMode, setSortMode] = useState('manual')
+    const [sortMode, setSortMode] = useState('by_priority')
     const [sortDir, setSortDir] = useState('asc')
     const [activeStatuses, setActiveStatuses] = useState([])
     const [reorderMode, setReorderMode] = useState(false)
@@ -308,6 +309,45 @@ export default observer(function ProjectKanbanPage() {
         }
     }
 
+    // Ручной режим хранит порядок в position. Чтобы при входе в него
+    // (кнопка ↔, P или выбор «Вручную») список не прыгал со
+    // приоритетного порядка на старые позиции, сначала «замораживаем»
+    // текущий порядок в position. Дальше drag уже ничем не перебивается.
+    const ensureManualSort = async () => {
+        if (sortMode === 'manual' || !kanban) return
+
+        const writes = []
+        const columns = kanban.columns.map(col => {
+            const ordered = sortTasks(col.tasks, sortMode, sortDir)
+            return {
+                ...col,
+                tasks: ordered.map((task, index) => {
+                    if (task.position === index) return task
+                    writes.push(tasksApi.update(task.id, { position: index }))
+                    return { ...task, position: index }
+                }),
+            }
+        })
+
+        // Оптимистично переставляем локально: серверные position уедут
+        // следом, но пользователь не увидит промежуточной пересортировки.
+        setKanban(prev => (prev ? { ...prev, columns } : prev))
+        setSortMode('manual')
+        // Ручной порядок всегда читается по возрастанию position;
+        // иначе замороженный порядок показался бы перевёрнутым.
+        setSortDir('asc')
+
+        await Promise.allSettled(writes)
+    }
+
+    const toggleReorderMode = () => {
+        const next = !reorderMode
+        setReorderMode(next)
+        // Перестановка имеет смысл только при ручной сортировке: иначе
+        // список тут же пересортируется и drag визуально откатится.
+        if (next) ensureManualSort()
+    }
+
     // Массив хоткеев мемоизируем: useHotkeys внутри зависит от ссылки на
     // массив, и при новом массиве каждый рендер переустанавливал обработчик
     // keydown. Значения, от которых зависят сами обработчики, читаются через
@@ -369,9 +409,9 @@ export default observer(function ProjectKanbanPage() {
         { combo: '2', handler: () => setViewMode('list') },
         { combo: '3', handler: () => setViewMode('compact') },
 
-        { combo: 'p', handler: () => setReorderMode(v => !v) },
+        { combo: 'p', handler: toggleReorderMode },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    ], [hoveredTaskId, kanban])
+    ], [hoveredTaskId, kanban, reorderMode, sortMode, sortDir])
 
     useHotkeys(hotkeys)
 
@@ -444,7 +484,13 @@ export default observer(function ProjectKanbanPage() {
                         sortMode={sortMode}
                         sortDir={sortDir}
                         onChange={({ sortMode: sm, sortDir: sd }) => {
-                            setSortMode(sm); setSortDir(sd)
+                            if (sm === 'manual' && sortMode !== 'manual') {
+                                // Вход в ручной режим — с текущего порядка.
+                                ensureManualSort()
+                                return
+                            }
+                            setSortMode(sm)
+                            setSortDir(sd)
                         }}
                     />
 
@@ -461,7 +507,7 @@ export default observer(function ProjectKanbanPage() {
                     {showReorderButton && (
                         <button
                             className={`reorder-btn ${reorderMode ? 'reorder-btn--active' : ''}`}
-                            onClick={() => setReorderMode(v => !v)}
+                            onClick={toggleReorderMode}
                             title={reorderMode ? 'Выйти из режима перестановки' : 'Включить режим перестановки'}
                         >
                             <span className="reorder-btn__icon">{reorderMode ? '✓' : '↔'}</span>
@@ -492,6 +538,7 @@ export default observer(function ProjectKanbanPage() {
                         onHover={setHoveredTaskId}
                         onEditStatus={handleEditStatus}
                         onRecolorStatus={handleRecolorStatus}
+                        onEnsureManualSort={ensureManualSort}
                     />
                 )}
                 {effectiveMode === 'list' && (
@@ -508,6 +555,7 @@ export default observer(function ProjectKanbanPage() {
                         sortMode={sortMode}
                         sortDir={sortDir}
                         onHover={setHoveredTaskId}
+                        onEnsureManualSort={ensureManualSort}
                     />
                 )}
                 {effectiveMode === 'compact' && (
@@ -531,6 +579,7 @@ export default observer(function ProjectKanbanPage() {
                         onHover={setHoveredTaskId}
                         onEditStatus={handleEditStatus}
                         onRecolorStatus={handleRecolorStatus}
+                        onEnsureManualSort={ensureManualSort}
                     />
                 )}
             </div>

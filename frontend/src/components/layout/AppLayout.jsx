@@ -82,6 +82,13 @@ export default observer(function AppLayout() {
             return false
         }
 
+        // В режиме перестановки Esc должен только выйти из него: клавишу
+        // обрабатывает сама страница проекта. Иначе сработал бы ещё и
+        // переход назад, и пользователь покидал бы проект.
+        if (document.querySelector('.kanban--reorder, .compact-view--reorder')) {
+            return false
+        }
+
         const path = location.pathname
 
         const projectMatch = path.match(/^\/boards\/(\d+)\/projects\/\d+/)

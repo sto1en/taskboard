@@ -124,9 +124,6 @@ export const MESSAGES = {
         digestWeekly: 'Раз в неделю',
         remindBefore: 'Напомнить за N дней до дедлайна',
 
-        // Tree
-        progressTree: 'Дерево прогресса',
-
         // TopBar
         searchPlaceholder: 'Поиск по доскам, проектам, задачам, тегам...',
         searchLoading: 'Поиск...',
@@ -486,9 +483,6 @@ export const MESSAGES = {
         digestDaily: 'Daily',
         digestWeekly: 'Weekly',
         remindBefore: 'Remind N days before deadline',
-
-        // Tree
-        progressTree: 'Progress Tree',
 
         // TopBar
         searchPlaceholder: 'Search boards, projects, tasks, tags...',

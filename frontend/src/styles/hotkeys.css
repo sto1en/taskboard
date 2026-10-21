@@ -8,6 +8,43 @@
     gap: 20px;
 }
 
+.hotkeys-help__page {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.hotkeys-help__page-label {
+    color: var(--text-muted);
+}
+
+.hotkeys-help__page-name {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.hotkeys-help__level + .hotkeys-help__level {
+    margin-top: 12px;
+}
+
+.hotkeys-help__level-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-muted);
+    margin: 4px 0 2px;
+}
+
+.hotkeys-help__level-title--advanced {
+    color: var(--accent, var(--primary));
+}
+
 .hotkeys-help__group-title {
     font-size: 12px;
     font-weight: 700;

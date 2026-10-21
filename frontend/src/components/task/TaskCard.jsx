@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { tasksApi } from '../../api/api'
+import { tasksApi, projectsApi, boardMembersApi } from '../../api/api'
 import Subtask from './Subtask'
 import InlineEdit from '../common/InlineEdit'
 import DetailTextEditor from './DetailTextEditor'
@@ -9,6 +9,27 @@ import { formatDeadline } from '../../utils/format'
 import { isDone as checkIsDone, isCancelled as checkIsCancelled, isExpired as checkIsExpired } from '../../utils/sortTasks'
 import { PriorityStars } from './PriorityStars'
 import useT from '../../hooks/useT'
+
+// Кэш «доска коопная?» по boardId: в личных проектах последний редактор
+// не показывается, чтобы не дублировать единственного пользователя.
+const groupBoardCache = new Map()
+
+async function detectGroupBoard(projectId) {
+    if (!projectId) return false
+    try {
+        const { data: project } = await projectsApi.get(projectId)
+        const boardId = project?.boardId
+        if (!boardId) return false
+        if (groupBoardCache.has(boardId)) return groupBoardCache.get(boardId)
+
+        const { data: members } = await boardMembersApi.list(boardId)
+        const isGroup = (members?.length || 0) > 1
+        groupBoardCache.set(boardId, isGroup)
+        return isGroup
+    } catch {
+        return false
+    }
+}
 
 export default function TaskCard({
                                      task, doneStatusId, activeStatusId,
@@ -20,6 +41,7 @@ export default function TaskCard({
     const location = useLocation()
     const [expanded, setExpanded] = useState(false)
     const [fullTask, setFullTask] = useState(null)
+    const [isGroupBoard, setIsGroupBoard] = useState(false)
     const [loadingFull, setLoadingFull] = useState(false)
     const lastAttachCountRef = useRef(task.attachmentNames?.length || 0)
 
@@ -72,6 +94,7 @@ export default function TaskCard({
         try {
             const { data } = await tasksApi.get(task.id)
             setFullTask(data)
+            detectGroupBoard(data.projectId).then(setIsGroupBoard)
         } catch (err) {
             console.error('Failed to load full task:', err)
         } finally {
@@ -272,8 +295,9 @@ export default function TaskCard({
                                 </div>
                             )}
 
-                            {/* Только последний редактор — с аватаркой */}
-                            {fullTask.lastEditedBy && (
+                            {/* Только последний редактор — с аватаркой.
+                                В личном (не коопном) проекте редактор не нужен. */}
+                            {isGroupBoard && fullTask.lastEditedBy && (
                                 <div className="task-card__details-editor">
                                     <span className="task-card__details-label">
                                         Последний редактор:

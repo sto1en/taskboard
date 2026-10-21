@@ -298,6 +298,7 @@ export default function ListView({
                                      sortMode,
                                      sortDir,
                                      onHover,
+                                     onEnsureManualSort,
                                  }) {
     const allTasks = columns.flatMap(c =>
         c.tasks.map(t => ({
@@ -312,6 +313,13 @@ export default function ListView({
     const [hoverTaskId, setHoverTaskId] = useState(null)
     const [hoverMode, setHoverMode] = useState(null)
     const [shiftPressed, setShiftPressed] = useState(false)
+
+    // При смене режима/направления сортировки ручной порядок после
+    // перетаскивания больше не актуален — иначе приоритетные задачи
+    // оставались бы на старых местах.
+    useEffect(() => {
+        setLocalOrder(null)
+    }, [sortMode, sortDir])
 
     useEffect(() => {
         const onKeyDown = (e) => { if (e.key === 'Shift') setShiftPressed(true) }
@@ -490,7 +498,13 @@ export default function ListView({
                 return
             }
 
+            // Драг в приоритетном режиме переводит проект в ручной:
+            // иначе следующий рендер вернул бы задачу на приоритетное место.
             const mode = computeReorderMode(active, over)
+            if (sortMode !== 'manual' && onEnsureManualSort) {
+                await onEnsureManualSort()
+            }
+
             const targetIndex = mode === 'above'
                 ? (oldIndex < overIndex ? overIndex - 1 : overIndex)
                 : (oldIndex < overIndex ? overIndex : overIndex + 1)

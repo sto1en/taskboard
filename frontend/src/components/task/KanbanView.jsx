@@ -92,6 +92,7 @@ export default function KanbanView({
                                        onHover,
                                        onEditStatus,
                                        onRecolorStatus,
+                                       onEnsureManualSort,
                                    }) {
     const [activeTask, setActiveTask] = useState(null)
     const [activeSubtask, setActiveSubtask] = useState(null)
@@ -370,20 +371,55 @@ export default function KanbanView({
                 return
             }
 
+            // В приоритетном режиме drag должен не откатываться, а стать
+            // ручным. Замораживаем текущий порядок в position и дальше
+            // ставим задачу ровно туда, куда её отпустили.
+            // Режим (above/below) считываем до await: после сетевых
+            // запросов dnd-kit уже сбрасывает rect перетаскивания.
+            const dropMode = computeReorderMode(active, over)
+            if (sortMode !== 'manual' && onEnsureManualSort) {
+                await onEnsureManualSort()
+            }
+
+            const sourceColumn = findColumnByTaskId(activeTaskId)
             const overColumn = findColumnByTaskId(overTaskId)
             if (!overColumn) return
 
-            const overIndex = overColumn.tasks.findIndex(t => t.id === overTaskId)
-            if (overIndex === -1) return
+            const movedTask = sourceColumn?.tasks.find(t => t.id === activeTaskId)
+            if (!movedTask) return
 
-            const mode = computeReorderMode(active, over)
-            const newPosition = mode === 'above' ? overIndex : overIndex + 1
+            const sameColumn = sourceColumn?.statusId === overColumn.statusId
+            const targetOrder = overColumn.tasks.filter(t => t.id !== activeTaskId)
+            let insertAt = targetOrder.findIndex(t => t.id === overTaskId)
+            if (insertAt === -1) insertAt = targetOrder.length
+            if (dropMode !== 'above') insertAt += 1
+            targetOrder.splice(insertAt, 0, movedTask)
 
             try {
-                await tasksApi.move(activeTaskId, {
-                    statusId: overColumn.statusId,
-                    position: newPosition,
-                })
+                await Promise.all(
+                    targetOrder.map((task, index) => {
+                        if (task.id === activeTaskId) {
+                            return tasksApi.update(activeTaskId, {
+                                ...(sameColumn ? {} : { statusId: overColumn.statusId }),
+                                position: index,
+                            })
+                        }
+                        if (task.position === index) return null
+                        return tasksApi.update(task.id, { position: index })
+                    }).filter(Boolean)
+                )
+
+                if (!sameColumn && sourceColumn) {
+                    const rest = sourceColumn.tasks.filter(t => t.id !== activeTaskId)
+                    await Promise.all(
+                        rest.map((task, index) => (
+                            task.position === index
+                                ? null
+                                : tasksApi.update(task.id, { position: index })
+                        )).filter(Boolean)
+                    )
+                }
+
                 onTaskMoved && onTaskMoved()
             } catch (err) {
                 console.error('Reorder failed:', err)

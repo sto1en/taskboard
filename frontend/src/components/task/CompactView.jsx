@@ -702,6 +702,7 @@ export default function CompactView({
                                         onHover,
                                         onEditStatus,
                                         onRecolorStatus,
+                                        onEnsureManualSort,
                                     }) {
     const t = useT()
     const [collapsed, setCollapsed] = useState({})
@@ -867,18 +868,57 @@ export default function CompactView({
                 return
             }
 
-            const overColumn = visibleColumns.find(c => c.tasks.some(t => t.id === overTaskId))
+            const dropMode = computeReorderMode(active, over)
+            if (sortMode !== 'manual' && onEnsureManualSort) {
+                await onEnsureManualSort()
+            }
+
+            // Сортируем колонки так же, как они показаны на экране:
+            // в visibleColumns задачи лежат в порядке API, а группы
+            // отрисовываются через sortTasks.
+            const sortedColumns = visibleColumns.map(c => ({
+                ...c,
+                tasks: sortTasks(c.tasks, sortMode, sortDir),
+            }))
+            const sourceColumn = sortedColumns.find(c => c.tasks.some(t => t.id === active.id))
+            const overColumn = sortedColumns.find(c => c.tasks.some(t => t.id === overTaskId))
             if (!overColumn) return
 
-            const overIndex = overColumn.tasks.findIndex(t => t.id === overTaskId)
-            const mode = computeReorderMode(active, over)
-            const newPosition = mode === 'above' ? overIndex : overIndex + 1
+            const movedTask = sourceColumn?.tasks.find(t => t.id === active.id)
+            if (!movedTask) return
+
+            const sameColumn = sourceColumn?.statusId === overColumn.statusId
+            const targetOrder = overColumn.tasks.filter(t => t.id !== active.id)
+            let insertAt = targetOrder.findIndex(t => t.id === overTaskId)
+            if (insertAt === -1) insertAt = targetOrder.length
+            if (dropMode !== 'above') insertAt += 1
+            targetOrder.splice(insertAt, 0, movedTask)
 
             try {
-                await tasksApi.move(active.id, {
-                    statusId: overColumn.statusId,
-                    position: newPosition,
-                })
+                await Promise.all(
+                    targetOrder.map((task, index) => {
+                        if (task.id === active.id) {
+                            return tasksApi.update(active.id, {
+                                ...(sameColumn ? {} : { statusId: overColumn.statusId }),
+                                position: index,
+                            })
+                        }
+                        if (task.position === index) return null
+                        return tasksApi.update(task.id, { position: index })
+                    }).filter(Boolean)
+                )
+
+                if (!sameColumn && sourceColumn) {
+                    const rest = sourceColumn.tasks.filter(t => t.id !== active.id)
+                    await Promise.all(
+                        rest.map((task, index) => (
+                            task.position === index
+                                ? null
+                                : tasksApi.update(task.id, { position: index })
+                        )).filter(Boolean)
+                    )
+                }
+
                 onTaskMoved && onTaskMoved()
             } catch (err) {
                 console.error('Reorder failed:', err)

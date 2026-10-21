@@ -62,9 +62,14 @@ export default function HelpPage() {
 
             <section className="info-page__section">
                 <h2>{sections.hotkeys}</h2>
+                <p>
+                    Press <kbd>H</kbd> on any page — the help shows only the shortcuts
+                    that actually work on that page, split into basic and advanced.
+                </p>
                 <ul>
-                    <li><kbd>Esc</kbd> — close modal</li>
-                    <li><kbd>Enter</kbd> — save rename</li>
+                    <li><kbd>H</kbd> — shortcut help for the current page</li>
+                    <li><kbd>Esc</kbd> — close a window / go back</li>
+                    <li><kbd>/</kbd> — focus search</li>
                 </ul>
             </section>
 
