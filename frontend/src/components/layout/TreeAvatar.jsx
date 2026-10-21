@@ -22,7 +22,6 @@ import * as Banyan from './trees/BanyanTree'
 import * as Jacaranda from './trees/JacarandaTree'
 import * as Fir from './trees/FirTree'
 import * as Eucalyptus from './trees/EucalyptusTree'
-import useT from '../../hooks/useT'
 
 const STAGES = {
     sprout: { min: 0, max: 2,   label: 'Росток' },
@@ -189,84 +188,6 @@ function StageBar({ done, label }) {
     )
 }
 
-function ProgressBar({ done, target, label }) {
-    const segments = 10
-    const filled = Math.min(segments, Math.round((done / target) * segments))
-    const accent = 'var(--accent, #4c9aff)'
-
-    return (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-                width: '100%',
-                maxWidth: 220,
-                marginTop: 4,
-            }}
-        >
-            <div
-                style={{
-                    fontSize: 11,
-                    fontWeight: 800,
-                    color: 'var(--text)',
-                    letterSpacing: '0.6px',
-                    textTransform: 'uppercase',
-                    opacity: 1,
-                }}
-            >
-                {label}
-            </div>
-
-            <div
-                style={{
-                    display: 'flex',
-                    gap: 0,
-                    width: '100%',
-                    padding: 2,
-                    background: 'var(--bg)',
-                    borderRadius: 3,
-                    border: '1px solid var(--border)',
-                    boxSizing: 'border-box',
-                    height: 14,
-                    overflow: 'hidden',
-                }}
-            >
-                {Array.from({ length: segments }).map((_, i) => {
-                    const isFilled = i < filled
-                    return (
-                        <span
-                            key={i}
-                            style={{
-                                flex: 1,
-                                height: '100%',
-                                background: isFilled ? accent : 'rgba(127,127,127,0.18)',
-                                filter: isFilled ? 'brightness(1.25) saturate(1.3)' : 'none',
-                                boxShadow: isFilled ? `0 0 8px ${accent}, 0 0 14px ${accent}` : 'none',
-                                borderRight: i < segments - 1 ? '1px solid var(--bg)' : 'none',
-                                boxSizing: 'border-box',
-                            }}
-                        />
-                    )
-                })}
-            </div>
-
-            <div
-                style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: 'var(--text)',
-                    opacity: 0.9,
-                    letterSpacing: '0.3px',
-                }}
-            >
-                {done} / {target}
-            </div>
-        </div>
-    )
-}
-
 export default function TreeAvatar({
     done = 0,
     kind = 'apple',
@@ -274,8 +195,12 @@ export default function TreeAvatar({
     demo = false,
     noStageBar = false,
     demoSize = 200,
+    canClaim = false,
+    onClaim,
+    claiming = false,
+    claimed = false,
+    claimReward = 0,
 }) {
-    const t = useT()
     const stage = getStage(done)
     const progress = getProgress(done)
     const treeModule = TREES[kind] || TREES.apple
@@ -320,6 +245,12 @@ export default function TreeAvatar({
     }, [done, kind, demo])
 
     const handleTreeClick = useCallback(() => {
+        // Награду можно забрать и на молодом дереве — она привязана к
+        // статусу дня, а не к взрослой стадии. Анимация листьев остаётся
+        // только у взрослого дерева.
+        if (canClaim && !claiming) {
+            onClaim?.()
+        }
         if (stage !== 'mature') return
 
         const byKind = LEAVES_BY_KIND[kind] || LEAVES_BY_KIND.apple
@@ -343,7 +274,7 @@ export default function TreeAvatar({
         setTimeout(() => {
             setLeaves(prev => prev.filter(l => !newLeaves.some(nl => nl.id === l.id)))
         }, 3800)
-    }, [kind, stage])
+    }, [canClaim, claiming, onClaim, kind, stage])
 
     // ============================================================
     // Тултип "?" — позиционируется через getBoundingClientRect,
@@ -400,6 +331,16 @@ export default function TreeAvatar({
             : treeModule.MatureSVG
 
     const scale = demo || grown ? 1 : 0.1
+    const interactive = canClaim || stage === 'mature'
+    const treeTitle = demo
+        ? undefined
+        : canClaim
+            ? `Кликни по дереву, чтобы забрать ${claimReward} 🍃`
+            : stage === 'mature'
+                ? 'Кликни — посыпятся листья'
+                : claimed
+                    ? 'Награда за сегодня уже получена'
+                    : undefined
 
     return (
         <div className={`tree-avatar-wrap ${demo ? 'tree-avatar-wrap--demo' : ''}`}>
@@ -421,7 +362,7 @@ export default function TreeAvatar({
             )}
 
             <div
-                className={`tree-avatar tree-avatar--${stage} ${bounce ? 'tree-avatar--bounce' : ''} ${demo ? 'tree-avatar--demo' : ''}`}
+                className={`tree-avatar tree-avatar--${stage} ${bounce ? 'tree-avatar--bounce' : ''} ${demo ? 'tree-avatar--demo' : ''} ${canClaim ? 'tree-avatar--claimable' : ''}`}
                 style={{
                     width: demo ? box : size,
                     height: demo ? box : size,
@@ -429,10 +370,10 @@ export default function TreeAvatar({
                     opacity: demo || grown ? 1 : 0,
                     transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease',
                     transformOrigin: 'bottom center',
-                    cursor: stage === 'mature' ? 'pointer' : 'default',
+                    cursor: interactive ? 'pointer' : 'default',
                 }}
                 onClick={demo ? undefined : handleTreeClick}
-                title={demo ? undefined : (stage === 'mature' ? 'Кликни — посыпятся листья' : undefined)}
+                title={treeTitle}
             >
                 <Comp />
 
@@ -454,9 +395,7 @@ export default function TreeAvatar({
                 ))}
             </div>
 
-            {demo
-                ? (noStageBar ? null : <StageBar done={done} label="Взрослое дерево"/>)
-                : <ProgressBar done={done} target={10} label={t.progressTree} />}
+            {demo && (noStageBar ? null : <StageBar done={done} label="Взрослое дерево"/>)}
 
             {/* Тултип — рендерится через портал в document.body */}
             {!demo && tipOpen && tipCoords && createPortal(
@@ -480,6 +419,10 @@ export default function TreeAvatar({
                     <div className="tree-help__tip-text">
                         Выполни 10 — и дерево станет взрослым. Тогда можно{' '}
                         <b>кликнуть</b> по нему, и с него посыпятся листья ✨
+                    </div>
+                    <div className="tree-help__tip-text">
+                        С 3 закрытых задач дня можно забрать награду кликом
+                        по дереву — один раз в день.
                     </div>
                 </div>,
                 document.body

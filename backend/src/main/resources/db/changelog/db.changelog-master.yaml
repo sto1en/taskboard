@@ -45,3 +45,7 @@ databaseChangeLog:
       file: db/changelog/022-achievement-reward-cap.yaml
   - include:
       file: db/changelog/023-shop-taxonomy-and-accents.yaml
+  - include:
+      file: db/changelog/024-add-daily-rewards.yaml
+  - include:
+      file: db/changelog/025-add-inventory-and-caches.yaml

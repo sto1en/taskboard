@@ -15,7 +15,11 @@ import {
 } from '../../store/slices/sidebarSlice'
 import {
     fetchStats,
+    fetchDailyGoal,
+    claimDailyGoal,
     selectDoneToday,
+    selectDailyGoal,
+    selectClaimingDailyGoal,
 } from '../../store/slices/statsSlice'
 import { boardsApi, projectsApi } from '../../api/api'
 import useT from '../../hooks/useT'
@@ -24,6 +28,21 @@ import AvatarWithFrame from './AvatarWithFrame'
 import ConfirmModal from '../common/ConfirmModal'
 
 const MAX_PINS = 3
+
+const TIER_LABELS = {
+    none: 'Спокойный день',
+    good: 'Хороший день',
+    excellent: 'Отличный день',
+    legendary: 'Легендарный день',
+}
+
+const pluralTasks = (n) => (
+    n % 10 === 1 && n % 100 !== 11
+        ? 'задача'
+        : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)
+            ? 'задачи'
+            : 'задач'
+)
 
 /**
  * Sidebar.
@@ -53,6 +72,8 @@ export default observer(function Sidebar() {
 
     // Дерево: количество выполненных за день — серверный факт из Redux.
     const doneTasks = useSelector(selectDoneToday)
+    const dailyGoal = useSelector(selectDailyGoal)
+    const claimingGoal = useSelector(selectClaimingDailyGoal)
 
     const [boardsOpen, setBoardsOpen] = useState(true)
     const [showLogout, setShowLogout] = useState(false)
@@ -92,9 +113,40 @@ export default observer(function Sidebar() {
     useEffect(() => {
         if (!user || !treeVisible) return
         dispatch(fetchStats('day'))
+        dispatch(fetchDailyGoal())
     }, [user, treeVisible, dispatch])
 
     const displayName = user?.profile?.displayName || user?.username || 'User'
+
+    // Ежедневная цель: статус дня и подсказка под деревом.
+    const treeDone = dailyGoal?.done ?? doneTasks
+    const goalTarget = dailyGoal?.target ?? 10
+    const tierLabel = TIER_LABELS[dailyGoal?.tier] || TIER_LABELS.none
+    const nextTierLabel = dailyGoal?.nextTier ? TIER_LABELS[dailyGoal.nextTier] : null
+    const nextRemaining = dailyGoal?.nextTierAt != null
+        ? Math.max(0, dailyGoal.nextTierAt - treeDone)
+        : 0
+    const canClaim = Boolean(dailyGoal?.canClaim) && !claimingGoal
+
+    const goalSegments = 10
+    const filledSegments = goalTarget > 0
+        ? Math.min(goalSegments, Math.round((treeDone / goalTarget) * goalSegments))
+        : 0
+
+    let dailyHint = null
+    if (dailyGoal?.claimed) {
+        dailyHint = 'Награда за сегодня уже получена'
+    } else if (canClaim) {
+        dailyHint = `Кликни по дереву, чтобы забрать ${dailyGoal.rewardLeaves} 🍃`
+    } else if (nextTierLabel) {
+        dailyHint = `Ещё ${nextRemaining} ${pluralTasks(nextRemaining)} до «${nextTierLabel}»`
+    } else if (dailyGoal) {
+        dailyHint = 'Цель дня выполнена — легендарный день!'
+    }
+
+    const handleClaim = () => {
+        if (canClaim) dispatch(claimDailyGoal())
+    }
 
     const hasPinned = boards.length > 0
 
@@ -280,10 +332,45 @@ export default observer(function Sidebar() {
                             </button>
                             {treeOpen && (
                                 <>
-                                    <TreeAvatar done={doneTasks} kind={treeKind} maxHeight={400} />
-                                    <div className="sidebar__tree-hint">
-                                        Растёт от выполненных задач. Клик — листья.
-                                    </div>
+                                    <TreeAvatar
+                                        done={treeDone}
+                                        kind={treeKind}
+                                        maxHeight={400}
+                                        canClaim={canClaim}
+                                        onClaim={handleClaim}
+                                        claiming={claimingGoal}
+                                        claimed={Boolean(dailyGoal?.claimed)}
+                                        claimReward={dailyGoal?.rewardLeaves ?? 0}
+                                    />
+                                    {dailyGoal ? (
+                                        <div className="sidebar__daily">
+                                            <div className="sidebar__daily-status">
+                                                <span>🌿 {tierLabel}</span>
+                                                <b>{treeDone} / {goalTarget}</b>
+                                            </div>
+                                            <div
+                                                className="sidebar__daily-progress"
+                                                role="progressbar"
+                                                aria-valuemin={0}
+                                                aria-valuemax={goalTarget}
+                                                aria-valuenow={Math.min(treeDone, goalTarget)}
+                                            >
+                                                {Array.from({ length: goalSegments }).map((_, i) => (
+                                                    <span
+                                                        key={i}
+                                                        className={i < filledSegments
+                                                            ? 'sidebar__daily-segment sidebar__daily-segment--filled'
+                                                            : 'sidebar__daily-segment'}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div className="sidebar__tree-hint">{dailyHint}</div>
+                                        </div>
+                                    ) : (
+                                        <div className="sidebar__tree-hint">
+                                            Растёт от выполненных задач. Клик — листья.
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>

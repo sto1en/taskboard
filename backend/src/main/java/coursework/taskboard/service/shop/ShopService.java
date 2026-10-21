@@ -564,6 +564,15 @@ public class ShopService {
     }
 
     /**
+     * Строгое списание для внешних сервисов (например, открытие сундука).
+     * Бросает исключение, если листьев не хватает.
+     */
+    @Transactional
+    public void spendLeaves(User user, int amount) {
+        deductLeaves(user, amount);
+    }
+
+    /**
      * Строгое списание (для покупок). Бросает исключение, если не хватает.
      */
     private void deductLeaves(User user, int amount) {

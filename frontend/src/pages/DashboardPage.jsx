@@ -90,6 +90,8 @@ export default function DashboardPage() {
     const data = useDashboardData()
 
     const [layout, setLayout] = useState(() => readLayout(user?.id))
+    const [draft, setDraft] = useState(() => readLayout(user?.id))
+    const [editing, setEditing] = useState(false)
     const [addOpen, setAddOpen] = useState(false)
     // Первый прогон эффекта сохранения (и каждый переход на другой аккаунт)
     // пропускаем: иначе гостевая/прошлая раскладка успела бы записаться в
@@ -99,17 +101,24 @@ export default function DashboardPage() {
     // Смена аккаунта — своя раскладка.
     useEffect(() => {
         skipSave.current = true
-        setLayout(readLayout(user?.id))
+        const next = readLayout(user?.id)
+        setLayout(next)
+        setDraft(next)
+        setEditing(false)
+        setAddOpen(false)
     }, [user?.id])
 
-    // Любое изменение раскладки сразу сохраняем.
+    // Любое изменение ОСНОВНОЙ раскладки сохраняем. В режиме
+    // редактирования меняется только draft, поэтому клики не пишут в
+    // localStorage; сохранение происходит в applyLayout().
     useEffect(() => {
         if (skipSave.current) {
             skipSave.current = false
             return
         }
+        if (editing) return
         saveLayout(user?.id, layout)
-    }, [layout, user?.id])
+    }, [layout, user?.id, editing])
 
     const todayTasks = useMemo(() => {
         const day = (data.days || []).find(d => d.date === data.today)
@@ -129,21 +138,27 @@ export default function DashboardPage() {
 
     const name = user?.profile?.displayName || user?.username || 'друг'
 
+    const visibleLayout = editing ? draft : layout
+
     const addWidget = (type) => {
         const meta = WIDGET_LIBRARY[type]
         if (!meta) return
-        setLayout(prev => [
+        const next = (prev) => [
             ...prev,
             { id: uid(), type, size: meta.defaultSize || 'small' },
-        ])
+        ]
+        if (editing) setDraft(next)
+        else setLayout(next)
     }
 
     const removeWidget = (id) => {
-        setLayout(prev => prev.filter(w => w.id !== id))
+        if (!editing) return
+        setDraft(prev => prev.filter(w => w.id !== id))
     }
 
     const moveWidget = (index, delta) => {
-        setLayout(prev => {
+        if (!editing) return
+        setDraft(prev => {
             const next = [...prev]
             const target = index + delta
             if (target < 0 || target >= next.length) return prev
@@ -153,14 +168,39 @@ export default function DashboardPage() {
     }
 
     const resizeWidget = (id) => {
-        setLayout(prev => prev.map(w => (
+        if (!editing) return
+        setDraft(prev => prev.map(w => (
             w.id === id
                 ? { ...w, size: w.size === 'wide' ? 'small' : 'wide' }
                 : w
         )))
     }
 
-    const resetLayout = () => setLayout(makeDefault())
+    const resetLayout = () => {
+        if (editing) setDraft(makeDefault())
+        else setLayout(makeDefault())
+    }
+
+    /** Вход в режим: рабочая копия, все правки идут только в неё. */
+    const startEditing = () => {
+        setDraft(layout.map(w => ({ ...w })))
+        setEditing(true)
+    }
+
+    /** Применить: draft становится основной раскладкой и сохраняется. */
+    const applyLayout = () => {
+        setLayout(draft)
+        setEditing(false)
+        setAddOpen(false)
+        saveLayout(user?.id, draft)
+    }
+
+    /** Отмена: draft выбрасывается, основная раскладка не тронута. */
+    const cancelEditing = () => {
+        setDraft(layout.map(w => ({ ...w })))
+        setEditing(false)
+        setAddOpen(false)
+    }
 
     return (
         <div className="dashboard">
@@ -190,27 +230,48 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="dashboard__hero-actions">
-                    <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() => nav('/calendar')}
-                    >
-                        📅 Календарь
-                    </button>
-                    <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => setAddOpen(true)}
-                    >
-                        ＋ Добавить виджет
-                    </button>
+                    {editing ? (
+                        <>
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={cancelEditing}
+                            >
+                                Отмена
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={applyLayout}
+                            >
+                                Применить
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={() => nav('/calendar')}
+                            >
+                                📅 Календарь
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={startEditing}
+                            >
+                                ✎ Изменить порядок
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
             {data.error && <div className="error dashboard__error">{data.error}</div>}
 
-            <div className="dashboard__grid">
-                {layout.map((widget, index) => {
+            <div className={`dashboard__grid ${editing ? 'dashboard__grid--editing' : ''}`}>
+                {visibleLayout.map((widget, index) => {
                     const meta = WIDGET_LIBRARY[widget.type]
                     const Component = WIDGET_COMPONENTS[widget.type]
                     if (!meta || !Component) return null
@@ -221,7 +282,8 @@ export default function DashboardPage() {
                             meta={meta}
                             widget={widget}
                             index={index}
-                            total={layout.length}
+                            total={visibleLayout.length}
+                            editing={editing}
                             onMove={moveWidget}
                             onResize={resizeWidget}
                             onRemove={removeWidget}
@@ -231,23 +293,25 @@ export default function DashboardPage() {
                     )
                 })}
 
-                <button
-                    type="button"
-                    className="dw-add-tile"
-                    onClick={() => setAddOpen(true)}
-                >
-                    <span className="dw-add-tile__plus" aria-hidden="true">＋</span>
-                    <span className="dw-add-tile__title">Добавить виджет</span>
-                    <span className="dw-add-tile__hint">
-                        выполнено сегодня, планы, кооп, ачивки, статистика, магазин…
-                    </span>
-                </button>
+                {editing && (
+                    <button
+                        type="button"
+                        className="dw-add-tile"
+                        onClick={() => setAddOpen(true)}
+                    >
+                        <span className="dw-add-tile__plus" aria-hidden="true">＋</span>
+                        <span className="dw-add-tile__title">Добавить виджет</span>
+                        <span className="dw-add-tile__hint">
+                            выполнено сегодня, планы, кооп, ачивки, статистика, магазин…
+                        </span>
+                    </button>
+                )}
             </div>
 
             <AddWidgetModal
                 open={addOpen}
                 onClose={() => setAddOpen(false)}
-                layout={layout}
+                layout={visibleLayout}
                 onAdd={addWidget}
                 onReset={resetLayout}
             />

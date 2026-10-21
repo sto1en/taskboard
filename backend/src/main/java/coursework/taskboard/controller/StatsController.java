@@ -1,10 +1,12 @@
 package coursework.taskboard.controller;
 
+import coursework.taskboard.dto.stats.DailyGoalDto;
 import coursework.taskboard.dto.stats.DailyLoadDto;
 import coursework.taskboard.dto.stats.StatsDto;
 import coursework.taskboard.dto.stats.StatsOverviewDto;
 import coursework.taskboard.model.user.User;
 import coursework.taskboard.service.auth.CurrentUserService;
+import coursework.taskboard.service.stats.DailyGoalService;
 import coursework.taskboard.service.stats.StatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -20,6 +22,7 @@ import java.util.List;
 public class StatsController {
 
     private final StatsService statsService;
+    private final DailyGoalService dailyGoalService;
     private final CurrentUserService currentUserService;
 
     @GetMapping
@@ -32,6 +35,18 @@ public class StatsController {
     public ResponseEntity<StatsOverviewDto> overview(@RequestParam(defaultValue = "month") String period) {
         User user = currentUserService.getCurrentUser();
         return ResponseEntity.ok(statsService.getOverview(period, user));
+    }
+
+    @GetMapping("/daily-goal")
+    public ResponseEntity<DailyGoalDto> dailyGoal() {
+        User user = currentUserService.getCurrentUser();
+        return ResponseEntity.ok(dailyGoalService.getDailyGoal(user));
+    }
+
+    @PostMapping("/daily-goal/claim")
+    public ResponseEntity<DailyGoalDto> claimDailyGoal() {
+        User user = currentUserService.getCurrentUser();
+        return ResponseEntity.ok(dailyGoalService.claimDailyGoal(user));
     }
 
     @GetMapping("/daily-load")

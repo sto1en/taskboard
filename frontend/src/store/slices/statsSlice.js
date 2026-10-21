@@ -5,7 +5,7 @@ import { logout as authLogout } from './authSlice'
 /**
  * statsSlice — владелец серверного стейта агрегированной статистики,
  * нужного боковой панели: количество выполненных за сегодня задач для
- * дерева (statsApi.get('day') → done).
+ * дерева (statsApi.get('day') → done) и ежедневная цель.
  *
  * Почему Redux, а не MobX: doneTasks — это факт с сервера (агрегат по
  * задачам пользователя), он меняется после мутаций задач и раньше
@@ -13,7 +13,7 @@ import { logout as authLogout } from './authSlice'
  * стейт живёт в Redux; MobX хранит только эфемерную UI-логику
  * (например, локальную видимость дерева — это останется на D5).
  *
- * Сейчас слайс владеет единственным срезом 'day'. Полная страница
+ * Слайс владеет срезом 'day' и ежедневной целью. Полная страница
  * статистики (StatsPage) запрашивает свои периоды сама и сюда не пишет.
  */
 
@@ -42,6 +42,43 @@ export const fetchStats = createAsyncThunk(
     },
 )
 
+/** Ежедневная цель: статус дня, доступность награды, дата по таймзоне. */
+export const fetchDailyGoal = createAsyncThunk(
+    'stats/fetchDailyGoal',
+    async (_, { rejectWithValue }) => {
+        try {
+            const { data } = await statsApi.dailyGoal()
+            return data
+        } catch (err) {
+            return rejectWithValue(err.response?.status ?? null)
+        }
+    },
+    {
+        condition: (_, { getState }) => !getState().stats.dailyGoalLoading,
+    },
+)
+
+/**
+ * Забрать награду за день. Сервер идемпотентен: повторный claim вернёт
+ * уже сохранённую запись, поэтому листья не начислятся дважды.
+ */
+export const claimDailyGoal = createAsyncThunk(
+    'stats/claimDailyGoal',
+    async (_, { rejectWithValue }) => {
+        try {
+            const { data } = await statsApi.claimDailyGoal()
+            // Баланс листьев и магазин слушают это событие.
+            window.dispatchEvent(new Event('shop:invalidate'))
+            return data
+        } catch (err) {
+            return rejectWithValue(err.response?.status ?? null)
+        }
+    },
+    {
+        condition: (_, { getState }) => !getState().stats.claiming,
+    },
+)
+
 // ---------------------------------------------------------------
 // Slice
 // ---------------------------------------------------------------
@@ -49,6 +86,12 @@ export const fetchStats = createAsyncThunk(
 const initialState = {
     /** сколько задач выполнено сегодня (data.done ответа /stats?period=day) */
     doneToday: 0,
+    /** ежедневная цель (DailyGoalDto) */
+    dailyGoal: null,
+    dailyGoalLoading: false,
+    dailyGoalError: null,
+    /** идёт POST /stats/daily-goal/claim */
+    claiming: false,
     /**
      * Монотонная версия инвалидации. Компоненты, которым нужно перезагрузить
      * дневную сводку после мутации задачи, поднимают её вместо старого
@@ -70,6 +113,7 @@ const statsSlice = createSlice({
         invalidate(state) {
             state.revision += 1
             state.error = null
+            state.dailyGoalError = null
         },
     },
     extraReducers: (builder) => {
@@ -89,9 +133,38 @@ const statsSlice = createSlice({
                 state.loading = false
                 state.error = action.payload
             })
+            .addCase(fetchDailyGoal.pending, (state) => {
+                state.dailyGoalLoading = true
+                state.dailyGoalError = null
+            })
+            .addCase(fetchDailyGoal.fulfilled, (state, action) => {
+                state.dailyGoal = action.payload
+                state.dailyGoalLoading = false
+                state.dailyGoalError = null
+            })
+            .addCase(fetchDailyGoal.rejected, (state, action) => {
+                state.dailyGoalLoading = false
+                state.dailyGoalError = action.payload
+            })
+            .addCase(claimDailyGoal.pending, (state) => {
+                state.claiming = true
+                state.dailyGoalError = null
+            })
+            .addCase(claimDailyGoal.fulfilled, (state, action) => {
+                state.dailyGoal = action.payload
+                state.claiming = false
+                state.dailyGoalError = null
+            })
+            .addCase(claimDailyGoal.rejected, (state, action) => {
+                state.claiming = false
+                state.dailyGoalError = action.payload
+            })
             .addCase(authLogout, (state) => {
                 state.doneToday = 0
+                state.dailyGoal = null
                 state.error = null
+                state.dailyGoalError = null
+                state.claiming = false
             })
     },
 })
@@ -100,11 +173,13 @@ export const { invalidate } = statsSlice.actions
 
 /**
  * Комбинированная инвалидация: поднимает revision и перезагружает дневную
- * сводку. Заменяет старый window.dispatchEvent('tree:refresh').
+ * сводку вместе с ежедневной целью. Заменяет старый
+ * window.dispatchEvent('tree:refresh').
  */
 export const invalidateStats = () => (dispatch) => {
     dispatch(invalidate())
     dispatch(fetchStats('day'))
+    dispatch(fetchDailyGoal())
 }
 
 // ---------------------------------------------------------------
@@ -112,6 +187,10 @@ export const invalidateStats = () => (dispatch) => {
 // ---------------------------------------------------------------
 
 export const selectDoneToday = (state) => state.stats.doneToday
+export const selectDailyGoal = (state) => state.stats.dailyGoal
+export const selectDailyGoalLoading = (state) => state.stats.dailyGoalLoading
+export const selectDailyGoalError = (state) => state.stats.dailyGoalError
+export const selectClaimingDailyGoal = (state) => state.stats.claiming
 export const selectStatsRevision = (state) => state.stats.revision
 export const selectStatsLoading = (state) => state.stats.loading
 export const selectStatsError = (state) => state.stats.error

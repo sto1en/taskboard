@@ -120,6 +120,13 @@ const CATEGORY_LABEL = {
     ACTIVE: 'В работе',
 }
 
+const DAILY_TIER_LABEL = {
+    none: 'Спокойный день',
+    good: 'Хороший день',
+    excellent: 'Отличный день',
+    legendary: 'Легендарный день',
+}
+
 const WEEKDAY_SHORT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб']
 
 function plural(n, forms) {
@@ -192,8 +199,16 @@ export function DoneTodayWidget({ data }) {
     const weekDone = data.statsWeek?.done ?? 0
     const active = data.statsDay?.active ?? 0
     const overdue = data.statsDay?.overdue ?? 0
+
+    const goal = data.dailyGoal
+    const target = goal?.target ?? 10
+    const tierLabel = DAILY_TIER_LABEL[goal?.tier] || DAILY_TIER_LABEL.none
+    const nextTierLabel = goal?.nextTier ? DAILY_TIER_LABEL[goal.nextTier] : null
+    const nextRemaining = goal?.nextTierAt != null
+        ? Math.max(0, goal.nextTierAt - done)
+        : 0
     const toTree = Math.max(0, 10 - done)
-    const pct = Math.min(100, done * 10)
+    const pct = Math.min(100, (done / target) * 100)
 
     return (
         <div className="dw-done">
@@ -209,10 +224,29 @@ export function DoneTodayWidget({ data }) {
 
             <div className="dw-done__meta">
                 <div className="dw-done__hint">
-                    {toTree > 0
-                        ? `Ещё ${toTree} ${plural(toTree, ['задача', 'задачи', 'задач'])} до взрослого дерева 🌳`
-                        : 'Дерево взрослое — можно собрать листья 🍃'}
+                    {goal
+                        ? <><b>{tierLabel}</b> · {done} / {target}</>
+                        : (toTree > 0
+                            ? `Ещё ${toTree} ${plural(toTree, ['задача', 'задачи', 'задач'])} до взрослого дерева 🌳`
+                            : 'Дерево взрослое — можно собрать листья 🍃')}
                 </div>
+                {goal && (
+                    <div className="dw-done__hint">
+                        {nextTierLabel
+                            ? `Ещё ${nextRemaining} ${plural(nextRemaining, ['задача', 'задачи', 'задач'])} до «${nextTierLabel}»`
+                            : 'Цель дня выполнена — легендарный день 🏆'}
+                    </div>
+                )}
+                {goal?.canClaim && (
+                    <div className="dw-done__hint">
+                        🍃 Награда {goal.rewardLeaves} ждёт — кликни по дереву
+                    </div>
+                )}
+                {goal?.claimed && (
+                    <div className="dw-done__hint">
+                        Награда за сегодня уже получена
+                    </div>
+                )}
                 <div className="dw-done__week">
                     🔥 <b>{active}</b> в работе · 📅 <b>{weekDone}</b> за неделю
                 </div>

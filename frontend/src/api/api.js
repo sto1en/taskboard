@@ -237,6 +237,8 @@ export const searchApi = {
 export const statsApi = {
     get: (period) => api.get('/stats', { params: { period } }),
     overview: (period) => api.get('/stats/overview', { params: { period } }),
+    dailyGoal: () => api.get('/stats/daily-goal'),
+    claimDailyGoal: () => api.post('/stats/daily-goal/claim'),
     dailyLoad: (from, to, coop) =>
         api.get('/stats/daily-load', {
             params: { from, to, ...(coop === undefined ? {} : { coop }) },
@@ -279,6 +281,10 @@ export const shopApi = {
     buyAccent: (id) => api.post(`/shop/accents/${id}/buy`),
     equipAccent: (id) => api.post(`/shop/accents/${id}/equip`),
     unequipAccent: () => api.post('/shop/accents/unequip'),
+    // Сундуки
+    chests: () => api.get('/shop/chests'),
+    openChest: (code) => api.post(`/shop/chests/${code}/open`),
+    buyKey: () => api.post('/shop/chests/keys/buy'),
 }
 
 // ============================================================

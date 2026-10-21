@@ -13,50 +13,53 @@ export default function WidgetCard({
     widget,
     index,
     total,
+    editing = false,
     onMove,
     onResize,
     onRemove,
     children,
 }) {
     return (
-        <section className={`dw-card dw-card--${widget.size || 'small'}`}>
+        <section className={`dw-card dw-card--${widget.size || 'small'} ${editing ? 'dw-card--editing' : ''}`}>
             <header className="dw-card__head">
                 <div className="dw-card__title">
                     <span className="dw-card__icon" aria-hidden="true">{meta.icon}</span>
                     <span>{meta.title}</span>
                 </div>
-                <div className="dw-card__actions">
-                    <button
-                        type="button"
-                        className="dw-card__action"
-                        onClick={() => onMove(index, -1)}
-                        disabled={index === 0}
-                        title="Выше"
-                        aria-label="Переместить виджет выше"
-                    >↑</button>
-                    <button
-                        type="button"
-                        className="dw-card__action"
-                        onClick={() => onMove(index, 1)}
-                        disabled={index === total - 1}
-                        title="Ниже"
-                        aria-label="Переместить виджет ниже"
-                    >↓</button>
-                    <button
-                        type="button"
-                        className="dw-card__action"
-                        onClick={() => onResize(widget.id)}
-                        title={widget.size === 'wide' ? 'Сделать уже' : 'Сделать шире'}
-                        aria-label="Изменить ширину виджета"
-                    >{widget.size === 'wide' ? '⇤' : '⇥'}</button>
-                    <button
-                        type="button"
-                        className="dw-card__action dw-card__action--danger"
-                        onClick={() => onRemove(widget.id)}
-                        title="Убрать виджет"
-                        aria-label="Убрать виджет"
-                    >×</button>
-                </div>
+                {editing && (
+                    <div className="dw-card__actions">
+                        <button
+                            type="button"
+                            className="dw-card__action"
+                            onClick={() => onMove(index, -1)}
+                            disabled={index === 0}
+                            title="Выше"
+                            aria-label="Переместить виджет выше"
+                        >↑</button>
+                        <button
+                            type="button"
+                            className="dw-card__action"
+                            onClick={() => onMove(index, 1)}
+                            disabled={index === total - 1}
+                            title="Ниже"
+                            aria-label="Переместить виджет ниже"
+                        >↓</button>
+                        <button
+                            type="button"
+                            className="dw-card__action"
+                            onClick={() => onResize(widget.id)}
+                            title={widget.size === 'wide' ? 'Сделать уже' : 'Сделать шире'}
+                            aria-label="Изменить ширину виджета"
+                        >{widget.size === 'wide' ? '⇤' : '⇥'}</button>
+                        <button
+                            type="button"
+                            className="dw-card__action dw-card__action--danger"
+                            onClick={() => onRemove(widget.id)}
+                            title="Убрать виджет"
+                            aria-label="Убрать виджет"
+                        >×</button>
+                    </div>
+                )}
             </header>
 
             <div className="dw-card__body">

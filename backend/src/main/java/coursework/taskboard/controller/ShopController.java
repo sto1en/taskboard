@@ -1,9 +1,12 @@
 package coursework.taskboard.controller;
 
 import coursework.taskboard.dto.shop.CategoryDto;
+import coursework.taskboard.dto.shop.ChestOpenResultDto;
+import coursework.taskboard.dto.shop.ChestsDto;
 import coursework.taskboard.dto.shop.UserShopDto;
 import coursework.taskboard.model.user.User;
 import coursework.taskboard.service.auth.CurrentUserService;
+import coursework.taskboard.service.shop.ChestService;
 import coursework.taskboard.service.shop.ShopService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,7 @@ import java.util.List;
 public class ShopController {
 
     private final ShopService shopService;
+    private final ChestService chestService;
     private final CurrentUserService currentUserService;
 
     @GetMapping
@@ -107,6 +111,22 @@ public class ShopController {
     @GetMapping("/accent-categories")
     public ResponseEntity<List<CategoryDto>> accentCategories() {
         return ResponseEntity.ok(shopService.getAccentCategories());
+    }
+
+    // Сундуки
+    @GetMapping("/chests")
+    public ResponseEntity<ChestsDto> chests() {
+        return ResponseEntity.ok(chestService.getChests(currentUserService.getCurrentUser()));
+    }
+
+    @PostMapping("/chests/keys/buy")
+    public ResponseEntity<ChestsDto> buyKey() {
+        return ResponseEntity.ok(chestService.buyKey(currentUserService.getCurrentUser()));
+    }
+
+    @PostMapping("/chests/{code}/open")
+    public ResponseEntity<ChestOpenResultDto> openChest(@PathVariable String code) {
+        return ResponseEntity.ok(chestService.openChest(currentUserService.getCurrentUser(), code));
     }
 
     // Акценты

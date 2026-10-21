@@ -216,6 +216,15 @@
     opacity: 1;
 }
 
+.dw-card--editing {
+    outline: 1px dashed color-mix(in srgb, var(--accent, var(--primary)) 40%, transparent);
+    outline-offset: -1px;
+}
+
+.dw-card--editing .dw-card__actions {
+    opacity: 1;
+}
+
 .dw-card__action {
     display: inline-flex;
     align-items: center;

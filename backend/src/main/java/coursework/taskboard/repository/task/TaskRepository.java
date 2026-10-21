@@ -121,6 +121,27 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                                 @Param("from") LocalDateTime from,
                                 @Param("categoryCode") String categoryCode);
 
+    /**
+     * Сколько задач пользователь закрыл в диапазоне [from, to).
+     * Используется ежедневной целью: диапазон — начало локальной даты
+     * пользователя и начало следующей.
+     */
+    @Query("""
+        SELECT count(t) FROM Task t
+        JOIN t.settings s
+        JOIN s.status st
+        JOIN t.schedule sch
+        JOIN t.project p
+        JOIN p.board b
+        WHERE b.owner.id = :userId
+          AND sch.completedAt >= :from
+          AND sch.completedAt < :to
+          AND st.categoryCode = 'DONE'
+    """)
+    long countCompletedByOwnerBetween(@Param("userId") Long userId,
+                                      @Param("from") LocalDateTime from,
+                                      @Param("to") LocalDateTime to);
+
     // ============================================================
     // Агрегаты для диаграмм
     // ============================================================

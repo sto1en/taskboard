@@ -6,7 +6,7 @@ import { shopApi } from '../api/api'
 import { fetchShop } from '../store/slices/shopSlice'
 import useT from '../hooks/useT'
 import { useAuth } from '../context/AuthContext'
-import { formatPrice } from '../utils/format'
+import { formatPrice, resolveUrl } from '../utils/format'
 import { prepareShopList } from '../utils/shopSort'
 import AvatarCard from '../components/shop/AvatarCard'
 import FrameCard from '../components/shop/FrameCard'
@@ -26,7 +26,14 @@ const DEFAULT_SORT = { sortBy: 'popular', sortDir: 'desc' }
 // Хелпер: гарантирует массив, даже если с бэка пришёл null / не объект
 const asArray = (v) => (Array.isArray(v) ? v : [])
 
-const TABS = ['avatars', 'frames', 'trees', 'accents']
+const TABS = ['avatars', 'frames', 'trees', 'accents', 'chests']
+
+const RARITY_LABELS = {
+    common: 'Обычный',
+    uncommon: 'Необычный',
+    rare: 'Редкий',
+    very_rare: 'Очень редкий',
+}
 
 export default function ShopPage() {
     const t = useT()
@@ -53,6 +60,14 @@ export default function ShopPage() {
     const [sortDir, setSortDir] = useState(DEFAULT_SORT.sortDir)
 
     const [page, setPage] = useState(0)
+
+    // Сундуки — отдельный серверный ответ: ключи, прогресс и каталог.
+    const [chests, setChests] = useState(null)
+    const [chestsLoading, setChestsLoading] = useState(false)
+    const [openingChest, setOpeningChest] = useState(null)
+    const [chestResult, setChestResult] = useState(null)
+    const [revealed, setRevealed] = useState(false)
+    const [buyingKey, setBuyingKey] = useState(false)
 
     useEffect(() => {
         Promise.all([
@@ -129,6 +144,66 @@ export default function ShopPage() {
             dispatch(fetchShop())
         } catch (err) {
             alert(err.response?.data?.message || 'Ошибка')
+        }
+    }
+
+    // ---------- Сундуки ----------
+    const loadChests = () => {
+        setChestsLoading(true)
+        shopApi.chests()
+            .then(({ data }) => setChests(data))
+            .catch(err => setError(err.response?.data?.message || 'Ошибка загрузки сундуков'))
+            .finally(() => setChestsLoading(false))
+    }
+
+    useEffect(() => {
+        if (tab !== 'chests') return
+        loadChests()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tab])
+
+    // Анимация открытия: 1.3 с «крутим» сундук, затем показываем лут.
+    useEffect(() => {
+        if (!chestResult) return
+        const id = setTimeout(() => setRevealed(true), 1300)
+        return () => clearTimeout(id)
+    }, [chestResult])
+
+    const openChest = async (chest) => {
+        if (openingChest) return
+        setOpeningChest(chest.code)
+        setChestResult(null)
+        setRevealed(false)
+        try {
+            const { data } = await shopApi.openChest(chest.code)
+            setChestResult(data)
+            // После открытия обновляем витрину, баланс и сами сундуки.
+            load()
+            loadChests()
+            dispatch(fetchShop())
+        } catch (err) {
+            alert(err.response?.data?.message || 'Не удалось открыть сундук')
+            setOpeningChest(null)
+        }
+    }
+
+    const closeChestResult = () => {
+        setChestResult(null)
+        setRevealed(false)
+        setOpeningChest(null)
+    }
+
+    const buyKey = async () => {
+        if (buyingKey) return
+        setBuyingKey(true)
+        try {
+            const { data } = await shopApi.buyKey()
+            setChests(data)
+            dispatch(fetchShop())
+        } catch (err) {
+            alert(err.response?.data?.message || 'Не удалось купить ключ')
+        } finally {
+            setBuyingKey(false)
         }
     }
 
@@ -303,41 +378,112 @@ export default function ShopPage() {
                         onClick={() => setTab(TABS[3])}>
                     Акценты {tabCount(accents)}
                 </button>
+                <button className={`shop__tab ${tab === 'chests' ? 'shop__tab--active' : ''}`}
+                        onClick={() => setTab(TABS[4])}>
+                    Сундуки
+                </button>
             </div>
 
-            <div className="shop__toolbar">
-                <CategoryChips
-                    categories={currentCategories}
-                    selectedIds={currentSelected}
-                    onToggle={toggleCategory}
-                    onClearAll={resetActiveFilter}
-                    allLabel={t.shopTypeAll}
-                />
-                <SortToggle
-                    sortBy={sortBy}
-                    sortDir={sortDir}
-                    onChange={(sb, sd) => {
-                        setSortBy(sb)
-                        setSortDir(sd)
-                    }}
-                />
-            </div>
+            {tab === 'chests' ? (
+                <div className="chests">
+                    <div className="chests__bar">
+                        <div className="chests__keys">
+                            <span className="chests__keys-icon">🔑</span>
+                            <b>{chests?.keys ?? 0}</b>
+                            <span className="chests__keys-label">ключей</span>
+                        </div>
+                        <div className="chests__progress">
+                            <div className="chests__progress-text">
+                                {chests?.keyProgress ?? 0} / {chests?.keyGoal ?? 15} задач
+                            </div>
+                            <div className="chests__progress-track">
+                                <span
+                                    style={{
+                                        width: `${Math.min(100, ((chests?.keyProgress ?? 0) / (chests?.keyGoal || 15)) * 100)}%`,
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            className="btn btn-ghost chests__buy-key"
+                            onClick={buyKey}
+                            disabled={buyingKey || (chests?.leaves ?? 0) < (chests?.keyPrice ?? 150)}
+                            title="Купить ключ за листья"
+                        >
+                            🔑 Купить ключ · {chests?.keyPrice ?? 150} 🍃
+                        </button>
+                    </div>
 
-            {loading && <div className="loading">{t.loading}</div>}
+                    {chestsLoading && <div className="loading">{t.loading}</div>}
+                    {!chestsLoading && !chests && (
+                        <ShopEmptyState message="Сундуки недоступны" />
+                    )}
+
+                    {!chestsLoading && chests && (
+                        <div className="chests__grid">
+                            {(chests.chests || []).map(chest => (
+                                <div key={chest.code} className="chest-card">
+                                    <div className="chest-card__icon">{chest.icon || '🎁'}</div>
+                                    <div className="chest-card__title">{chest.title}</div>
+                                    <div className="chest-card__desc">{chest.description}</div>
+                                    <div className="chest-card__footer">
+                                        <div className="chest-card__price">
+                                            {chest.currency === 'key'
+                                                ? <>🔑 {chest.price}</>
+                                                : <>🍃 {formatPrice(chest.price)}</>}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary chest-card__btn"
+                                            onClick={() => openChest(chest)}
+                                            disabled={!chest.available || Boolean(openingChest)}
+                                        >
+                                            Открыть
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <>
+                    <div className="shop__toolbar">
+                        <CategoryChips
+                            categories={currentCategories}
+                            selectedIds={currentSelected}
+                            onToggle={toggleCategory}
+                            onClearAll={resetActiveFilter}
+                            allLabel={t.shopTypeAll}
+                        />
+                        <SortToggle
+                            sortBy={sortBy}
+                            sortDir={sortDir}
+                            onChange={(sb, sd) => {
+                                setSortBy(sb)
+                                setSortDir(sd)
+                            }}
+                        />
+                    </div>
+                </>
+            )}
+
+            {tab !== 'chests' && loading && <div className="loading">{t.loading}</div>}
             {error && <div className="error">{error}</div>}
 
-            {!loading && !data && (
+            {tab !== 'chests' && !loading && !data && (
                 <ShopEmptyState message="Магазин недоступен" />
             )}
 
-            {!loading && data && rows.length === 0 && (
+            {tab !== 'chests' && !loading && data && rows.length === 0 && (
                 <ShopEmptyState
                     onReset={hasFilter ? resetActiveFilter : null}
                     message={emptyMessage}
                 />
             )}
 
-            {!loading && data && rows.length > 0 && (
+            {tab !== 'chests' && !loading && data && rows.length > 0 && (
                 <>
                     <div className="shop__grid">
                         {pageRows.map(renderRow)}
@@ -349,6 +495,56 @@ export default function ShopPage() {
                         onChange={setPage}
                     />
                 </>
+            )}
+
+            {(openingChest || chestResult) && (
+                <div className="chest-modal" onClick={closeChestResult}>
+                    <div className="chest-modal__dialog" onClick={e => e.stopPropagation()}>
+                        {!revealed || !chestResult ? (
+                            <div className="chest-reveal">
+                                <div className="chest-reveal__box">🎁</div>
+                                <div className="chest-reveal__text">Сундук открывается…</div>
+                            </div>
+                        ) : (
+                            <div className={`chest-result chest-result--${chestResult.rewardType} ${chestResult.rarity ? `chest-result--${chestResult.rarity}` : ''}`}>
+                                <div className="chest-result__rarity">
+                                    {chestResult.rewardType === 'leaves'
+                                        ? 'Лесные дары'
+                                        : RARITY_LABELS[chestResult.rarity] || 'Предмет'}
+                                </div>
+
+                                <div className="chest-result__art">
+                                    {chestResult.imageUrl
+                                        ? <img
+                                            src={resolveUrl(chestResult.imageUrl)}
+                                            alt={chestResult.title || 'Награда'}
+                                            className="chest-result__img"
+                                        />
+                                        : <span className="chest-result__emoji">{chestResult.emoji || '🎁'}</span>}
+                                </div>
+
+                                <div className="chest-result__title">{chestResult.title}</div>
+                                {chestResult.description && (
+                                    <div className="chest-result__desc">{chestResult.description}</div>
+                                )}
+
+                                {chestResult.rewardType === 'leaves' ? (
+                                    <div className="chest-result__amount">+{chestResult.leaves} 🍃</div>
+                                ) : chestResult.price != null ? (
+                                    <div className="chest-result__price">🍃 {formatPrice(chestResult.price)}</div>
+                                ) : null}
+
+                                <button
+                                    type="button"
+                                    className="btn btn-primary chest-result__btn"
+                                    onClick={closeChestResult}
+                                >
+                                    Забрать
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     )
