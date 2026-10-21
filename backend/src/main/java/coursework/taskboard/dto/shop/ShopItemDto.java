@@ -35,6 +35,12 @@ public class ShopItemDto {
     private Boolean owned;
     private Boolean active;
 
+    /**
+     * Предмет выдаётся за ачивку, поэтому не продаётся.
+     * Фронт показывает «За ачивку» вместо цены и кнопки покупки.
+     */
+    private Boolean rewardOnly;
+
     /** Сколько листьев реально ушло на покупку. null — предмет подарен ачивкой. */
     private Integer pricePaid;
 

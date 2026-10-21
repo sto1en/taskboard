@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -80,6 +81,7 @@ public class ChestService {
 
     private final KeyService keyService;
     private final ShopService shopService;
+    private final ShopItemInfoService itemInfoService;
     private final UserCurrencyRepository userCurrencyRepository;
 
     private final AvatarRepository avatarRepository;
@@ -296,11 +298,17 @@ public class ChestService {
     private List<LootCandidate> candidates(User user, String rarity) {
         List<LootCandidate> result = new ArrayList<>();
 
+        // Награды за ачивки не должны выпадать из сундуков: иначе их
+        // эксклюзивность и запрет продажи теряют смысл.
+        Map<String, Set<String>> rewardOnly = itemInfoService.achievementRewardCodes();
+
         Set<Long> ownedAvatars = new HashSet<>();
         for (UserAvatar ua : userAvatarRepository.findByUserId(user.getId())) {
             ownedAvatars.add(ua.getAvatar().getId());
         }
         for (Avatar a : avatarRepository.findAllByOrderBySortOrderAsc()) {
+            if (itemInfoService.isAchievementReward(
+                    rewardOnly, ShopItemInfoService.TYPE_AVATAR, a.getCode())) continue;
             if (!rarityMatches(a.getPrice(), rarity)) continue;
             result.add(new LootCandidate(
                     "avatar", a.getId(), a.getTitle(), a.getDescription(),
@@ -313,6 +321,8 @@ public class ChestService {
             ownedFrames.add(uf.getFrame().getId());
         }
         for (Frame f : frameRepository.findAllByOrderBySortOrderAsc()) {
+            if (itemInfoService.isAchievementReward(
+                    rewardOnly, ShopItemInfoService.TYPE_FRAME, f.getCode())) continue;
             if (!rarityMatches(f.getPrice(), rarity)) continue;
             result.add(new LootCandidate(
                     "frame", f.getId(), f.getTitle(), f.getDescription(),
@@ -325,6 +335,8 @@ public class ChestService {
             ownedTrees.add(ut.getTreeSkin().getId());
         }
         for (TreeSkin t : treeSkinRepository.findAllByOrderBySortOrderAsc()) {
+            if (itemInfoService.isAchievementReward(
+                    rewardOnly, ShopItemInfoService.TYPE_TREE, t.getCode())) continue;
             if (!rarityMatches(t.getPrice(), rarity)) continue;
             result.add(new LootCandidate(
                     "tree", t.getId(), t.getTitle(), t.getDescription(),
@@ -337,6 +349,8 @@ public class ChestService {
             ownedAccents.add(ua.getAccentSkin().getId());
         }
         for (AccentSkin a : accentSkinRepository.findAllByOrderBySortOrderAsc()) {
+            if (itemInfoService.isAchievementReward(
+                    rewardOnly, ShopItemInfoService.TYPE_ACCENT, a.getCode())) continue;
             if (!rarityMatches(a.getPrice(), rarity)) continue;
             result.add(new LootCandidate(
                     "accent", a.getId(), a.getTitle(), a.getDescription(),

@@ -362,6 +362,14 @@ export const MESSAGES = {
         shopTypeAll: 'Все',
         shopRare: 'Редкий',
         shopMiscType: 'Прочее',
+        shopRewardOnly: 'За ачивку',
+        shopNotForSale: 'Выдаётся за достижение и не продаётся',
+        weeklyGiftTitle: 'Подарок недели',
+        weeklyGiftProgress: (n, total) => `Закрыто ${n} из ${total} задач`,
+        weeklyGiftClaim: 'Забрать',
+        weeklyGiftClaimed: 'Получено',
+        weeklyGiftLocked: 'Выполни 5 задач за неделю',
+        weeklyGiftOwned: 'Уже в коллекции',
 
         // Default statuses
         defaultStatusInProgress: 'В процессе',
@@ -744,6 +752,14 @@ export const MESSAGES = {
         shopTypeAll: 'All',
         shopRare: 'Rare',
         shopMiscType: 'Other',
+        shopRewardOnly: 'Achievement reward',
+        shopNotForSale: 'Earned for an achievement and not for sale',
+        weeklyGiftTitle: 'Gift of the week',
+        weeklyGiftProgress: (n, total) => `${n} of ${total} tasks completed`,
+        weeklyGiftClaim: 'Claim',
+        weeklyGiftClaimed: 'Claimed',
+        weeklyGiftLocked: 'Complete 5 tasks this week',
+        weeklyGiftOwned: 'Already in your collection',
     },
 }
 

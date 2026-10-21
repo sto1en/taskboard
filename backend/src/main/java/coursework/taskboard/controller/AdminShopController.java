@@ -6,6 +6,7 @@ import coursework.taskboard.service.auth.CurrentUserService;
 import coursework.taskboard.service.shop.AdminAccentService;
 import coursework.taskboard.service.shop.AdminAvatarService;
 import coursework.taskboard.service.shop.AdminFrameService;
+import coursework.taskboard.service.shop.AdminWeeklyRewardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ public class AdminShopController {
     private final AdminAvatarService adminAvatarService;
     private final AdminFrameService adminFrameService;
     private final AdminAccentService adminAccentService;
+    private final AdminWeeklyRewardService adminWeeklyRewardService;
     private final CurrentUserService currentUserService;
 
     // ============================================================
@@ -271,6 +273,29 @@ public class AdminShopController {
     public ResponseEntity<Void> deleteAccent(@PathVariable Long id) {
         checkAdmin();
         adminAccentService.deleteAccent(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ============================================================
+    // ПОДАРОК НЕДЕЛИ
+    // ============================================================
+    @GetMapping("/weekly-rewards")
+    public ResponseEntity<List<AdminWeeklyRewardDto>> listWeeklyRewards() {
+        checkAdmin();
+        return ResponseEntity.ok(adminWeeklyRewardService.list());
+    }
+
+    @PostMapping("/weekly-rewards")
+    public ResponseEntity<AdminWeeklyRewardDto> saveWeeklyReward(
+            @RequestBody WeeklyRewardRequest request) {
+        checkAdmin();
+        return ResponseEntity.ok(adminWeeklyRewardService.save(request));
+    }
+
+    @DeleteMapping("/weekly-rewards/{id}")
+    public ResponseEntity<Void> deleteWeeklyReward(@PathVariable Long id) {
+        checkAdmin();
+        adminWeeklyRewardService.delete(id);
         return ResponseEntity.noContent().build();
     }
 

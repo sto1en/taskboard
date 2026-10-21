@@ -49,3 +49,5 @@ databaseChangeLog:
       file: db/changelog/024-add-daily-rewards.yaml
   - include:
       file: db/changelog/025-add-inventory-and-caches.yaml
+  - include:
+      file: db/changelog/026-add-weekly-rewards.yaml

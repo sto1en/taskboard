@@ -4,10 +4,12 @@ import coursework.taskboard.dto.shop.CategoryDto;
 import coursework.taskboard.dto.shop.ChestOpenResultDto;
 import coursework.taskboard.dto.shop.ChestsDto;
 import coursework.taskboard.dto.shop.UserShopDto;
+import coursework.taskboard.dto.shop.WeeklyGiftDto;
 import coursework.taskboard.model.user.User;
 import coursework.taskboard.service.auth.CurrentUserService;
 import coursework.taskboard.service.shop.ChestService;
 import coursework.taskboard.service.shop.ShopService;
+import coursework.taskboard.service.shop.WeeklyRewardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +23,7 @@ public class ShopController {
 
     private final ShopService shopService;
     private final ChestService chestService;
+    private final WeeklyRewardService weeklyRewardService;
     private final CurrentUserService currentUserService;
 
     @GetMapping
@@ -127,6 +130,19 @@ public class ShopController {
     @PostMapping("/chests/{code}/open")
     public ResponseEntity<ChestOpenResultDto> openChest(@PathVariable String code) {
         return ResponseEntity.ok(chestService.openChest(currentUserService.getCurrentUser(), code));
+    }
+
+    // Подарок недели
+    @GetMapping("/weekly-gift")
+    public ResponseEntity<WeeklyGiftDto> weeklyGift() {
+        return ResponseEntity.ok(weeklyRewardService.getWeeklyGift(
+                currentUserService.getCurrentUser()));
+    }
+
+    @PostMapping("/weekly-gift/claim")
+    public ResponseEntity<WeeklyGiftDto> claimWeeklyGift() {
+        return ResponseEntity.ok(weeklyRewardService.claim(
+                currentUserService.getCurrentUser()));
     }
 
     // Акценты

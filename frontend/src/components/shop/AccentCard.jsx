@@ -35,10 +35,13 @@ export default function AccentCard({ item, onBuy, onEquip, onUnequip }) {
             data-accent={item.code}
             style={accentVars(item)}
         >
-            {(showNew || showDiscount || item.isRare || owned) && (
+            {(showNew || showDiscount || item.isRare || owned || item.rewardOnly) && (
                 <div className="shop-card__badges shop-card__badges--right">
                     {owned && (
                         <span className="shop-badge shop-badge--owned">{t.shopOwned}</span>
+                    )}
+                    {item.rewardOnly && (
+                        <span className="shop-badge shop-badge--reward">{t.shopRewardOnly}</span>
                     )}
                     {item.isRare && (
                         <span className="shop-badge shop-badge--rare">{t.shopRare}</span>
@@ -70,7 +73,15 @@ export default function AccentCard({ item, onBuy, onEquip, onUnequip }) {
                 <div className="shop-card__desc">{item.description}</div>
 
                 <div className="shop-card__footer">
-                    {!owned && (
+                    {!owned && item.rewardOnly && (
+                        <span
+                            className="shop-card__price shop-card__price--gift"
+                            title={t.shopNotForSale}
+                        >
+                            🎁 {t.shopRewardOnly}
+                        </span>
+                    )}
+                    {!owned && !item.rewardOnly && (
                         <>
                             <ShopPrice item={item} showDiscount={showDiscount}/>
                             <button className="btn btn-primary shop-card__btn" onClick={onBuy}>

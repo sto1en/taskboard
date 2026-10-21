@@ -17,6 +17,8 @@ import SortToggle from '../components/shop/SortToggle'
 import ShopEmptyState from '../components/shop/ShopEmptyState'
 import ShopPagination from '../components/shop/ShopPagination'
 import TreeThumb from '../components/shop/TreeThumb'
+import AvatarArt from '../components/layout/AvatarArt'
+import WeeklyGiftCard from '../components/shop/WeeklyGiftCard'
 
 const PAGE_SIZE = 24
 
@@ -74,6 +76,18 @@ export default function ShopPage() {
     const [chestCatalog, setChestCatalog] = useState(null)
     const [chestAction, setChestAction] = useState(null)
     const chestBusyRef = useRef(false)
+
+    // Подарок недели — отдельный лёгкий запрос, не часть каталога.
+    const [weeklyGift, setWeeklyGift] = useState(null)
+    const [claimingGift, setClaimingGift] = useState(false)
+
+    useEffect(() => {
+        let alive = true
+        shopApi.weeklyGift()
+            .then(({ data }) => { if (alive) setWeeklyGift(data) })
+            .catch(() => {})
+        return () => { alive = false }
+    }, [])
 
     useEffect(() => {
         Promise.all([
@@ -150,6 +164,22 @@ export default function ShopPage() {
             dispatch(fetchShop())
         } catch (err) {
             alert(err.response?.data?.message || 'Ошибка')
+        }
+    }
+
+    const claimWeeklyGift = async () => {
+        if (claimingGift || !weeklyGift?.canClaim) return
+        setClaimingGift(true)
+        try {
+            const { data } = await shopApi.claimWeeklyGift()
+            setWeeklyGift(data)
+            // Предмет появился в инвентаре — обновляем каталог и сайдбар.
+            load()
+            dispatch(fetchShop())
+        } catch (err) {
+            alert(err.response?.data?.message || 'Не удалось получить подарок')
+        } finally {
+            setClaimingGift(false)
         }
     }
 
@@ -455,6 +485,39 @@ export default function ShopPage() {
     const duplicateLeaves = chestResult?.duplicateLeaves ?? chestPrice ?? 0
     const chestBusy = Boolean(chestAction)
 
+    // Награда-аватарка: сначала картинка, затем нарисованный SVG по code,
+    // затем emoji. Для деревьев — TreeThumb, для остального — картинка/emoji.
+    const chestArt = (() => {
+        if (chestItemType === 'tree' && chestItem?.code) {
+            return <TreeThumb kind={chestItem.code} size={92}/>
+        }
+        if (chestItemType === 'avatar') {
+            return (
+                <div className="avatar-frame chest-result__avatar">
+                    <AvatarArt
+                        avatar={{
+                            code: chestItem?.code,
+                            imageUrl: chestImage,
+                            emoji: chestItem?.emoji || chestEmoji,
+                            title: chestTitle,
+                        }}
+                        emojiSize={52}
+                    />
+                </div>
+            )
+        }
+        if (chestImage) {
+            return (
+                <img
+                    src={resolveUrl(chestImage)}
+                    alt={chestTitle || 'Награда'}
+                    className="chest-result__img"
+                />
+            )
+        }
+        return <span className="chest-result__emoji">{chestEmoji}</span>
+    })()
+
     return (
         <div className="shop">
             <div className="shop__head">
@@ -467,6 +530,15 @@ export default function ShopPage() {
                     )}
                 </div>
             </div>
+
+            <WeeklyGiftCard
+                gift={weeklyGift}
+                claiming={claimingGift}
+                onClaim={claimWeeklyGift}
+                userAvatar={activeAvatar}
+                userDisplayName={userDisplayName}
+                userUsername={user?.username}
+            />
 
             <div className="shop__tabs">
                 <button className={`shop__tab ${tab === 'avatars' ? 'shop__tab--active' : ''}`}
@@ -642,15 +714,7 @@ export default function ShopPage() {
                                         <span className="chest-result__owned-tag">{t.shopOwned}</span>
 
                                         <div className="chest-result__art">
-                                            {chestItemType === 'tree' && chestItem?.code
-                                                ? <TreeThumb kind={chestItem.code} size={92}/>
-                                                : chestImage
-                                                    ? <img
-                                                        src={resolveUrl(chestImage)}
-                                                        alt={chestTitle || 'Награда'}
-                                                        className="chest-result__img"
-                                                    />
-                                                    : <span className="chest-result__emoji">{chestEmoji}</span>}
+                                            {chestArt}
                                         </div>
 
                                         <div className="chest-result__title">{chestTitle}</div>
@@ -686,15 +750,7 @@ export default function ShopPage() {
                                         <div className="chest-result__rarity">{chestRarityLabel}</div>
 
                                         <div className="chest-result__art">
-                                            {chestItemType === 'tree' && chestItem?.code
-                                                ? <TreeThumb kind={chestItem.code} size={92}/>
-                                                : chestImage
-                                                    ? <img
-                                                        src={resolveUrl(chestImage)}
-                                                        alt={chestTitle || 'Награда'}
-                                                        className="chest-result__img"
-                                                    />
-                                                    : <span className="chest-result__emoji">{chestEmoji}</span>}
+                                            {chestArt}
                                         </div>
 
                                         <div className="chest-result__title">{chestTitle}</div>

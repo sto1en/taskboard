@@ -41,10 +41,13 @@ export default function TreeSkinCard({ item, onBuy, onEquip, onUnequip }) {
             className={`shop-card shop-card--tree ${active ? 'shop-card--active' : ''}`}
             data-tree={item.code}
         >
-            {(showNew || owned) && (
+            {(showNew || owned || item.rewardOnly) && (
                 <div className="shop-card__badges shop-card__badges--right">
                     {owned && (
                         <span className="shop-badge shop-badge--owned">{t.shopOwned}</span>
+                    )}
+                    {item.rewardOnly && (
+                        <span className="shop-badge shop-badge--reward">{t.shopRewardOnly}</span>
                     )}
                     {showNew && <span className="shop-badge shop-badge--new">Новинка</span>}
                 </div>
@@ -78,7 +81,15 @@ export default function TreeSkinCard({ item, onBuy, onEquip, onUnequip }) {
                 )}
 
                 <div className="shop-card__footer">
-                    {!owned && (
+                    {!owned && item.rewardOnly && (
+                        <span
+                            className="shop-card__price shop-card__price--gift"
+                            title={t.shopNotForSale}
+                        >
+                            🎁 {t.shopRewardOnly}
+                        </span>
+                    )}
+                    {!owned && !item.rewardOnly && (
                         <>
                             <ShopPrice item={item}/>
                             <button className="btn btn-primary shop-card__btn" onClick={onBuy}>

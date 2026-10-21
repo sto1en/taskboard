@@ -369,6 +369,7 @@ html[data-theme="dark"] .cat-ms__trigger--open {
 }
 
 .admin-avatar-editor__preview img,
+.admin-avatar-editor__preview-art,
 .admin-avatar-editor__preview-empty {
     width: 200px;
     height: 200px;
@@ -376,6 +377,19 @@ html[data-theme="dark"] .cat-ms__trigger--open {
     border-radius: 12px;
     border: 1px solid var(--border);
     background: var(--bg);
+}
+
+.admin-avatar-editor__preview-art {
+    position: relative;
+    overflow: hidden;
+}
+
+.admin-avatar-editor__preview-art > svg,
+.admin-avatar-editor__preview-art > img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
 }
 
 .admin-avatar-editor__preview-empty {
@@ -477,4 +491,137 @@ html[data-theme="dark"] .cat-ms__trigger--open {
 .sort-arrows__btn:disabled {
     opacity: 0.35;
     cursor: not-allowed;
+}
+
+/* ---------- Подарок недели ---------- */
+.admin-weekly {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.admin-weekly__form,
+.admin-weekly__list {
+    background: var(--panel, var(--surface));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 20px;
+}
+
+.admin-weekly__form-title,
+.admin-weekly__list-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.admin-weekly__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+
+.admin-weekly__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.admin-weekly__field--wide {
+    grid-column: span 2;
+}
+
+.admin-weekly__field .input {
+    width: 100%;
+}
+
+.admin-weekly__check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text);
+    padding-bottom: 8px;
+}
+
+.admin-weekly__hint {
+    margin: 12px 0;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.admin-weekly__empty {
+    padding: 18px 0;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.admin-weekly__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.admin-weekly__table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.admin-weekly__table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.admin-weekly__table tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-weekly__code {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+.admin-weekly__status {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(120, 120, 120, 0.15);
+    color: var(--muted);
+}
+
+.admin-weekly__status--on {
+    background: rgba(52, 199, 89, 0.16);
+    color: #2f9e58;
+}
+
+.admin-weekly__actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .admin-weekly__field--wide {
+        grid-column: span 1;
+    }
+
+    .admin-weekly__table {
+        display: block;
+        overflow-x: auto;
+    }
 }

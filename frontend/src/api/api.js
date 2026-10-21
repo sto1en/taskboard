@@ -285,6 +285,9 @@ export const shopApi = {
     chests: () => api.get('/shop/chests'),
     openChest: (code) => api.post(`/shop/chests/${code}/open`),
     buyKey: () => api.post('/shop/chests/keys/buy'),
+    // Подарок недели
+    weeklyGift: () => api.get('/shop/weekly-gift'),
+    claimWeeklyGift: () => api.post('/shop/weekly-gift/claim'),
 }
 
 // ============================================================
@@ -344,6 +347,11 @@ export const adminApi = {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
     deleteAccent: (id) => api.delete(`/admin/shop/accents/${id}`),
+
+    // Подарок недели
+    listWeeklyRewards: () => api.get('/admin/shop/weekly-rewards'),
+    saveWeeklyReward: (data) => api.post('/admin/shop/weekly-rewards', data),
+    deleteWeeklyReward: (id) => api.delete(`/admin/shop/weekly-rewards/${id}`),
 }
 
 export default api

@@ -39,6 +39,7 @@ public class ShopService {
     private final AvatarCategoryRepository avatarCategoryRepository;
     private final FrameCategoryRepository frameCategoryRepository;
     private final AccentCategoryRepository accentCategoryRepository;
+    private final ShopItemInfoService itemInfoService;
 
     // ============================================================
     // Основной метод — с фильтрами и сортировкой
@@ -62,12 +63,16 @@ public class ShopService {
                 ? appearance.getActiveTreeSkin().getId() : null;
         String activeAccentCode = appearance != null ? appearance.getAccentCode() : null;
 
+        // Предметы-награды за ачивки не продаются: отдаём фронту флаг
+        // rewardOnly, чтобы вместо цены/кнопки он показал «За ачивку».
+        Map<String, Set<String>> rewardOnly = itemInfoService.achievementRewardCodes();
+
         return UserShopDto.builder()
                 .leaves(leaves)
-                .avatars(buildAvatarDtos(user, activeAvatarId, avatarCategoryIds, sortBy, sortDir))
-                .frames(buildFrameDtos(user, activeFrameId, frameCategoryIds, sortBy, sortDir))
-                .treeSkins(buildTreeSkinDtos(user, activeSkinId, sortBy, sortDir))
-                .accents(buildAccentDtos(user, activeAccentCode, accentCategoryIds, sortBy, sortDir))
+                .avatars(buildAvatarDtos(user, activeAvatarId, avatarCategoryIds, sortBy, sortDir, rewardOnly))
+                .frames(buildFrameDtos(user, activeFrameId, frameCategoryIds, sortBy, sortDir, rewardOnly))
+                .treeSkins(buildTreeSkinDtos(user, activeSkinId, sortBy, sortDir, rewardOnly))
+                .accents(buildAccentDtos(user, activeAccentCode, accentCategoryIds, sortBy, sortDir, rewardOnly))
                 .build();
     }
 
@@ -110,7 +115,8 @@ public class ShopService {
     // ============================================================
     private List<ShopItemDto> buildAvatarDtos(User user, Long activeId,
                                               List<Long> categoryIds,
-                                              String sortBy, String sortDir) {
+                                              String sortBy, String sortDir,
+                                              Map<String, Set<String>> rewardOnly) {
         // Предмет → сколько за него реально отдали (null если подарен ачивкой)
         Map<Long, Integer> paid = new HashMap<>();
         for (UserAvatar ua : userAvatarRepository.findByUserId(user.getId())) {
@@ -138,6 +144,8 @@ public class ShopService {
                     .oldPrice(a.getOldPrice())
                     .owned(paid.containsKey(a.getId()))
                     .pricePaid(paid.get(a.getId()))
+                    .rewardOnly(itemInfoService.isAchievementReward(
+                            rewardOnly, ShopItemInfoService.TYPE_AVATAR, a.getCode()))
                     .purchaseCount(purchases.getOrDefault(a.getId(), 0L))
                     .active(a.getId().equals(activeId))
                     .createdAt(a.getCreatedAt())
@@ -152,7 +160,8 @@ public class ShopService {
     // ============================================================
     private List<ShopItemDto> buildFrameDtos(User user, Long activeId,
                                              List<Long> categoryIds,
-                                             String sortBy, String sortDir) {
+                                             String sortBy, String sortDir,
+                                             Map<String, Set<String>> rewardOnly) {
         Map<Long, Integer> paid = new HashMap<>();
         for (UserFrame uf : userFrameRepository.findByUserId(user.getId())) {
             paid.put(uf.getFrame().getId(), uf.getPricePaid());
@@ -179,6 +188,8 @@ public class ShopService {
                     .oldPrice(f.getOldPrice())
                     .owned(paid.containsKey(f.getId()))
                     .pricePaid(paid.get(f.getId()))
+                    .rewardOnly(itemInfoService.isAchievementReward(
+                            rewardOnly, ShopItemInfoService.TYPE_FRAME, f.getCode()))
                     .purchaseCount(purchases.getOrDefault(f.getId(), 0L))
                     .active(f.getId().equals(activeId))
                     .createdAt(f.getCreatedAt())
@@ -192,7 +203,8 @@ public class ShopService {
     // Tree skins
     // ============================================================
     private List<ShopItemDto> buildTreeSkinDtos(User user, Long activeId,
-                                                String sortBy, String sortDir) {
+                                                String sortBy, String sortDir,
+                                                Map<String, Set<String>> rewardOnly) {
         Map<Long, Integer> paid = new HashMap<>();
         for (UserTreeSkin us : userTreeSkinRepository.findByUserId(user.getId())) {
             paid.put(us.getTreeSkin().getId(), us.getPricePaid());
@@ -212,6 +224,8 @@ public class ShopService {
                     .price(s.getPrice())
                     .owned(paid.containsKey(s.getId()))
                     .pricePaid(paid.get(s.getId()))
+                    .rewardOnly(itemInfoService.isAchievementReward(
+                            rewardOnly, ShopItemInfoService.TYPE_TREE, s.getCode()))
                     .purchaseCount(purchases.getOrDefault(s.getId(), 0L))
                     .active(s.getId().equals(activeId))
                     .createdAt(s.getCreatedAt())
@@ -226,7 +240,8 @@ public class ShopService {
     // ============================================================
     private List<ShopItemDto> buildAccentDtos(User user, String activeCode,
                                               List<Long> categoryIds,
-                                              String sortBy, String sortDir) {
+                                              String sortBy, String sortDir,
+                                              Map<String, Set<String>> rewardOnly) {
         Map<Long, Integer> paid = new HashMap<>();
         for (UserAccent ua : userAccentRepository.findByUserId(user.getId())) {
             paid.put(ua.getAccentSkin().getId(), ua.getPricePaid());
@@ -257,6 +272,8 @@ public class ShopService {
                     .cssClass(a.getCode())
                     .owned(paid.containsKey(a.getId()))
                     .pricePaid(paid.get(a.getId()))
+                    .rewardOnly(itemInfoService.isAchievementReward(
+                            rewardOnly, ShopItemInfoService.TYPE_ACCENT, a.getCode()))
                     .purchaseCount(purchases.getOrDefault(a.getId(), 0L))
                     .active(a.getCode().equals(activeCode))
                     .createdAt(a.getCreatedAt())
@@ -388,6 +405,7 @@ public class ShopService {
     public UserShopDto buyAvatar(User user, Long avatarId) {
         Avatar avatar = avatarRepository.findById(avatarId)
                 .orElseThrow(() -> new IllegalArgumentException("Avatar not found"));
+        ensureNotAchievementReward(ShopItemInfoService.TYPE_AVATAR, avatar.getCode());
         if (userAvatarRepository.existsByUserIdAndAvatarId(user.getId(), avatarId)) {
             throw new IllegalArgumentException("Уже куплено");
         }
@@ -416,6 +434,7 @@ public class ShopService {
     public UserShopDto buyFrame(User user, Long frameId) {
         Frame frame = frameRepository.findById(frameId)
                 .orElseThrow(() -> new IllegalArgumentException("Frame not found"));
+        ensureNotAchievementReward(ShopItemInfoService.TYPE_FRAME, frame.getCode());
         if (userFrameRepository.existsByUserIdAndFrameId(user.getId(), frameId)) {
             throw new IllegalArgumentException("Уже куплено");
         }
@@ -452,6 +471,7 @@ public class ShopService {
     public UserShopDto buyTreeSkin(User user, Long skinId) {
         TreeSkin skin = treeSkinRepository.findById(skinId)
                 .orElseThrow(() -> new IllegalArgumentException("Tree skin not found"));
+        ensureNotAchievementReward(ShopItemInfoService.TYPE_TREE, skin.getCode());
         if (userTreeSkinRepository.existsByUserIdAndTreeSkinId(user.getId(), skinId)) {
             throw new IllegalArgumentException("Уже куплено");
         }
@@ -488,6 +508,7 @@ public class ShopService {
     public UserShopDto buyAccent(User user, Long accentId) {
         AccentSkin skin = accentSkinRepository.findById(accentId)
                 .orElseThrow(() -> new IllegalArgumentException("Accent not found"));
+        ensureNotAchievementReward(ShopItemInfoService.TYPE_ACCENT, skin.getCode());
         if (userAccentRepository.existsByUserIdAndAccentSkinId(user.getId(), accentId)) {
             throw new IllegalArgumentException("Уже куплено");
         }
@@ -582,6 +603,19 @@ public class ShopService {
         }
         cur.setLeaves(cur.getLeaves() - amount);
         userCurrencyRepository.save(cur);
+    }
+
+    /**
+     * Предметы, выдаваемые за ачивки, не продаются — даже если у них
+     * указана цена. Проверка стоит и в списке (флаг rewardOnly), и здесь,
+     * чтобы покупку нельзя было обойти прямым запросом к API.
+     */
+    private void ensureNotAchievementReward(String type, String code) {
+        if (itemInfoService.isAchievementReward(
+                itemInfoService.achievementRewardCodes(), type, code)) {
+            throw new IllegalArgumentException(
+                    "Этот предмет выдаётся за достижение и не продаётся");
+        }
     }
 
     private int getLeaves(User user) {

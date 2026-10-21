@@ -27,10 +27,13 @@ export default function AvatarCard({ item, onBuy, onEquip, userFrame }) {
 
     return (
         <div className={`shop-card ${active ? 'shop-card--active' : ''}`}>
-            {(showNew || showDiscount || owned) && (
+            {(showNew || showDiscount || owned || item.rewardOnly) && (
                 <div className="shop-card__badges shop-card__badges--right">
                     {owned && (
                         <span className="shop-badge shop-badge--owned">{t.shopOwned}</span>
+                    )}
+                    {item.rewardOnly && (
+                        <span className="shop-badge shop-badge--reward">{t.shopRewardOnly}</span>
                     )}
                     {showNew && <span className="shop-badge shop-badge--new">Новинка</span>}
                     {showDiscount && (
@@ -61,7 +64,15 @@ export default function AvatarCard({ item, onBuy, onEquip, userFrame }) {
                 )}
 
                 <div className="shop-card__footer">
-                    {!owned && (
+                    {!owned && item.rewardOnly && (
+                        <span
+                            className="shop-card__price shop-card__price--gift"
+                            title={t.shopNotForSale}
+                        >
+                            🎁 {t.shopRewardOnly}
+                        </span>
+                    )}
+                    {!owned && !item.rewardOnly && (
                         <>
                             <ShopPrice item={item} showDiscount={showDiscount}/>
                             <button className="btn btn-primary shop-card__btn" onClick={onBuy}>

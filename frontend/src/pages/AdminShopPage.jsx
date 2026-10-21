@@ -5,6 +5,7 @@ import useT from '../hooks/useT'
 import AdminAvatarTab from '../components/admin/AdminAvatarTab'
 import AdminFrameTab from '../components/admin/AdminFrameTab'
 import AdminAccentTab from '../components/admin/AdminAccentTab'
+import AdminWeeklyRewardTab from '../components/admin/AdminWeeklyRewardTab'
 
 export default function AdminShopPage() {
     const { user } = useAuth()
@@ -55,12 +56,19 @@ export default function AdminShopPage() {
                 >
                     Деревья (скоро)
                 </button>
+                <button
+                    className={`admin-tab ${tab === 'weekly' ? 'admin-tab--active' : ''}`}
+                    onClick={() => setTab('weekly')}
+                >
+                    Подарок недели
+                </button>
             </div>
 
             <div className="admin-page__body">
                 {tab === 'avatars' && <AdminAvatarTab />}
                 {tab === 'frames' && <AdminFrameTab />}
                 {tab === 'accents' && <AdminAccentTab />}
+                {tab === 'weekly' && <AdminWeeklyRewardTab />}
             </div>
         </div>
     )
