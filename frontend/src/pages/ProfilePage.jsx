@@ -7,8 +7,7 @@ import { fetchShop, selectShop } from '../store/slices/shopSlice'
 import useT from '../hooks/useT'
 import AccentDot from '../components/shop/AccentDot'
 import HelpTip from '../components/common/HelpTip'
-import { SvgAvatar } from '../components/layout/SvgAvatars'
-import { resolveUrl } from '../utils/format'
+import AvatarArt from '../components/layout/AvatarArt'
 
 const RUSSIAN_TIMEZONES = [
     { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
@@ -77,27 +76,16 @@ const TREE_ICONS = {
 }
 
 function AvatarVisual({ avatar, displayName, username }) {
-    const code = avatar?.code
-    const svgNode = code ? SvgAvatar({ code }) : null
-    const initial = (displayName || username || 'U').charAt(0).toUpperCase()
-
-    if (svgNode) {
-        return <span className="profile-picker__svg">{svgNode}</span>
-    }
-    if (avatar?.imageUrl) {
-        return (
-            <img
-                src={resolveUrl(avatar.imageUrl)}
-                alt={avatar.title || ''}
+    return (
+        <span className="profile-picker__svg">
+            <AvatarArt
+                avatar={avatar}
+                title={displayName || username}
                 className="profile-picker__img"
-                draggable={false}
+                emojiClassName="profile-picker__emoji"
             />
-        )
-    }
-    if (avatar?.emoji) {
-        return <span className="profile-picker__emoji">{avatar.emoji}</span>
-    }
-    return <span className="profile-picker__emoji">{initial}</span>
+        </span>
+    )
 }
 
 function isRenderableFrame(f) {

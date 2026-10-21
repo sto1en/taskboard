@@ -14,7 +14,7 @@
  */
 
 import AvatarWithFrame from '../layout/AvatarWithFrame'
-import { resolveUrl } from '../../utils/format'
+import AvatarArt from '../layout/AvatarArt'
 
 const ACCENT_DEMO_STYLE = {
     display: 'flex',
@@ -126,16 +126,13 @@ export default function ShopPreview({
     }
 
     // ---------- Аватарки ----------
-    // Картинка, загруженная через админку, приходит как «avatars/code.png»
-    // без ведущего слэша — resolveUrl() добавляет /uploads/.
-    const avatarSrc = resolveUrl(item.imageUrl)
-
+    // Картинку из админки (avatars/code.png) резолвит AvatarArt. Если файла
+    // нет — рисуем SVG по code. Именно на этом ломались «Персонажи»: у них
+    // imageUrl = null, а emoji не задан.
     return (
         <div className="shop-preview shop-preview--avatars" data-avatar={item.code}>
             <div className={`avatar-frame ${userFrame?.cssClass || ''}`} style={{ width: 76, height: 76 }}>
-                {avatarSrc
-                    ? <img src={avatarSrc} alt={item.title} className="avatar-frame__img" draggable={false}/>
-                    : <span className="avatar-frame__emoji" style={{ fontSize: 46 }}>{item.emoji || '👤'}</span>}
+                <AvatarArt avatar={item} emojiSize={46}/>
             </div>
         </div>
     )

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Modal from '../modal/Modal'
+import AvatarArt from '../layout/AvatarArt'
 import { adminApi } from '../../api/api'
 import { resolveUrl } from '../../utils/format'
 import CategoryMultiSelect from './CategoryMultiSelect'
@@ -134,7 +135,13 @@ export default function AdminAvatarEditorModal({
             <div className="admin-avatar-editor">
                 <div className="admin-avatar-editor__preview">
                     {preview ? (
-                        <img src={preview} alt="" />
+                        <img src={preview} alt="" onError={() => setPreview(null)} />
+                    ) : avatar ? (
+                        <div className="admin-avatar-editor__preview-art">
+                            <AvatarArt
+                                avatar={clearImage ? { ...avatar, imageUrl: null } : avatar}
+                            />
+                        </div>
                     ) : (
                         <div className="admin-avatar-editor__preview-empty">нет фото</div>
                     )}

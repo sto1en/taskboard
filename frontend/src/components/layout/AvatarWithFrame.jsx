@@ -1,5 +1,4 @@
-import { SvgAvatar } from './SvgAvatars'
-import { resolveUrl } from '../../utils/format'
+import AvatarArt from './AvatarArt'
 
 /**
  * Единый компонент аватарки с рамкой.
@@ -21,37 +20,11 @@ export default function AvatarWithFrame({
                                             className = '',
                                         }) {
     const initial = (displayName || username || 'U').charAt(0).toUpperCase()
-    const code = avatar?.code
-    const emoji = avatar?.emoji
-    const imageUrl = resolveUrl(avatar?.imageUrl)
 
     const frameCssClass = frame?.cssClass || ''
 
-    const svgNode = code ? SvgAvatar({ code }) : null
-
     const outerStyle = { width: size, height: size }
     const textStyle = { fontSize: Math.round(size * 0.45) }
-    const emojiStyle = { fontSize: Math.round(size * 0.6) }
-
-    let content = null
-
-    if (svgNode) {
-        content = svgNode
-    } else if (emoji) {
-        content = <span className="avatar-frame__emoji" style={emojiStyle}>{emoji}</span>
-    } else if (imageUrl) {
-        content = (
-            <img
-                src={imageUrl}
-                alt={displayName || username || ''}
-                className="avatar-frame__img"
-                data-code={code || undefined}
-                draggable={false}
-            />
-        )
-    } else {
-        content = <span className="avatar-frame__initial" style={textStyle}>{initial}</span>
-    }
 
     return (
         <div
@@ -59,7 +32,12 @@ export default function AvatarWithFrame({
             style={outerStyle}
             title={displayName || username}
         >
-            {content}
+            <AvatarArt
+                avatar={avatar}
+                title={displayName || username || initial}
+                emojiSize={Math.round(size * 0.6)}
+                style={textStyle}
+            />
         </div>
     )
 }
