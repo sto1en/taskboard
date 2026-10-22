@@ -190,6 +190,7 @@ export default function TemplateEditorPage() {
     const [accent, setAccent] = useState('blue')
     const [items, setItems] = useState([])
     const [expandedKey, setExpandedKey] = useState(null)
+    const [dropZone, setDropZone] = useState(null)
     const [plannerState, setPlannerState] = useState({
         view: 'week',
         weekIndex: 0,
@@ -323,8 +324,30 @@ export default function TemplateEditorPage() {
     const handleDropUnassign = (e) => {
         e.preventDefault()
         const key = e.dataTransfer.getData('text/plain')
+        setDropZone(null)
         if (key) unassignTask(key)
     }
+
+    const handleDropDelete = (e) => {
+        e.preventDefault()
+        const key = e.dataTransfer.getData('text/plain')
+        setDropZone(null)
+        if (key) removeTask(key)
+    }
+
+    const zoneHandlers = (name, onDrop) => ({
+        onDragOver: (e) => {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = 'move'
+        },
+        onDragEnter: () => setDropZone(name),
+        onDragLeave: (e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) {
+                setDropZone((current) => (current === name ? null : current))
+            }
+        },
+        onDrop,
+    })
 
     const save = async () => {
         if (!title.trim()) {
@@ -712,16 +735,29 @@ export default function TemplateEditorPage() {
                         })}
                     </div>
 
-                    <div
-                        className="tplan-side__drop"
-                        onDragOver={(e) => {
-                            e.preventDefault()
-                            e.dataTransfer.dropEffect = 'move'
-                        }}
-                        onDrop={handleDropUnassign}
-                    >
-                        <b>Снять привязку</b>
-                        <span>Перетащите сюда задачу, чтобы убрать день</span>
+                    <div className="tplan-side__drops">
+                        <div
+                            className={[
+                                'tplan-side__drop',
+                                dropZone === 'unassign' ? 'is-over' : '',
+                            ].filter(Boolean).join(' ')}
+                            {...zoneHandlers('unassign', handleDropUnassign)}
+                        >
+                            <b>Снять привязку</b>
+                            <span>Перетащите сюда задачу, чтобы убрать день</span>
+                        </div>
+
+                        <div
+                            className={[
+                                'tplan-side__drop',
+                                'tplan-side__drop--danger',
+                                dropZone === 'delete' ? 'is-over' : '',
+                            ].filter(Boolean).join(' ')}
+                            {...zoneHandlers('delete', handleDropDelete)}
+                        >
+                            <b>Удалить задачу</b>
+                            <span>Перетащите сюда задачу, чтобы удалить её</span>
+                        </div>
                     </div>
                 </aside>
             </div>

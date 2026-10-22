@@ -1411,6 +1411,12 @@
 .tplan-task__delete:hover {
     color: var(--danger, #d64545);
 }
+.tplan-side__drops {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    flex-shrink: 0;
+}
 .tplan-side__drop {
     display: flex;
     flex-direction: column;
@@ -1437,6 +1443,18 @@
 }
 .tplan-side__drop:hover {
     border-color: var(--primary);
+}
+.tplan-side__drop.is-over {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+}
+.tplan-side__drop--danger b {
+    color: var(--danger);
+}
+.tplan-side__drop--danger:hover,
+.tplan-side__drop--danger.is-over {
+    border-color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 8%, var(--surface));
 }
 
 /* ============================================================
