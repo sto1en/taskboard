@@ -1,0 +1,31 @@
+<!doctype html>
+<!--
+    Песочница мобильной вёрстки.
+
+    Зачем: в проекте нет тестов на CSS, а «на глаз» через DevTools
+    неудобно смотреть несколько экранов сразу. Здесь страница без бэкенда
+    поднимает реальные компоненты TaskBoard в телефонном вьюпорте и
+    открывает нужный экран по ?screen=...
+
+    Структура — ровно та же, что в AppLayout: layout → mobile-topbar →
+    layout__content → mobile-nav. Поэтому правила mobile.css работают
+    так же, как в приложении.
+
+    Запуск (из frontend/):
+        npx vite --port 5199
+        открыть http://localhost:5199/mobile-preview.html?screen=boards
+    Скриншот в headless-Chrome:
+        npx playwright screenshot --viewport-size=390,844 \
+            "http://localhost:5199/mobile-preview.html?screen=project" shot.png
+-->
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Мобильная песочница TaskBoard</title>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/src/mobilePreview.jsx"></script>
+</body>
+</html>

@@ -9,6 +9,8 @@ import { selectSidebarPins } from '../../store/slices/sidebarSlice'
 import { useUiStore } from '../../store/useUiStore'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
+import MobileTopBar from './MobileTopBar'
+import MobileNav from './MobileNav'
 import RescheduleBanner from '../task/RescheduleBanner'
 
 /**
@@ -64,6 +66,13 @@ export default observer(function AppLayout() {
         const attachmentPreview = document.querySelector('.attachment-preview')
         const attachmentsModal = document.querySelector('.attachments-modal-overlay')
         const inlinePreview = document.querySelector('.attachments-modal__preview')
+
+        // Мобильное меню — верхний слой: Escape должен закрыть именно его,
+        // а не уводить пользователя со страницы.
+        if (ui.mobileMenuOpen) {
+            ui.closeMobileMenu()
+            return false
+        }
 
         if (modalOverlay || attachmentPreview || attachmentsModal || inlinePreview) {
             return false
@@ -187,7 +196,13 @@ export default observer(function AppLayout() {
         <div className="layout">
             <Sidebar />
             <div className="layout__main">
+                {/* На телефоне десктопная шапка прячется целиком
+                    (mobile.css), а вместо неё — компактная строка с
+                    заголовком, поиском и меню. Обе ветки остаются в DOM:
+                    переключение «резиновое», без потери состояния поиска
+                    при повороте экрана. */}
                 <TopBar />
+                <MobileTopBar />
                 <div className="layout__content">
                     {/* Свой Suspense: при ленивой загрузке страницы остаётся
                         видимым сайдбар, а не только полноэкранный спиннер. */}
@@ -197,6 +212,7 @@ export default observer(function AppLayout() {
                 </div>
                 <RescheduleBanner />
             </div>
+            <MobileNav />
         </div>
     )
 })

@@ -68,6 +68,14 @@ export class UiStore {
      */
     pendingCreate = null
 
+    /**
+     * Открыто ли выдвижное меню на телефоне (MobileTopBar). На десктопе
+     * значение не используется: там меню — это Sidebar. Держим в сторе, а
+     * не в local state, потому что закрывать его должны и таб-бар, и
+     * переход по ссылке, и Escape в AppLayout.
+     */
+    mobileMenuOpen = false
+
     constructor() {
         makeAutoObservable(this, {}, { autoBind: true })
     }
@@ -122,6 +130,22 @@ export class UiStore {
     /** Закрыть все панели (Escape в AppLayout). */
     closeAllToolbars() {
         this.activeToolbar = null
+    }
+
+    // ---------------------------------------------------------------
+    // Мобильное меню (MobileTopBar)
+    // ---------------------------------------------------------------
+
+    openMobileMenu() {
+        this.mobileMenuOpen = true
+    }
+
+    closeMobileMenu() {
+        this.mobileMenuOpen = false
+    }
+
+    toggleMobileMenu() {
+        this.mobileMenuOpen = !this.mobileMenuOpen
     }
 
     // ---------------------------------------------------------------

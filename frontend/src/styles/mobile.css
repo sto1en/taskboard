@@ -1,0 +1,822 @@
+/* ============================================================
+   Мобильная версия TaskBoard
+   ============================================================
+
+   Два слоя:
+
+   1) База (без медиазапроса) — «мобильные» компоненты по умолчанию
+      выключены. MobileTopBar/MobileNav смонтированы в AppLayout всегда
+      (чтобы при повороте экрана не терять состояние поиска и меню), но
+      на широком экране их не видно.
+
+   2) @media (max-width: 899px) — вся адаптация. От 900px ни одно
+      правило второго слоя не применяется, поэтому десктопная вёрстка
+      остаётся прежней.
+
+   Что меняется на телефоне:
+   - десктопный сайдбар и шапка скрыты, вместо них — компактная шапка
+     с заголовком/поиском/меню и нижний таб-бар;
+   - канбан — горизонтальная карусель колонок со «снапом»;
+   - модалки — нижние шторки, кнопки минимум 44px;
+   - поля 16px (иначе iOS зумит страницу при фокусе);
+   - safe-area для «челок» и жестовой полоски.
+   ============================================================ */
+
+/* ---------- базовый слой: за пределами телефона всё скрыто ---------- */
+
+.mobile-topbar,
+.mobile-nav,
+.mobile-menu {
+    display: none;
+}
+
+@media (max-width: 899px) {
+    :root {
+        --mobile-topbar-h: 52px;
+        --mobile-nav-h: 58px;
+        --mobile-safe-top: env(safe-area-inset-top, 0px);
+        --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+        --mobile-page-pad: 14px;
+    }
+
+    /* ---------- каркас ---------- */
+
+    html, body {
+        height: 100%;
+        overscroll-behavior-y: none;
+    }
+
+    .layout {
+        /* 100dvh = «видимая» высота с учётом адресной строки Chrome/Safari.
+           fallback на 100vh нужен старым WebView, где dvh нет. */
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    .sidebar,
+    .topbar {
+        display: none !important;
+    }
+
+    .layout__main {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .layout__content {
+        padding: 12px var(--mobile-page-pad)
+                 calc(var(--mobile-nav-h) + var(--mobile-safe-bottom) + 16px);
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-padding-bottom: calc(var(--mobile-nav-h) + 16px);
+    }
+
+    /* Тап по карточке — без «серой вспышки» на весь экран (Android). */
+    button, a, .task-card, .board-card {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* 16px в полях: меньший кегль iOS Safari принимает за «увеличь
+       страницу» и зумит при фокусе. Правило действует на все формы,
+       включая новые, которых ещё нет. */
+    input,
+    textarea,
+    select {
+        font-size: 16px !important;
+    }
+
+    /* Тап-зоны: 44px по высоте — минимум, который рекомендуют Apple и
+       Google. Меньше приходится «прицеливаться» пальцем. */
+    .btn {
+        min-height: 44px;
+        padding: 11px 16px;
+        font-size: 15px;
+    }
+
+    .input {
+        min-height: 46px;
+    }
+
+    .loading, .error {
+        padding: var(--mobile-page-pad);
+    }
+
+    /* ---------- вход и регистрация ---------- */
+
+    /* Карточка на телефоне — почти на всю ширину с меньшими полями,
+       а кнопка «Войти» — на всю строку: экран входа обычно открывают
+       с одной рукой. */
+    .auth {
+        padding: 16px;
+        min-height: 100dvh;
+        align-items: center;
+    }
+
+    .auth__card {
+        max-width: 100%;
+        padding: 28px 20px 24px;
+        border-radius: 16px;
+    }
+
+    .auth form .btn {
+        width: 100%;
+        min-height: 48px;
+        font-size: 16px;
+    }
+
+    /* ---------- мобильная шапка ---------- */
+
+    .mobile-topbar--phone {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        height: calc(var(--mobile-topbar-h) + var(--mobile-safe-top));
+        padding: var(--mobile-safe-top) 6px 0;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        position: relative;
+        z-index: 30;
+        flex-shrink: 0;
+    }
+
+    .mobile-topbar__title {
+        flex: 1;
+        min-width: 0;
+        padding-left: 4px;
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        letter-spacing: -0.2px;
+    }
+
+    .mobile-topbar__back {
+        font-size: 22px;
+    }
+
+    .mobile-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+        padding: 0;
+        border: none;
+        border-radius: 12px;
+        background: transparent;
+        color: var(--text);
+        font-size: 19px;
+        line-height: 1;
+        cursor: pointer;
+        transition: background .15s;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-icon-btn:active {
+        background: rgba(9, 30, 66, 0.08);
+    }
+
+    html[data-theme="dark"] .mobile-icon-btn:active {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .mobile-topbar--search {
+        padding-right: 8px;
+    }
+
+    .mobile-topbar__search-row {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        width: 100%;
+        margin: 0;
+    }
+
+    .mobile-topbar__search {
+        flex: 1;
+        min-width: 0;
+        height: 40px;
+        padding: 0 12px;
+        border: none;
+        border-radius: 12px;
+        background: rgba(9, 30, 66, 0.06);
+        color: var(--text);
+        outline: none;
+    }
+
+    .mobile-topbar__search::-webkit-search-cancel-button {
+        display: none;
+    }
+
+    html[data-theme="dark"] .mobile-topbar__search {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    /* ---------- нижняя навигация ---------- */
+
+    .mobile-nav--phone {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 90;
+        height: calc(var(--mobile-nav-h) + var(--mobile-safe-bottom));
+        padding: 0 4px var(--mobile-safe-bottom);
+        border-top: 1px solid var(--border);
+        box-sizing: border-box;
+        /* Полупрозрачность + blur — как в iOS/Android. Первый background
+           остаётся fallback для браузеров без color-mix. */
+        background: var(--surface);
+        background: color-mix(in srgb, var(--surface) 92%, transparent);
+        -webkit-backdrop-filter: saturate(180%) blur(14px);
+        backdrop-filter: saturate(180%) blur(14px);
+    }
+
+    .mobile-nav__item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 6px 0 4px;
+        color: var(--text-muted);
+        text-decoration: none;
+        border-radius: 12px;
+        transition: color .15s, transform .12s;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-nav__item:active,
+    .mobile-nav__item:hover {
+        text-decoration: none;
+    }
+
+    .mobile-nav__item:active {
+        transform: scale(0.94);
+    }
+
+    .mobile-nav__icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 24px;
+        font-size: 19px;
+        line-height: 1;
+        filter: grayscale(0.55) opacity(0.75);
+        transition: filter .15s, transform .15s;
+    }
+
+    .mobile-nav__label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.1px;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    .mobile-nav__item--active {
+        color: var(--primary);
+    }
+
+    .mobile-nav__item--active .mobile-nav__icon {
+        filter: none;
+        transform: translateY(-1px) scale(1.06);
+    }
+
+    /* Таб «Профиль» — аватарка пользователя, а не абстрактная иконка. */
+    .mobile-nav__avatar {
+        display: inline-flex;
+        width: 24px;
+        height: 24px;
+        overflow: visible;
+    }
+
+    .mobile-nav__item--active .mobile-nav__avatar {
+        filter: none;
+        outline: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
+        outline-offset: 2px;
+        border-radius: 50%;
+    }
+
+    /* ---------- дровер-меню ---------- */
+
+    .mobile-menu {
+        display: flex;
+        position: fixed;
+        inset: 0;
+        z-index: 120;
+        flex-direction: column;
+        justify-content: flex-end;
+    }
+
+    .mobile-menu__scrim {
+        position: absolute;
+        inset: 0;
+        border: none;
+        padding: 0;
+        background: rgba(9, 30, 66, 0.5);
+        animation: mobileScrimIn .2s ease-out;
+        cursor: default;
+    }
+
+    .mobile-menu__sheet {
+        position: relative;
+        max-height: calc(100dvh - 60px);
+        overflow-y: auto;
+        background: var(--surface);
+        border-radius: 20px 20px 0 0;
+        padding: 8px 12px calc(16px + var(--mobile-safe-bottom));
+        box-shadow: 0 -12px 40px rgba(9, 30, 66, 0.28);
+        animation: mobileSheetIn .24s cubic-bezier(.2, .9, .3, 1);
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .mobile-menu__grip {
+        width: 38px;
+        height: 4px;
+        margin: 0 auto 10px;
+        border-radius: 2px;
+        background: var(--border);
+    }
+
+    .mobile-menu__user {
+        padding: 4px 12px 12px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 6px;
+    }
+
+    .mobile-menu__name {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mobile-menu__role {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+
+    .mobile-menu__section {
+        padding: 4px 0;
+    }
+
+    .mobile-menu__section + .mobile-menu__section {
+        border-top: 1px solid var(--border);
+        margin-top: 4px;
+        padding-top: 8px;
+    }
+
+    .mobile-menu__row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 48px;
+        padding: 0 12px;
+        border: none;
+        border-radius: 12px;
+        background: transparent;
+        color: var(--text);
+        font-size: 15.5px;
+        font-weight: 500;
+        text-align: left;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-menu__row:active {
+        background: rgba(9, 30, 66, 0.06);
+    }
+
+    html[data-theme="dark"] .mobile-menu__row:active {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .mobile-menu__row-icon {
+        width: 24px;
+        text-align: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .mobile-menu__row-chevron {
+        margin-left: auto;
+        color: var(--text-muted);
+        font-size: 20px;
+        line-height: 1;
+    }
+
+    .mobile-menu__row--danger {
+        color: var(--danger);
+    }
+
+    .mobile-menu__profile {
+        display: block;
+        margin-top: 6px;
+        padding: 12px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    @keyframes mobileSheetIn {
+        from { transform: translateY(100%); }
+        to   { transform: translateY(0); }
+    }
+
+    @keyframes mobileScrimIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+
+    /* Уважаем «уменьшить движение» (iOS/Android): без слайдов. */
+    @media (prefers-reduced-motion: reduce) {
+        .mobile-menu__sheet,
+        .mobile-menu__scrim {
+            animation: none;
+        }
+    }
+
+    /* ---------- шапки страниц ---------- */
+
+    .boards__hero {
+        align-items: flex-start;
+        margin-bottom: 16px;
+        gap: 12px;
+    }
+
+    .boards__hero-title {
+        font-size: 22px;
+    }
+
+    .boards__hero-sub {
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    .boards__hero .btn,
+    .templates-hero .btn,
+    .guides-hero .btn {
+        min-height: 44px;
+    }
+
+    .boards__grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .board-card {
+        border-radius: 14px;
+    }
+
+    /* Шапка проекта: было одной строкой «назад · название · тулбар».
+       Теперь две строки: заголовок, а инструменты вида/сортировки/
+       фильтров — горизонтальной лентой с прокруткой. */
+    .board-detail__head {
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+        align-items: flex-start;
+        min-height: 0;
+    }
+
+    .board-detail__back {
+        order: 1;
+        padding: 7px 12px;
+        font-size: 12.5px;
+    }
+
+    .board-detail__title-wrap {
+        order: 2;
+        flex: 1;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .board-detail__title {
+        font-size: 19px;
+    }
+
+    .board-detail__subtitle {
+        max-width: 100%;
+        font-size: 12.5px;
+        padding-left: 0;
+    }
+
+    .board-detail__toolbar {
+        order: 3;
+        flex: 1 1 100%;
+        width: 100%;
+        margin-left: 0;
+        gap: 6px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        justify-content: flex-start;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .board-detail__toolbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .board-detail__new-task {
+        min-height: 40px;
+        padding: 8px 14px;
+        font-size: 13px;
+        border-radius: 10px;
+    }
+
+    .view-switcher,
+    .sort-switcher,
+    .filters-bar {
+        flex-shrink: 0;
+    }
+
+    /* Канбан: колонки едут по горизонтали со «снапом» на ширину экрана,
+       как карусель. Вертикальный скролл остаётся внутри колонки —
+       поэтому снаружи overflow-y: hidden. */
+    .board-detail__scroll--kanban {
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scroll-padding-left: var(--mobile-page-pad);
+        overscroll-behavior-x: contain;
+        margin: 0 calc(var(--mobile-page-pad) * -1);
+        padding: 0 var(--mobile-page-pad);
+    }
+
+    .kanban {
+        gap: 10px;
+        align-items: stretch;
+        height: 100%;
+        padding-bottom: 6px;
+    }
+
+    .kanban-col {
+        width: calc(100vw - var(--mobile-page-pad) * 2 - 26px);
+        min-width: calc(100vw - var(--mobile-page-pad) * 2 - 26px);
+        max-width: calc(100vw - var(--mobile-page-pad) * 2 - 26px);
+        scroll-snap-align: start;
+        border-radius: 14px;
+        padding: 10px;
+    }
+
+    .kanban-col__head {
+        min-height: 40px;
+    }
+
+    .kanban-col__add-top {
+        width: 36px;
+        height: 36px;
+        font-size: 20px;
+    }
+
+    .kanban-col__body {
+        gap: 8px;
+        padding-bottom: 8px;
+    }
+
+    .task-card {
+        padding: 12px;
+        border-radius: 12px;
+        min-height: 54px;
+    }
+
+    .task-card:active {
+        background: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
+        transform: scale(0.995);
+    }
+
+    .task-card__check {
+        width: 22px;
+        height: 22px;
+        margin-top: 0;
+    }
+
+    .task-card__title {
+        font-size: 14.5px;
+        line-height: 1.35;
+    }
+
+    .board-detail__scroll {
+        padding-bottom: 12px;
+    }
+
+    /* Список и компактный вид: на телефоне таблица не должна «выезжать»
+       за край — прокрутка остаётся внутри своего контейнера. */
+    .list-view,
+    .compact-view {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* ---------- модалки: нижние шторки ---------- */
+
+    .modal-overlay {
+        padding: 0;
+        align-items: flex-end;
+    }
+
+    .modal {
+        max-width: 100%;
+        max-height: 92dvh;
+        height: auto;
+        border-radius: 20px 20px 0 0;
+        animation: mobileSheetIn .24s cubic-bezier(.2, .9, .3, 1);
+        margin: 0;
+        width: 100%;
+    }
+
+    .modal__head {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--surface);
+        padding: 16px 16px 12px;
+        border-radius: 20px 20px 0 0;
+    }
+
+    /* «Ручка» шторки — визуальная подсказка, что это лист снизу;
+       закрывается кликом по фону или Escape (Modal.jsx). */
+    .modal__head::before {
+        content: '';
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        width: 38px;
+        height: 4px;
+        margin-left: -19px;
+        border-radius: 2px;
+        background: var(--border);
+    }
+
+    .modal__title {
+        font-size: 17px;
+    }
+
+    .modal__close {
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+        border-radius: 10px;
+    }
+
+    .modal__body {
+        padding: 14px 16px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .modal__foot {
+        position: sticky;
+        bottom: 0;
+        padding: 12px 16px calc(12px + var(--mobile-safe-bottom));
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        gap: 8px;
+    }
+
+    .modal__foot .btn {
+        flex: 1;
+        min-height: 46px;
+    }
+
+    .modal__row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+    }
+
+    /* Деталь задачи — самый большой модал: на телефоне он занимает
+       почти весь экран, иначе текст и вложения нечитаемы. */
+    .task-detail-modal,
+    .task-detail-modal .modal__body {
+        max-height: 96dvh;
+    }
+
+    /* ---------- календарь ---------- */
+
+    .calendar__head {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .calendar__cell {
+        min-height: 64px;
+        padding: 4px;
+    }
+
+    /* ---------- магазин / статистика / профиль ---------- */
+
+    .shop__hero,
+    .stats__head,
+    .leaderboard-page__head,
+    .group-page__head,
+    .templates-hero,
+    .guides-hero {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .shop__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    /* ---------- дашборд ---------- */
+
+    .dashboard__hero {
+        padding: 18px 16px;
+        border-radius: 16px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+    }
+
+    .dashboard__hello {
+        font-size: 22px;
+    }
+
+    .dashboard__hero-actions {
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .dashboard__hero-actions .btn {
+        flex: 1;
+        min-width: 130px;
+    }
+
+    .dashboard__chips {
+        flex-wrap: wrap;
+    }
+
+    .dw-card {
+        border-radius: 14px;
+    }
+
+    .dw-card__head {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* ---------- прочее ---------- */
+
+    /* Всплывающие подсказки (::after у .topbar__tip) на тач-экранах
+       бесполезны и только залипают поверх контента. */
+    .topbar__tip::after,
+    .topbar__tip::before {
+        display: none !important;
+    }
+
+    .reschedule-banner {
+        bottom: calc(var(--mobile-nav-h) + var(--mobile-safe-bottom) + 10px);
+        width: calc(100% - 20px);
+        padding: 10px 12px;
+        border-radius: 12px;
+        flex-wrap: wrap;
+    }
+
+    .reschedule-banner__actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .shop-cart-fab {
+        bottom: calc(var(--mobile-nav-h) + var(--mobile-safe-bottom) + 12px) !important;
+    }
+}
+
+/* Узкие телефоны (iPhone SE и подобные): подписи таб-бара мельче,
+   чтобы не жаться. */
+@media (max-width: 360px) {
+    .mobile-nav__label {
+        font-size: 9.5px;
+    }
+
+    .mobile-nav__icon {
+        font-size: 17px;
+    }
+
+    .boards__hero-title {
+        font-size: 20px;
+    }
+}

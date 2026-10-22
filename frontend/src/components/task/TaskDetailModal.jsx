@@ -592,6 +592,7 @@ export default function TaskDetailModal({
                 open={open}
                 onClose={requestClose}
                 title={loading ? t.loading : t.taskLabel}
+                className="task-detail-modal"
                 footer={
                     <>
                         <button

@@ -33,6 +33,10 @@ import './styles/group.css'
 import './styles/leaderboard.css'
 import './styles/user-groups.css'
 import './styles/templates.css'
+// Мобильная адаптация — один @media (max-width: 899px), поэтому
+// подключается последней: её точечные правила должны перебивать
+// десктопные при равной специфичности. На широких экранах файл молчит.
+import './styles/mobile.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
