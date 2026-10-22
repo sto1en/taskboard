@@ -32,7 +32,7 @@ taskBoard/
 │   ├── src/main/java/...     код
 │   ├── src/main/resources/
 │   │   ├── application.properties
-│   │   └── db/changelog/     миграции Liquibase (001…032)
+│   │   └── db/changelog/     миграции Liquibase (001…033)
 │   ├── Dockerfile            multi-stage: Maven build → JRE 21
 │   └── .env.example          подсказка по переменным (не подключается автоматически)
 ├── frontend/                 React + Vite
@@ -352,8 +352,11 @@ frontend-run.bat --dev    :: Vite → http://localhost:5173
 
 ## Данные и миграции
 
-- Миграции: `backend/src/main/resources/db/changelog/db.changelog-master.yaml`, changeset'ы `001`…`032`. Применяются автоматически при старте backend.
-- Стартовые данные: `DataInitializerConfig` — создаёт записи только если соответствующая таблица пуста. Повторный запуск безопасен.
+- Миграции: `backend/src/main/resources/db/changelog/db.changelog-master.yaml`, changeset'ы `001`…`033`. Применяются автоматически при старте backend.
+- Каталог магазина (аватары, рамки, акценты, скины деревьев, фоны профиля, категории, связи и недельный подарок) засевается changeset'ом `033-seed-shop-catalog` из `db/changelog/sql/033-shop-catalog.sql`. Скрипт идемпотентен: записи с существующим `code` не дублируются, ID берутся из sequence. На чистой БД после миграций каталог уже полный — вручную ничего заливать не нужно.
+- Два изображения каталога лежат в репозитории: `frontend/public/avatars/a-8ab7b714.jpg` и `frontend/public/backgrounds/bg-2a91ef39.jpg`. Остальные аватары — в `frontend/public/avatars/`, фоны по умолчанию рисуются CSS-классами.
+- Стартовые данные: `DataInitializerConfig` — создаёт записи только если соответствующая таблица пуста. Повторный запуск безопасен. Базовые акценты, статусы, MIME-типы, достижения и гайды он создаёт сам; каталог магазина уже приходит из миграции `033`.
+- Если меняли каталог через админку на рабочей БД и хотите перенести изменения на другой сервер — экспортируйте таблицы магазина в новый changeset (или SQL-дамп), не полагайтесь на `DataInitializerConfig`: он не перезаписывает непустые таблицы.
 - Тома Docker: `pgdata` (БД) и `uploads` (файлы). `docker compose down` их **не удаляет**; `docker compose down -v` — удаляет безвозвратно.
 - Пользовательские загрузки: 5 МБ на файл, 10 МБ на запрос (nginx пропускает до 20 МБ).
 

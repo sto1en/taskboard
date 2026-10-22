@@ -63,3 +63,5 @@ databaseChangeLog:
       file: db/changelog/031-add-profile-backgrounds.yaml
   - include:
       file: db/changelog/032-add-template-item-start-time.yaml
+  - include:
+      file: db/changelog/033-seed-shop-catalog.yaml

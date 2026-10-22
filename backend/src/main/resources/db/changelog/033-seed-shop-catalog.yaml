@@ -1,0 +1,21 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 033 — каталог магазина, экспортированный из рабочей БД.
+  #
+  # Наполняет таблицы аватаров, рамок, акцентов, скинов деревьев,
+  # фонов профиля, их категорий и связей, а также конфигурацию
+  # еженедельного подарка. Скрипт идемпотентен: существующие
+  # записи по code не дублируются, ID берутся из sequence.
+  # ============================================================
+
+  - changeSet:
+      id: 033-01-shop-catalog
+      author: admin
+      comment: Seed the shop catalogue exported from the working database
+      changes:
+        - sqlFile:
+            path: sql/033-shop-catalog.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            encoding: UTF-8
