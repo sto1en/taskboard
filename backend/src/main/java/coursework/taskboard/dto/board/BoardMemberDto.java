@@ -1,5 +1,6 @@
 package coursework.taskboard.dto.board;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 @Data
@@ -14,4 +15,9 @@ public class BoardMemberDto {
     private String role;          // owner | editor | viewer
     private String avatarUrl;
     private boolean isOwner;
+
+    @JsonProperty("isOwner")
+    public boolean isOwner() {
+        return isOwner;
+    }
 }

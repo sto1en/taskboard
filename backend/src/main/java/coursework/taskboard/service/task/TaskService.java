@@ -28,6 +28,7 @@ import coursework.taskboard.repository.task.*;
 import coursework.taskboard.repository.user.UserAppearanceRepository;
 import coursework.taskboard.repository.user.UserProfileRepository;
 import coursework.taskboard.service.achievement.AchievementService;
+import coursework.taskboard.service.access.ProjectAccessService;
 import coursework.taskboard.service.project.ProjectStatusRecalcService;
 import coursework.taskboard.service.shop.ShopService;
 import lombok.RequiredArgsConstructor;
@@ -51,30 +52,31 @@ public class TaskService {
     /**
      * Убывающая отдача за задачи в течение дня. Доход зависит от того, какой
      * по счёту задачу за сегодня закрывает пользователь:
-     *   1–10-я  → ×10 листьев (базовая ставка, как раньше)
-     *   11–30-я → ×7
-     *   31-я+   → ×5
-     * Благодаря этому «топ за 3 дня» становится честной прогрессией, а не
-     * бесконечным фармом. Расчёт вынесен в leavesForTask(...) и используется
-     * как при начислении, так и при откате — иначе отмена вернула бы больше,
-     * чем дали.
+     *   1–12-я  → 30 листьев (базовая ставка)
+     *   13–30-я → 20
+     *   31-я+   → 12
+     * Экономика выровнена так, чтобы топовый предмет магазина (5000) был
+     * достижим за первую неделю ачивками и далее копился ~1.5 недели фарма.
+     * Расчёт вынесен в leavesForTask(...) и используется как при начислении,
+     * так и при откате — иначе отмена вернула бы больше, чем дали.
      */
-    private static final int LEAVES_TIER_FULL = 10;    // задач/день по полной ставке
+    private static final int LEAVES_TIER_FULL = 12;    // задач/день по полной ставке
     private static final int LEAVES_TIER_MID = 30;     // до этой границы — пониженная ставка
-    private static final int LEAVES_DAILY_BASE = 10;   // листьев за задачу в 1-м тире
-    private static final int LEAVES_DAILY_MID = 7;     // листьев за задачу во 2-м тире
-    private static final int LEAVES_DAILY_TAIL = 5;    // листьев за задачу в 3-м тире
+    private static final int LEAVES_DAILY_BASE = 30;   // листьев за задачу в 1-м тире
+    private static final int LEAVES_DAILY_MID = 20;    // листьев за задачу во 2-м тире
+    private static final int LEAVES_DAILY_TAIL = 12;   // листьев за задачу в 3-м тире
     /**
-     * Бонус «за взросление дерева»: каждые 10 закрытых задач дают +100 листьев.
+     * Бонус «за взросление дерева»: каждые 10 закрытых задач дают +150 листьев.
      * Начисляется отдельно и НЕ участвует в убывании (не зависит от дневного тира).
      */
-    private static final int LEAVES_TREE_BONUS = 100;
+    private static final int LEAVES_TREE_BONUS = 150;
 
     private final TaskRepository taskRepository;
     private final TaskSettingsRepository taskSettingsRepository;
     private final TaskScheduleRepository taskScheduleRepository;
     private final TaskTagRepository taskTagRepository;
     private final TaskAttachmentRepository taskAttachmentRepository;
+    private final ProjectAccessService accessService;
     private final TaskRecurrenceRepository taskRecurrenceRepository;
     private final ProjectRepository projectRepository;
     private final StageRepository stageRepository;
@@ -1137,23 +1139,14 @@ public class TaskService {
     }
 
     private Project getProjectWithAccess(Long projectId, User user) {
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
-
-        if (!boardMemberRepository.existsByBoardIdAndUserId(
-                project.getBoard().getId(), user.getId())) {
-            throw new IllegalArgumentException("No access to project");
-        }
-
-        return project;
+        return accessService.requireProject(projectId, user);
     }
 
     private Task getTaskWithAccess(Long taskId, User user) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        if (!boardMemberRepository.existsByBoardIdAndUserId(
-                task.getProject().getBoard().getId(), user.getId())) {
+        if (!accessService.canAccessProject(task.getProject(), user)) {
             throw new IllegalArgumentException("No access to task");
         }
 

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-export default function Modal({ open, onClose, title, children, footer }) {
+export default function Modal({ open, onClose, title, children, footer, className = '', bodyClassName = '' }) {
     useEffect(() => {
         if (!open) return
         const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -16,13 +16,13 @@ export default function Modal({ open, onClose, title, children, footer }) {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className={`modal ${className}`} onClick={(e) => e.stopPropagation()}>
                 <div className="modal__head">
                     <h3 className="modal__title">{title}</h3>
                     <button className="modal__close" onClick={onClose} title="Закрыть">×</button>
                 </div>
 
-                <div className="modal__body">
+                <div className={`modal__body ${bodyClassName}`}>
                     {children}
                 </div>
 

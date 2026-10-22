@@ -1,0 +1,198 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 030 — Шаблоны задач, гайды (неделя/месяц) и витрина гайдов
+  #
+  #   • task_templates / task_template_items — шаблоны задач пользователя:
+  #     упорядоченный список задач с заполненными или пустыми полями.
+  #   • guides / guide_tasks — гайды-проекты (неделя / месяц / свой период):
+  #     задачи с описаниями, подзадачами и смещением дедлайна в днях.
+  #   • guide_showcase_entries — витрина пользователя на «стене».
+  # ============================================================
+
+  - changeSet:
+      id: 030-01-task-templates
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: task_templates }
+      changes:
+        - createTable:
+            tableName: task_templates
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: owner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_task_templates_owner
+              - column: { name: title, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT, defaultValue: '' }
+              - column: { name: icon, type: VARCHAR(16), defaultValue: '🧩' }
+              - column: { name: accent, type: VARCHAR(20), defaultValue: 'blue' }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+        - createIndex:
+            tableName: task_templates
+            indexName: idx_task_templates_owner
+            columns:
+              - column: { name: owner_id }
+
+  - changeSet:
+      id: 030-02-task-template-items
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: task_template_items }
+      changes:
+        - createTable:
+            tableName: task_template_items
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: template_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: task_templates(id)
+                    foreignKeyName: fk_template_items_template
+              - column: { name: position, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT, defaultValue: '' }
+              - column: { name: priority, type: SMALLINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: deadline_offset_days, type: INT }
+              - column: { name: status_category_code, type: VARCHAR(30), defaultValue: 'ACTIVE', constraints: { nullable: false } }
+              - column: { name: estimated_minutes, type: INT }
+              - column: { name: subtasks_text, type: TEXT, defaultValue: '' }
+        - createIndex:
+            tableName: task_template_items
+            indexName: idx_template_items_template
+            columns:
+              - column: { name: template_id }
+
+  - changeSet:
+      id: 030-03-guides
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: guides }
+      changes:
+        - createTable:
+            tableName: guides
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: owner_id
+                  type: BIGINT
+                  constraints:
+                    references: users(id)
+                    foreignKeyName: fk_guides_owner
+              - column: { name: title, type: VARCHAR(140), constraints: { nullable: false } }
+              - column: { name: subtitle, type: VARCHAR(255), defaultValue: '' }
+              - column: { name: description, type: TEXT, defaultValue: '' }
+              - column: { name: period_type, type: VARCHAR(20), defaultValue: 'WEEK', constraints: { nullable: false } }
+              - column: { name: accent, type: VARCHAR(20), defaultValue: 'blue', constraints: { nullable: false } }
+              - column: { name: emoji, type: VARCHAR(16), defaultValue: '📅', constraints: { nullable: false } }
+              - column: { name: is_system, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+        - createIndex:
+            tableName: guides
+            indexName: idx_guides_owner
+            columns:
+              - column: { name: owner_id }
+
+  - changeSet:
+      id: 030-04-guide-tasks
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: guide_tasks }
+      changes:
+        - createTable:
+            tableName: guide_tasks
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: guide_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: guides(id)
+                    foreignKeyName: fk_guide_tasks_guide
+              - column: { name: position, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: day_offset, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT, defaultValue: '' }
+              - column: { name: priority, type: SMALLINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: status_category_code, type: VARCHAR(30), defaultValue: 'ACTIVE', constraints: { nullable: false } }
+              - column: { name: estimated_minutes, type: INT }
+              - column: { name: subtasks_text, type: TEXT, defaultValue: '' }
+        - createIndex:
+            tableName: guide_tasks
+            indexName: idx_guide_tasks_guide
+            columns:
+              - column: { name: guide_id }
+
+  - changeSet:
+      id: 030-05-guide-showcase
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: guide_showcase_entries }
+      changes:
+        - createTable:
+            tableName: guide_showcase_entries
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_guide_showcase_user
+              - column:
+                  name: guide_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: guides(id)
+                    foreignKeyName: fk_guide_showcase_guide
+              - column: { name: position, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: guide_showcase_entries
+            columnNames: user_id, guide_id
+            constraintName: uq_guide_showcase_user_guide
+        - createIndex:
+            tableName: guide_showcase_entries
+            indexName: idx_guide_showcase_user
+            columns:
+              - column: { name: user_id }

@@ -7,6 +7,7 @@ import coursework.taskboard.model.user.User;
 import coursework.taskboard.repository.board.BoardMemberRepository;
 import coursework.taskboard.repository.project.ProjectRepository;
 import coursework.taskboard.repository.project.ProjectUserFilterRepository;
+import coursework.taskboard.service.access.ProjectAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class ProjectFilterService {
     private final ProjectUserFilterRepository filterRepository;
     private final ProjectRepository projectRepository;
     private final BoardMemberRepository boardMemberRepository;
+    private final ProjectAccessService accessService;
 
     @Transactional(readOnly = true)
     public Optional<PinnedFilterDto> get(Long projectId, User user) {
@@ -80,8 +82,7 @@ public class ProjectFilterService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
-        if (!boardMemberRepository.existsByBoardIdAndUserId(
-                project.getBoard().getId(), user.getId())) {
+        if (!accessService.canAccessProject(project, user)) {
             throw new IllegalArgumentException("No access to project");
         }
     }

@@ -22,8 +22,12 @@ import WidgetCard from '../components/dashboard/WidgetCard'
 import AddWidgetModal from '../components/dashboard/AddWidgetModal'
 
 const STORAGE_PREFIX = 'taskboard.dashboard.layout.v1'
+// Одноразовая миграция: виджет «Новости» появляется у существующих раскладок
+// один раз. Если пользователь его потом уберёт — больше не навязываем.
+const NEWS_MARKER = 'taskboard.dashboard.news.v1'
 
 const DEFAULT_LAYOUT = [
+    { type: 'news', size: 'wide' },
     { type: 'todayPlan', size: 'wide' },
     { type: 'doneToday', size: 'small' },
     { type: 'coopBoard', size: 'small' },
@@ -38,6 +42,23 @@ let seq = 0
 const uid = () => `${Date.now().toString(36)}-${(seq++).toString(36)}`
 
 const storageKey = (userId) => `${STORAGE_PREFIX}.${userId || 'guest'}`
+const newsMarkerKey = (userId) => `${NEWS_MARKER}.${userId || 'guest'}`
+
+const newsIntroPending = (userId) => {
+    try {
+        return !localStorage.getItem(newsMarkerKey(userId))
+    } catch {
+        return true
+    }
+}
+
+const markNewsIntro = (userId) => {
+    try {
+        localStorage.setItem(newsMarkerKey(userId), '1')
+    } catch {
+        /* приватный режим — не критично */
+    }
+}
 
 const makeDefault = () => DEFAULT_LAYOUT.map(w => ({ id: uid(), ...w }))
 
@@ -61,6 +82,17 @@ function readLayout(userId) {
         // виджеты), её сохраняем. А вот если в storage лежали только
         // неизвестные типы — откатываемся к стандартной.
         if (parsed.length > 0 && cleaned.length === 0) return makeDefault()
+
+        // Миграция: подарок недели живёт в новостном виджете, поэтому один
+        // раз добавляем его в начало уже сохранённой раскладки.
+        if (
+            cleaned.length > 0
+            && !cleaned.some(w => w.type === 'news')
+            && newsIntroPending(userId)
+        ) {
+            return [{ id: uid(), type: 'news', size: 'wide' }, ...cleaned]
+        }
+
         return cleaned
     } catch {
         return makeDefault()
@@ -70,6 +102,7 @@ function readLayout(userId) {
 function saveLayout(userId, layout) {
     try {
         localStorage.setItem(storageKey(userId), JSON.stringify(layout))
+        markNewsIntro(userId)
     } catch {
         /* приватный режим / переполнение — не критично */
     }

@@ -27,4 +27,19 @@ public class UserCurrency {
     @Column(nullable = false)
     @Builder.Default
     private Integer leaves = 0;
+
+    /** Всего заработано листьев за всё время (для лидерборда). */
+    @Column(name = "total_earned", nullable = false)
+    @Builder.Default
+    private Integer totalEarned = 0;
+
+    /** Всего потрачено листьев за всё время. */
+    @Column(name = "total_spent", nullable = false)
+    @Builder.Default
+    private Integer totalSpent = 0;
+
+    /** Сколько сундуков открыто. */
+    @Column(name = "chests_opened", nullable = false)
+    @Builder.Default
+    private Integer chestsOpened = 0;
 }

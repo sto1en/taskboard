@@ -55,7 +55,10 @@ export function useAuth() {
 
     const logout = useCallback(() => {
         dispatch(logoutAction())
-        window.location.href = '/login'
+        // Переход на /login выполняет ProtectedRoute после очистки токена:
+        // window.location.href здесь добавлял лишнюю запись в историю и
+        // делал кнопку «Назад» непредсказуемой (возврат на защищённую
+        // страницу с уже удалённым токеном).
     }, [dispatch])
 
     const updateUser = useCallback(

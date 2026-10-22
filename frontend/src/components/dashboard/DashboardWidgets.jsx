@@ -12,7 +12,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { shopApi } from '../../api/api'
 import { formatPrice, resolveUrl } from '../../utils/format'
+import TreeThumb from '../shop/TreeThumb'
 
 // ============================================================
 // Метаданные библиотеки виджетов
@@ -32,9 +34,9 @@ export const WIDGET_LIBRARY = {
         defaultSize: 'wide',
     },
     coopBoard: {
-        title: 'Кооп-доска',
-        icon: '🤝',
-        description: 'Задачи на сегодня в общих досках, где есть другие участники.',
+        title: 'Групповая доска',
+        icon: '👥',
+        description: 'Задачи на сегодня в групповых проектах и общих досках.',
         defaultSize: 'small',
     },
     achievements: {
@@ -42,6 +44,12 @@ export const WIDGET_LIBRARY = {
         icon: '🏆',
         description: 'Прогресс коллекции и последние полученные достижения.',
         defaultSize: 'small',
+    },
+    news: {
+        title: 'Новости',
+        icon: '📰',
+        description: 'Подарок недели, новинки магазина и последние достижения в одном месте.',
+        defaultSize: 'wide',
     },
     stats: {
         title: 'Статистика недели',
@@ -97,6 +105,7 @@ export function greeting(date = new Date()) {
 }
 
 export const DEFAULT_LAYOUT = [
+    { type: 'news', size: 'wide' },
     { type: 'todayPlan', size: 'wide' },
     { type: 'doneToday', size: 'small' },
     { type: 'coopBoard', size: 'small' },
@@ -330,7 +339,7 @@ export function TodayPlanWidget({ data }) {
 }
 
 // ============================================================
-// 3. Кооп-доска
+// 3. Групповая доска
 // ============================================================
 
 export function CoopBoardWidget({ data }) {
@@ -347,6 +356,7 @@ export function CoopBoardWidget({ data }) {
                     boardId: task.boardId,
                     projectId: task.projectId,
                     title: task.projectTitle,
+                    group: Boolean(task.group),
                     tasks: [],
                 })
             }
@@ -358,15 +368,15 @@ export function CoopBoardWidget({ data }) {
     return (
         <div className="dw-coop">
             <div className="dw-coop__head">
-                <span className="dw-coop__icon" aria-hidden="true">🤝</span>
+                <span className="dw-coop__icon" aria-hidden="true">👥</span>
                 <div>
                     <div className="dw-coop__count">{coopTasks.length}</div>
-                    <div className="dw-coop__label">задач в общих досках сегодня</div>
+                    <div className="dw-coop__label">задач в групповых проектах сегодня</div>
                 </div>
             </div>
 
             {byProject.length === 0 ? (
-                <Empty icon="🤝" text="Сегодня в общих досках задач нет."/>
+                <Empty icon="👥" text="Сегодня групповых задач нет."/>
             ) : (
                 <div className="dw-coop__list">
                     {byProject.slice(0, 3).map(group => (
@@ -374,7 +384,9 @@ export function CoopBoardWidget({ data }) {
                             key={group.key}
                             type="button"
                             className="dw-coop__task"
-                            onClick={() => nav(`/boards/${group.boardId}/projects/${group.projectId}`)}
+                            onClick={() => nav(group.group
+                                ? `/group/${group.projectId}`
+                                : `/boards/${group.boardId}/projects/${group.projectId}`)}
                         >
                             <span className="dw-coop__task-title" title={group.title}>
                                 {group.title}
@@ -435,6 +447,171 @@ export function AchievementsWidget({ data }) {
 
             <button type="button" className="dw-link" onClick={() => nav('/stats')}>
                 Все достижения →
+            </button>
+        </div>
+    )
+}
+
+// ============================================================
+// 4b. Новости: подарок недели + свежее из магазина и коллекции
+// ============================================================
+
+const NEWS_NEW_DAYS = 7
+
+export function NewsWidget({ data }) {
+    const nav = useNavigate()
+    const gift = data.weeklyGift
+    const [claiming, setClaiming] = useState(false)
+    const [claimError, setClaimError] = useState(null)
+
+    const newShopItems = useMemo(() => {
+        const shop = data.shop
+        if (!shop) return 0
+        const all = [
+            ...(shop.avatars || []),
+            ...(shop.frames || []),
+            ...(shop.treeSkins || []),
+            ...(shop.accents || []),
+        ]
+        return all.filter(item => isNew(item.createdAt, NEWS_NEW_DAYS)).length
+    }, [data.shop])
+
+    const latestAchievement = useMemo(() => {
+        const unlocked = (data.achievements || []).filter(a => a.unlocked)
+        return [...unlocked]
+            .sort((a, b) => new Date(b.unlockedAt || 0) - new Date(a.unlockedAt || 0))[0] || null
+    }, [data.achievements])
+
+    const giftEnabled = Boolean(gift?.configured && gift.enabled)
+    const required = gift?.requiredTasks ?? 5
+    const done = gift?.doneTasks ?? 0
+    const left = Math.max(0, required - done)
+    const pct = required > 0 ? Math.min(100, Math.round((done / required) * 100)) : 0
+
+    const claimGift = async () => {
+        if (claiming || !gift?.canClaim) return
+        setClaiming(true)
+        setClaimError(null)
+        try {
+            await shopApi.claimWeeklyGift()
+            // Перезагружаем пакет дашборда: подарок, магазин и баланс листьев.
+            await data.reload?.({ silent: true })
+            window.dispatchEvent(new CustomEvent('shop:invalidate'))
+        } catch (err) {
+            setClaimError(err.response?.data?.message || 'Не удалось получить подарок')
+        } finally {
+            setClaiming(false)
+        }
+    }
+
+    const giftArt = (() => {
+        if (!gift) return null
+        const src = resolveUrl(gift.imageUrl)
+        if (src) {
+            return <img className="dw-news__gift-img" src={src} alt="" loading="lazy"/>
+        }
+        if (gift.itemType === 'TREE' && gift.itemCode) {
+            return <TreeThumb kind={gift.itemCode} size={56}/>
+        }
+        return <span className="dw-news__gift-emoji">{gift.emoji || '🎁'}</span>
+    })()
+
+    const hasNews = giftEnabled || newShopItems > 0 || Boolean(latestAchievement)
+
+    return (
+        <div className="dw-news">
+            {giftEnabled && (
+                <div className={`dw-news__gift dw-news__gift--${gift.state}`}>
+                    <div className="dw-news__gift-art">{giftArt}</div>
+
+                    <div className="dw-news__gift-body">
+                        <div className="dw-news__eyebrow">🎁 Подарок недели</div>
+                        <div className="dw-news__gift-title" title={gift.title}>{gift.title}</div>
+                        <div className="dw-news__progress">
+                            <span style={{ width: `${pct}%` }}/>
+                        </div>
+                        <div className="dw-news__progress-text">
+                            {gift.state === 'claimed'
+                                ? 'Подарок уже в коллекции'
+                                : gift.canClaim
+                                    ? 'Условие выполнено — забирай!'
+                                    : `Закрыто ${Math.min(done, required)} из ${required} задач`}
+                        </div>
+                    </div>
+
+                    <div className="dw-news__gift-action">
+                        {gift.state === 'claimed' ? (
+                            <span className="dw-news__claimed">✓ Получено</span>
+                        ) : (
+                            <button
+                                type="button"
+                                className="btn btn-primary dw-news__claim"
+                                onClick={claimGift}
+                                disabled={!gift.canClaim || claiming}
+                            >
+                                {claiming
+                                    ? '…'
+                                    : gift.canClaim
+                                        ? 'Забрать'
+                                        : `Ещё ${left} ${plural(left, ['задача', 'задачи', 'задач'])}`}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {claimError && <div className="dw-news__error">{claimError}</div>}
+
+            <div className="dw-news__list">
+                {newShopItems > 0 && (
+                    <button
+                        type="button"
+                        className="dw-news__item"
+                        onClick={() => nav('/shop')}
+                    >
+                        <span className="dw-news__icon" aria-hidden="true">🛍️</span>
+                        <span className="dw-news__body">
+                            <span className="dw-news__title">
+                                В магазине {newShopItems} {plural(newShopItems, ['новинка', 'новинки', 'новинок'])}
+                            </span>
+                            <span className="dw-news__text">Свежие предметы за последние 7 дней</span>
+                        </span>
+                        <span className="dw-news__arrow" aria-hidden="true">→</span>
+                    </button>
+                )}
+
+                {latestAchievement && (
+                    <button
+                        type="button"
+                        className="dw-news__item"
+                        onClick={() => nav('/stats')}
+                    >
+                        <span className="dw-news__icon" aria-hidden="true">
+                            {latestAchievement.icon || '🏆'}
+                        </span>
+                        <span className="dw-news__body">
+                            <span className="dw-news__title">
+                                Открыто достижение «{latestAchievement.title}»
+                            </span>
+                            <span className="dw-news__text">
+                                {(data.achievements || []).filter(a => a.unlocked).length} из{' '}
+                                {(data.achievements || []).length} в коллекции
+                            </span>
+                        </span>
+                        <span className="dw-news__arrow" aria-hidden="true">→</span>
+                    </button>
+                )}
+
+                {!hasNews && (
+                    <Empty
+                        icon="📰"
+                        text="Пока тихо: новых подарков и достижений нет. Загляни позже."
+                    />
+                )}
+            </div>
+
+            <button type="button" className="dw-link" onClick={() => nav('/shop')}>
+                Все новости магазина →
             </button>
         </div>
     )
@@ -810,6 +987,7 @@ export const WIDGET_COMPONENTS = {
     todayPlan: TodayPlanWidget,
     coopBoard: CoopBoardWidget,
     achievements: AchievementsWidget,
+    news: NewsWidget,
     stats: StatsWidget,
     shopNew: ShopNewWidget,
     week: WeekWidget,

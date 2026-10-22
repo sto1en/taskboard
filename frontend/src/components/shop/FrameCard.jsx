@@ -1,5 +1,6 @@
 import ShopPreview from './ShopPreview'
 import ShopPrice from './ShopPrice'
+import ShopCartButton from './ShopCartButton'
 import useT from '../../hooks/useT'
 
 const NEW_DAYS = 7
@@ -14,7 +15,7 @@ function hasDiscount(price, oldPrice) {
     return oldPrice != null && oldPrice > price
 }
 
-export default function FrameCard({ item, onBuy, onEquip, onUnequip, userAvatar, userDisplayName, userUsername }) {
+export default function FrameCard({ item, onBuy, onEquip, onUnequip, userAvatar, userDisplayName, userUsername, onAddToCart, inCart }) {
     const t = useT()
     const owned = item.owned
     const active = item.active
@@ -82,6 +83,9 @@ export default function FrameCard({ item, onBuy, onEquip, onUnequip, userAvatar,
                             <button className="btn btn-primary shop-card__btn" onClick={onBuy}>
                                 {t.shopBuy}
                             </button>
+                            {onAddToCart && (
+                                <ShopCartButton inCart={inCart} onClick={onAddToCart}/>
+                            )}
                         </>
                     )}
                     {owned && !active && (

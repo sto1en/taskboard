@@ -490,8 +490,8 @@ export default observer(function CalendarPage() {
             <div className="calendar__coop-tabs">
                 {[
                     ['all', 'Все'],
-                    ['coop', 'Кооп'],
-                    ['own', 'Собственные'],
+                    ['coop', 'Групповые'],
+                    ['own', 'Личные'],
                 ].map(([code, label]) => (
                     <button
                         key={code}

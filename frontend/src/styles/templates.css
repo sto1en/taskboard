@@ -1,0 +1,2484 @@
+/* ============================================================
+   Шаблоны задач, гайды и витрина
+   ============================================================ */
+
+/* ---------- Общие мелочи, которых нет в базовых стилях ---------- */
+
+.btn-sm {
+    padding: 5px 12px;
+    font-size: 13px;
+    line-height: 1.3;
+    border-radius: 6px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.field__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+.field__hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+.field--inline {
+    flex: 1 1 110px;
+}
+
+.check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+}
+.check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+/* Цветовые акценты карточек */
+.template-card--blue,   .guide-card--blue,   .showcase-card--blue,   .guide-detail__hero--blue   { --card-accent: var(--accent-blue, #4c9aff); }
+.template-card--indigo, .guide-card--indigo, .showcase-card--indigo, .guide-detail__hero--indigo { --card-accent: var(--accent-indigo, #5e6cff); }
+.template-card--violet, .guide-card--violet, .showcase-card--violet, .guide-detail__hero--violet { --card-accent: var(--accent-violet, #8f6ed5); }
+.template-card--purple, .guide-card--purple, .showcase-card--purple, .guide-detail__hero--purple { --card-accent: var(--accent-purple, #a45cd6); }
+.template-card--pink,   .guide-card--pink,   .showcase-card--pink,   .guide-detail__hero--pink   { --card-accent: var(--accent-pink, #ff78c4); }
+.template-card--red,    .guide-card--red,    .showcase-card--red,    .guide-detail__hero--red    { --card-accent: var(--accent-red, #ff5630); }
+.template-card--coral,  .guide-card--coral,  .showcase-card--coral,  .guide-detail__hero--coral  { --card-accent: var(--accent-coral, #ff8f73); }
+.template-card--orange, .guide-card--orange, .showcase-card--orange, .guide-detail__hero--orange { --card-accent: var(--accent-orange, #ffab00); }
+.template-card--green,  .guide-card--green,  .showcase-card--green,  .guide-detail__hero--green  { --card-accent: var(--accent-green, #36b37e); }
+.template-card--teal,   .guide-card--teal,   .showcase-card--teal,   .guide-detail__hero--teal   { --card-accent: var(--accent-teal, #00b8d9); }
+.template-card--cyan,   .guide-card--cyan,   .showcase-card--cyan,   .guide-detail__hero--cyan   { --card-accent: var(--accent-cyan, #00b8d9); }
+.template-card--gray,   .guide-card--gray,   .showcase-card--gray,   .guide-detail__hero--gray   { --card-accent: var(--accent-gray, #97a0af); }
+
+.wall-guide-card--blue   { --card-accent: var(--accent-blue, #4c9aff); }
+.wall-guide-card--indigo { --card-accent: var(--accent-indigo, #5e6cff); }
+.wall-guide-card--violet { --card-accent: var(--accent-violet, #8f6ed5); }
+.wall-guide-card--purple { --card-accent: var(--accent-purple, #a45cd6); }
+.wall-guide-card--pink   { --card-accent: var(--accent-pink, #ff78c4); }
+.wall-guide-card--red    { --card-accent: var(--accent-red, #ff5630); }
+.wall-guide-card--coral  { --card-accent: var(--accent-coral, #ff8f73); }
+.wall-guide-card--orange { --card-accent: var(--accent-orange, #ffab00); }
+.wall-guide-card--green  { --card-accent: var(--accent-green, #36b37e); }
+.wall-guide-card--teal   { --card-accent: var(--accent-teal, #00b8d9); }
+.wall-guide-card--cyan   { --card-accent: var(--accent-cyan, #00b8d9); }
+.wall-guide-card--gray   { --card-accent: var(--accent-gray, #97a0af); }
+
+/* ============================================================
+   Страница шаблонов
+   ============================================================ */
+
+.templates-page,
+.guides-page,
+.guide-detail {
+    padding: 24px 28px 64px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.templates-hero,
+.guides-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 26px 30px;
+    border-radius: 16px;
+    background:
+        radial-gradient(900px 220px at 0% 0%, color-mix(in srgb, var(--accent, var(--primary)) 16%, transparent), transparent 70%),
+        var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 22px;
+}
+
+.templates-hero__kicker,
+.guides-hero__kicker {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 6px;
+}
+
+.templates-hero__title,
+.guides-hero__title {
+    margin: 0 0 8px;
+    font-size: 26px;
+    line-height: 1.2;
+    color: var(--text);
+}
+
+.templates-hero__subtitle,
+.guides-hero__subtitle {
+    margin: 0;
+    max-width: 760px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+.templates-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+.templates-search {
+    max-width: 420px;
+}
+.templates-count {
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.templates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    align-items: stretch;
+}
+
+.template-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 18px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+.template-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--card-accent, var(--primary));
+}
+.template-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in srgb, var(--card-accent, var(--primary)) 40%, var(--border));
+}
+
+.template-card__head {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+.template-card__icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border-radius: 11px;
+    font-size: 22px;
+    background: color-mix(in srgb, var(--card-accent, var(--primary)) 14%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--card-accent, var(--primary)) 24%, transparent);
+}
+.template-card__heading {
+    min-width: 0;
+}
+.template-card__title {
+    margin: 0 0 3px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+.template-card__meta {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.template-card__desc {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.template-card__tasks {
+    margin: 0;
+    padding: 10px 12px 10px 28px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card-accent, var(--primary)) 6%, var(--bg));
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.template-card__tasks li::marker {
+    color: var(--card-accent, var(--primary));
+    font-weight: 700;
+}
+.template-card__task-title {
+    overflow-wrap: anywhere;
+}
+.template-card__deadline {
+    margin-left: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.template-card__more {
+    list-style: none;
+    margin-left: -16px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+.template-card__actions {
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 4px;
+}
+.template-card__delete {
+    margin-left: auto;
+    color: var(--danger, #d64545) !important;
+}
+
+.templates-empty,
+.guides-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    padding: 56px 24px;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    color: var(--text-muted);
+}
+.templates-empty__icon,
+.guides-empty__icon {
+    font-size: 40px;
+}
+.templates-empty h3,
+.guides-empty h3 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--text);
+}
+.templates-empty p,
+.guides-empty p {
+    margin: 0 0 8px;
+    max-width: 520px;
+    line-height: 1.6;
+}
+
+/* ============================================================
+   Редактор шаблона / гайда
+   ============================================================ */
+
+.modal.template-editor-modal {
+    max-width: 960px;
+}
+.template-editor-modal__body {
+    padding-top: 16px;
+}
+.tmpl-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.tmpl-editor__head {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+.tmpl-editor__icon-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 72px;
+}
+.tmpl-editor__icon-input {
+    text-align: center;
+    font-size: 20px;
+    padding: 5px 8px;
+}
+.tmpl-editor__title-field {
+    flex: 1 1 260px;
+}
+.tmpl-editor__accent-field {
+    width: 130px;
+}
+.tmpl-editor__items-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 6px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+.tmpl-editor__items-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+}
+.tmpl-editor__hint {
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.45;
+}
+.tmpl-editor__items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.tmpl-editor__error,
+.apply-plan__error,
+.guides-error {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--danger, #d64545) 10%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--danger, #d64545) 35%, transparent);
+    color: var(--danger, #d64545);
+    font-size: 13px;
+}
+
+.tmpl-item {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 34px;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg) 55%, var(--surface));
+}
+.tmpl-item__side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-top: 2px;
+}
+.tmpl-item__num {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+}
+.tmpl-item__move {
+    width: 26px;
+    height: 22px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+}
+.tmpl-item__move:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--primary);
+}
+.tmpl-item__move:disabled {
+    opacity: .35;
+    cursor: default;
+}
+.tmpl-item__body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+.tmpl-item__title {
+    font-weight: 600;
+}
+.tmpl-item__row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.tmpl-item__suffix {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.tmpl-item__suffix .input {
+    width: 74px;
+}
+.tmpl-item__suffix span {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.tmpl-item__remove {
+    align-self: flex-start;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+.tmpl-item__remove:hover {
+    color: var(--danger, #d64545);
+    border-color: var(--danger, #d64545);
+}
+
+/* ============================================================
+   Шаблон — отдельная страница-планировщик
+   ============================================================ */
+
+.tplan-page {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 28px;
+    box-sizing: border-box;
+}
+
+/* ---------- Шапка ---------- */
+
+.tplan-head {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex-shrink: 0;
+}
+.tplan-head__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.tplan-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color .15s;
+}
+.tplan-back:hover {
+    color: var(--primary);
+}
+.tplan-head__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.tplan-head__main {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    min-width: 0;
+}
+.tplan-icon {
+    width: 58px;
+    height: 58px;
+    flex-shrink: 0;
+    padding: 4px;
+    text-align: center;
+    font-size: 26px;
+    line-height: 1;
+    background: var(--surface);
+    border-radius: 14px;
+}
+.tplan-head__identity {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.tplan-title {
+    width: 100%;
+    padding: 2px 0;
+    border: none;
+    border-bottom: 1px solid transparent;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -.6px;
+    line-height: 1.2;
+    outline: none;
+    transition: border-color .15s;
+}
+.tplan-title:hover,
+.tplan-title:focus {
+    border-bottom-color: var(--border);
+}
+.tplan-title::placeholder {
+    color: color-mix(in srgb, var(--text-muted) 65%, transparent);
+    font-weight: 700;
+}
+.tplan-subtitle {
+    width: 100%;
+    padding: 2px 0;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.45;
+    outline: none;
+}
+.tplan-subtitle::placeholder {
+    color: color-mix(in srgb, var(--text-muted) 75%, transparent);
+}
+.tplan-head__side {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex-shrink: 0;
+    padding-top: 5px;
+}
+.tplan-label {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.tplan-accents {
+    display: grid;
+    grid-template-columns: repeat(6, 16px);
+    gap: 5px;
+}
+.tplan-accent {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    background: var(--swatch, #97a0af);
+    cursor: pointer;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--swatch, #97a0af) 45%, transparent);
+    transition: transform .12s, box-shadow .12s;
+}
+.tplan-accent:hover {
+    transform: scale(1.15);
+}
+.tplan-accent.is-active {
+    border-color: var(--surface);
+    box-shadow: 0 0 0 2px var(--text);
+}
+.tplan-head__stats {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+}
+.tplan-head__stats b {
+    color: var(--text);
+    font-size: 13px;
+}
+.tplan-head__tip {
+    margin-left: auto;
+    font-size: 11px;
+    font-style: italic;
+}
+.tplan-error {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--danger, #d64545) 10%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--danger, #d64545) 35%, transparent);
+    color: var(--danger, #d64545);
+    font-size: 13px;
+}
+
+/* ---------- Рабочая область ---------- */
+
+.tplan-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 370px;
+    gap: 18px;
+    align-items: start;
+    min-width: 0;
+}
+.tplan-cal {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+}
+.tplan-cal__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+.tplan-cal__views {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg) 55%, var(--surface));
+}
+.tplan-cal__views button {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, color .15s, box-shadow .15s;
+}
+.tplan-cal__views button:hover {
+    color: var(--text);
+}
+.tplan-cal__views button.active {
+    background: var(--surface);
+    color: var(--primary);
+    font-weight: 700;
+    box-shadow: var(--shadow-sm);
+}
+.tplan-cal__body {
+    min-width: 0;
+}
+
+/* ---------- Чип задачи ---------- */
+
+.tplan-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 5px 7px;
+    border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+    border-left: 3px solid var(--primary);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--primary) 6%, var(--surface));
+    color: var(--text);
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    cursor: grab;
+    transition: background .12s, border-color .12s, opacity .12s, box-shadow .12s;
+}
+.tplan-chip:hover {
+    background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+}
+.tplan-chip:active {
+    cursor: grabbing;
+}
+.tplan-chip--selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+.tplan-chip--dragging {
+    opacity: .45;
+}
+.tplan-chip--compact {
+    padding: 3px 5px;
+    border-left-width: 2px;
+    border-radius: 5px;
+    font-size: 10.5px;
+}
+.tplan-chip__dot {
+    width: 5px;
+    height: 5px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--primary);
+}
+.tplan-chip__title {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.tplan-chip__stars {
+    margin-left: auto;
+    flex-shrink: 0;
+    color: var(--accent-amber, #ffab00);
+    font-size: 8.5px;
+    letter-spacing: .4px;
+}
+
+/* ---------- Неделя ---------- */
+
+.tplan-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+}
+.tplan-daycol {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 470px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    overflow: hidden;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.tplan-daycol--weekend {
+    background: color-mix(in srgb, #97a0af 6%, var(--surface));
+}
+.tplan-daycol--drop {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 9%, var(--surface));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.tplan-daycol__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 9px 10px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--primary) 3%, var(--surface));
+    color: inherit;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s;
+}
+.tplan-daycol__head:hover {
+    background: color-mix(in srgb, var(--primary) 9%, var(--surface));
+}
+.tplan-daycol--weekend .tplan-daycol__head {
+    background: color-mix(in srgb, #97a0af 8%, var(--surface));
+}
+.tplan-daycol__name {
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--primary);
+}
+.tplan-daycol--weekend .tplan-daycol__name {
+    color: var(--danger);
+}
+.tplan-daycol__count {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.tplan-daycol__body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+    padding: 7px;
+    min-height: 0;
+}
+.tplan-daycol__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 120px;
+    border: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+    border-radius: 8px;
+    color: color-mix(in srgb, var(--text-muted) 75%, transparent);
+    font-size: 10.5px;
+    text-align: center;
+    padding: 8px;
+    user-select: none;
+}
+.tplan-daycol__add,
+.tplan-month__add {
+    margin-top: auto;
+    padding: 4px 6px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .12s, color .12s, background .12s;
+}
+.tplan-daycol:hover .tplan-daycol__add,
+.tplan-month__cell:hover .tplan-month__add {
+    opacity: 1;
+}
+.tplan-daycol__add:hover,
+.tplan-month__add:hover {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 9%, transparent);
+}
+
+/* ---------- Месяц ---------- */
+
+.tplan-month {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface);
+}
+.tplan-month__head {
+    display: grid;
+    grid-template-columns: 82px repeat(7, minmax(0, 1fr));
+    background: color-mix(in srgb, var(--primary) 4%, var(--surface));
+    border-bottom: 1px solid var(--border);
+}
+.tplan-month__head span {
+    padding: 8px 6px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.tplan-month__head .tplan-month__corner {
+    text-align: left;
+    padding-left: 10px;
+}
+.tplan-month__head .tplan-month__weekend {
+    color: var(--danger);
+}
+.tplan-month__row {
+    display: grid;
+    grid-template-columns: 82px repeat(7, minmax(0, 1fr));
+    border-bottom: 1px solid var(--border);
+}
+.tplan-month__row:last-child {
+    border-bottom: none;
+}
+.tplan-month__week {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 1px;
+    width: 100%;
+    padding: 9px 10px;
+    border: none;
+    border-right: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 40%, var(--surface));
+    color: inherit;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s;
+}
+.tplan-month__week:hover {
+    background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+}
+.tplan-month__week span {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--text);
+}
+.tplan-month__week small {
+    font-size: 9.5px;
+    color: var(--text-muted);
+}
+.tplan-month__cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    min-height: 112px;
+    padding: 6px;
+    border-right: 1px solid var(--border);
+    transition: background .15s, box-shadow .15s;
+}
+.tplan-month__cell:last-child {
+    border-right: none;
+}
+.tplan-month__cell--weekend {
+    background: color-mix(in srgb, #97a0af 5%, var(--surface));
+}
+.tplan-month__cell--drop {
+    background: color-mix(in srgb, var(--primary) 13%, var(--surface));
+    box-shadow: inset 0 0 0 2px var(--primary);
+}
+.tplan-month__add {
+    align-self: flex-start;
+}
+
+/* ---------- Год ---------- */
+
+.tplan-year {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+}
+.tplan-year__month {
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    overflow: hidden;
+    background: var(--surface);
+    min-width: 0;
+}
+.tplan-year__title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--primary) 4%, var(--surface));
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background .15s;
+}
+.tplan-year__title:hover {
+    background: color-mix(in srgb, var(--primary) 9%, var(--surface));
+}
+.tplan-year__open {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.tplan-year__weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--border);
+}
+.tplan-year__weekdays span {
+    padding: 3px 0;
+    text-align: center;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    color: var(--text-muted);
+}
+.tplan-year__weekdays span.tplan-year__weekend {
+    color: var(--danger);
+}
+.tplan-year__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+.tplan-year__cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 38px;
+    padding: 3px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background .12s, box-shadow .12s;
+}
+.tplan-year__cell:nth-child(7n) {
+    border-right: none;
+}
+.tplan-year__cell--weekend {
+    background: color-mix(in srgb, #97a0af 5%, var(--surface));
+}
+.tplan-year__cell:hover {
+    background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+}
+.tplan-year__cell--drop {
+    background: color-mix(in srgb, var(--primary) 18%, var(--surface));
+    box-shadow: inset 0 0 0 2px var(--primary);
+}
+.tplan-year__dots {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+}
+.tplan-year__dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--primary);
+}
+.tplan-year__dot--selected {
+    outline: 1px solid var(--text);
+    outline-offset: 1px;
+}
+.tplan-year__more {
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text-muted);
+}
+
+/* ---------- День ---------- */
+
+.tplan-dayview {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.tplan-dayview__tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.tplan-dayview__tab {
+    min-width: 48px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    cursor: pointer;
+    transition: border-color .15s, color .15s, background .15s;
+}
+.tplan-dayview__tab:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+.tplan-dayview__tab.is-active {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+    color: var(--primary);
+}
+.tplan-dayview__tab.is-weekend:not(.is-active) {
+    color: var(--danger);
+}
+.tplan-dayview__lane {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 490px;
+    padding: 16px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg) 25%, var(--surface));
+    transition: border-color .15s, background .15s;
+}
+.tplan-dayview__lane--drop {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+}
+.tplan-dayview__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+.tplan-dayview__name {
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -.2px;
+    color: var(--text);
+}
+.tplan-dayview__tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+.tplan-dayview__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 220px;
+    border: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+    user-select: none;
+}
+.tplan-day-task {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 11px 13px;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
+    border-radius: 9px;
+    background: var(--surface);
+    cursor: grab;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.tplan-day-task:hover {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 5%, var(--surface));
+}
+.tplan-day-task--selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.tplan-day-task__title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text);
+}
+.tplan-day-task__desc {
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--text-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.tplan-day-task__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 10.5px;
+    color: var(--text-muted);
+}
+
+/* ---------- Панель задач ---------- */
+
+.tplan-side {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    max-height: calc(100vh - 120px);
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    box-sizing: border-box;
+}
+.tplan-side__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-shrink: 0;
+}
+.tplan-side__heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.tplan-side__heading h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+}
+.tplan-side__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+    color: var(--primary);
+    font-size: 10.5px;
+    font-weight: 800;
+}
+.tplan-side__hint {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+.tplan-side__list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+    min-height: 120px;
+    overflow-y: auto;
+    padding-right: 2px;
+    scrollbar-width: thin;
+}
+.tplan-side__group {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 22px;
+    padding: 5px 2px 3px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.tplan-side__group--l1 {
+    padding-left: 10px;
+    font-size: 8.5px;
+}
+.tplan-side__group--l2 {
+    padding-left: 20px;
+    font-size: 8.5px;
+}
+.tplan-side__group-label {
+    color: color-mix(in srgb, var(--text-muted) 85%, var(--text));
+}
+.tplan-side__group-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 15px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+    font-size: 8.5px;
+    letter-spacing: 0;
+}
+.tplan-side__group--l0:not(:first-child) {
+    margin-top: 4px;
+    border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+.tplan-side__empty {
+    padding: 26px 14px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-muted);
+}
+.tplan-task {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    transition: border-color .15s, box-shadow .15s;
+}
+.tplan-task.is-open {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+.tplan-task.is-unassigned {
+    border-left: 3px solid color-mix(in srgb, var(--accent-orange, #ffab00) 70%, var(--border));
+}
+.tplan-task__row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 9px;
+    cursor: pointer;
+    border-radius: 8px;
+    outline: none;
+}
+.tplan-task__row:focus-visible {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+.tplan-task__grip {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1;
+    letter-spacing: -1px;
+    cursor: grab;
+}
+.tplan-task__title {
+    flex: 1;
+    min-width: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.tplan-task__chevron {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1;
+    transition: transform .15s;
+}
+.tplan-task__chevron.is-open {
+    transform: rotate(90deg);
+    color: var(--primary);
+}
+.tplan-task__editor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+}
+.tplan-task__editor .modal__field {
+    gap: 6px;
+}
+.tplan-task__editor .modal__label {
+    font-size: 12px;
+}
+.tplan-task__editor .modal__row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 10px;
+}
+.tplan-task__editor .input {
+    padding: 6px 8px;
+    font-size: 12px;
+}
+.tplan-task__editor .priority-picker {
+    min-height: 34px;
+}
+.tplan-task__editor .priority-picker__btn {
+    font-size: 19px;
+}
+.tplan-task__editor .priority-picker__hint {
+    margin-left: 4px;
+    font-size: 10px;
+}
+.tplan-task__editor .task-detail__label {
+    font-size: 11px;
+}
+.tplan-task__editor .create-task__subtask-add {
+    padding: 0 12px;
+    font-size: 12px;
+}
+.tplan-task__editor .create-task__hint-inline {
+    margin-top: -4px;
+}
+.tplan-task__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+.tplan-task__footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.tplan-task__delete {
+    padding: 5px 7px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+.tplan-task__delete:hover {
+    color: var(--danger, #d64545);
+}
+.tplan-side__drop {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+    padding: 10px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg) 40%, var(--surface));
+    text-align: center;
+    transition: border-color .15s, background .15s;
+}
+.tplan-side__drop b {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--text);
+}
+.tplan-side__drop span {
+    font-size: 9.5px;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+.tplan-side__drop:hover {
+    border-color: var(--primary);
+}
+
+/* ============================================================
+   Окно применения плана
+   ============================================================ */
+
+.modal.apply-plan-modal {
+    max-width: 660px;
+}
+.apply-plan {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.apply-plan__summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--primary) 7%, var(--bg));
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.apply-plan__summary b {
+    color: var(--text);
+}
+.apply-plan__form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.apply-plan__toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.apply-plan__preview {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+.apply-plan__preview-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+.apply-plan__preview ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.apply-plan__preview li {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 13px;
+    min-width: 0;
+}
+.apply-plan__preview-date {
+    flex-shrink: 0;
+    width: 58px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+}
+.apply-plan__preview-name {
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.apply-plan__preview-sub {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.apply-plan__preview-more {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.apply-plan__success {
+    text-align: center;
+    padding: 22px 12px 10px;
+}
+.apply-plan__success-icon {
+    font-size: 46px;
+    margin-bottom: 8px;
+}
+.apply-plan__success h4 {
+    margin: 0 0 6px;
+    font-size: 19px;
+    color: var(--text);
+}
+.apply-plan__success p {
+    margin: 0 0 4px;
+    color: var(--text-muted);
+}
+.apply-plan__success-project {
+    font-size: 13px;
+}
+
+/* ============================================================
+   Страница гайдов
+   ============================================================ */
+
+.guides-section__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+.guides-section__title {
+    margin: 0 0 4px;
+    font-size: 19px;
+    color: var(--text);
+}
+.guides-section__subtitle {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+    max-width: 720px;
+    line-height: 1.5;
+}
+
+.guides-showcase {
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background:
+        radial-gradient(700px 180px at 100% 0%, color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent), transparent 70%),
+        var(--surface);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 28px;
+}
+.guides-showcase__actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.guides-showcase__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+}
+.guides-showcase__empty {
+    padding: 26px;
+    text-align: center;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.showcase-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--card-accent, var(--primary)) 26%, var(--border));
+    background:
+        linear-gradient(160deg,
+            color-mix(in srgb, var(--card-accent, var(--primary)) 18%, var(--surface)),
+            var(--surface) 68%);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+.showcase-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.showcase-card__emoji {
+    font-size: 26px;
+    line-height: 1;
+}
+.showcase-card__period {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--card-accent, var(--primary));
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--card-accent, var(--primary)) 14%, transparent);
+}
+.showcase-card__title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    text-decoration: none;
+    line-height: 1.3;
+}
+.showcase-card__title:hover {
+    color: var(--card-accent, var(--primary));
+}
+.showcase-card__subtitle {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.showcase-card__meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: auto;
+}
+.showcase-card__controls {
+    display: flex;
+    gap: 4px;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    opacity: 0;
+    transition: opacity .15s;
+}
+.showcase-card:hover .showcase-card__controls,
+.showcase-card:focus-within .showcase-card__controls {
+    opacity: 1;
+}
+.showcase-card__controls button {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+}
+.showcase-card__controls button:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--card-accent, var(--primary));
+}
+.showcase-card__controls button:disabled {
+    opacity: .3;
+    cursor: default;
+}
+
+.guides-filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.guides-filter {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.guides-filter:hover {
+    color: var(--text);
+}
+.guides-filter--active {
+    background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.guides-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 16px;
+    align-items: stretch;
+}
+
+.guide-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+.guide-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in srgb, var(--card-accent, var(--primary)) 40%, var(--border));
+}
+.guide-card__cover {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 16px 16px 30px;
+    background:
+        radial-gradient(260px 130px at 0% 0%, color-mix(in srgb, var(--card-accent, var(--primary)) 42%, transparent), transparent 72%),
+        linear-gradient(135deg,
+            color-mix(in srgb, var(--card-accent, var(--primary)) 22%, var(--surface)),
+            var(--surface));
+    border-bottom: 1px solid var(--border);
+}
+.guide-card__emoji {
+    font-size: 38px;
+    line-height: 1;
+    filter: drop-shadow(0 4px 10px rgba(9, 30, 66, .18));
+}
+.guide-card__badges {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.guide-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--card-accent, var(--primary)) 16%, var(--surface));
+    color: color-mix(in srgb, var(--card-accent, var(--primary)) 80%, var(--text));
+    border: 1px solid color-mix(in srgb, var(--card-accent, var(--primary)) 26%, transparent);
+}
+.guide-badge--system {
+    background: color-mix(in srgb, var(--text-muted) 12%, var(--surface));
+    color: var(--text-muted);
+    border-color: var(--border);
+}
+.guide-badge--mine {
+    background: color-mix(in srgb, var(--accent-green, #36b37e) 14%, var(--surface));
+    color: var(--accent-green, #36b37e);
+    border-color: color-mix(in srgb, var(--accent-green, #36b37e) 30%, transparent);
+}
+.guide-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px 10px;
+}
+.guide-card__title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    text-decoration: none;
+    line-height: 1.3;
+}
+.guide-card__title:hover {
+    color: var(--card-accent, var(--primary));
+}
+.guide-card__subtitle {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.guide-card__meta {
+    display: flex;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.guide-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    padding: 10px 16px 16px;
+    margin-top: auto;
+}
+.guide-card__delete {
+    color: var(--danger, #d64545) !important;
+}
+
+.guide-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.guide-picker__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    text-align: left;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+.guide-picker__item:hover:not(:disabled) {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 5%, var(--surface));
+}
+.guide-picker__item:disabled {
+    opacity: .45;
+    cursor: default;
+}
+.guide-picker__emoji {
+    font-size: 24px;
+}
+.guide-picker__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+.guide-picker__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+.guide-picker__meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.guide-picker__plus {
+    font-size: 20px;
+    color: var(--primary);
+}
+.guide-picker__empty,
+.guide-picker__hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 6px;
+}
+
+/* ============================================================
+   Детальная страница гайда и календарь
+   ============================================================ */
+
+.guide-detail__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.guide-detail__badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.guide-detail__hero {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 24px 26px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background:
+        radial-gradient(520px 180px at 0% 0%, color-mix(in srgb, var(--card-accent, var(--primary)) 30%, transparent), transparent 70%),
+        linear-gradient(135deg,
+            color-mix(in srgb, var(--card-accent, var(--primary)) 14%, var(--surface)),
+            var(--surface) 70%);
+    box-shadow: var(--shadow-sm);
+}
+.guide-detail__emoji {
+    font-size: 54px;
+    line-height: 1;
+    filter: drop-shadow(0 6px 14px rgba(9, 30, 66, .2));
+}
+.guide-detail__hero-text {
+    flex: 1;
+    min-width: 0;
+}
+.guide-detail__title {
+    margin: 0 0 4px;
+    font-size: 28px;
+    line-height: 1.15;
+    color: var(--text);
+}
+.guide-detail__subtitle {
+    margin: 0 0 8px;
+    font-size: 15px;
+    color: var(--text);
+    opacity: .85;
+}
+.guide-detail__desc {
+    margin: 0;
+    max-width: 820px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+.guide-detail__hero .btn {
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.guide-detail__stats {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+}
+.guide-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 110px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+}
+.guide-stat__value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+}
+.guide-stat__label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+}
+
+.guide-detail__toolbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+.guide-detail__date {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.guide-detail__date .input {
+    width: 180px;
+}
+.guide-view-switch {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    gap: 2px;
+}
+.guide-view-switch button {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+.guide-view-switch button:hover {
+    color: var(--text);
+}
+.guide-view-switch button.active {
+    background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.guide-calendar--week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(150px, 1fr));
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+}
+.guide-day {
+    display: flex;
+    flex-direction: column;
+    min-height: 240px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    overflow: hidden;
+}
+.guide-day__head {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    padding: 9px 11px;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--primary) 5%, var(--surface));
+}
+.guide-day__weekday {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--primary);
+}
+.guide-day__date {
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 600;
+}
+.guide-day__offset {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.guide-day__body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    flex: 1;
+}
+.guide-day__empty {
+    margin: auto;
+    font-size: 11px;
+    color: var(--text-muted);
+    opacity: .6;
+}
+.guide-task {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    padding: 8px 9px;
+    text-align: left;
+    border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+    border-left: 3px solid var(--primary);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--primary) 6%, var(--surface));
+    cursor: pointer;
+    transition: background .15s, transform .12s;
+}
+.guide-task:hover {
+    background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+    transform: translateY(-1px);
+}
+.guide-task__title {
+    font-size: 12.5px;
+    line-height: 1.4;
+    color: var(--text);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.guide-task__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 10.5px;
+    color: var(--text-muted);
+}
+.guide-stars {
+    color: var(--accent-amber, #ffab00);
+    letter-spacing: 1px;
+    font-size: 11px;
+}
+
+.guide-calendar--month {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface);
+}
+.guide-month__weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: color-mix(in srgb, var(--primary) 5%, var(--surface));
+    border-bottom: 1px solid var(--border);
+}
+.guide-month__weekdays div {
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.guide-month__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+.guide-month__cell {
+    min-height: 116px;
+    padding: 7px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+.guide-month__cell:nth-child(7n) {
+    border-right: none;
+}
+.guide-month__cell--outside {
+    background: color-mix(in srgb, var(--bg) 55%, var(--surface));
+    opacity: .62;
+}
+.guide-month__date {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.guide-month__start {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--primary);
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.guide-month__tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.guide-task--compact {
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    line-height: 1.35;
+    font-weight: 600;
+    border-left-width: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+.guide-month__more {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding-left: 3px;
+}
+
+.guide-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.guide-list__row {
+    display: grid;
+    grid-template-columns: 80px minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+.guide-list__row:hover {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 4%, var(--surface));
+}
+.guide-list__day {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+.guide-list__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.guide-list__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+.guide-list__desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.guide-list__meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.guide-task-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.guide-task-detail__meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.guide-task-detail__desc {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text);
+    white-space: pre-wrap;
+}
+.guide-task-detail__desc--empty {
+    color: var(--text-muted);
+    font-style: italic;
+}
+.guide-task-detail__subtitle {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 7px;
+}
+.guide-task-detail__subtasks ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.guide-task-detail__subtasks li {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bg) 50%, var(--surface));
+}
+
+/* ============================================================
+   Витрина гайдов на стене профиля
+   ============================================================ */
+
+.wall-guide-showcase__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 10px;
+}
+.wall-guide-card {
+    display: flex;
+    gap: 11px;
+    padding: 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    border: 1px solid color-mix(in srgb, var(--card-accent, var(--primary)) 24%, var(--border));
+    background:
+        linear-gradient(155deg,
+            color-mix(in srgb, var(--card-accent, var(--primary)) 15%, var(--surface)),
+            var(--surface) 72%);
+    transition: transform .15s, border-color .15s;
+}
+.wall-guide-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--card-accent, var(--primary)) 50%, var(--border));
+}
+.wall-guide-card__emoji {
+    font-size: 26px;
+    line-height: 1;
+}
+.wall-guide-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+.wall-guide-card__title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.3;
+}
+.wall-guide-card__subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.wall-guide-card__meta {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--card-accent, var(--primary)) 75%, var(--text-muted));
+    margin-top: 2px;
+}
+
+/* ============================================================
+   Адаптив
+   ============================================================ */
+
+@media (max-width: 1250px) {
+    .tplan-workspace {
+        grid-template-columns: minmax(0, 1fr) 340px;
+    }
+}
+
+@media (max-width: 1080px) {
+    .tplan-workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .tplan-side {
+        position: static;
+        max-height: none;
+    }
+    .tplan-side__list {
+        max-height: 440px;
+    }
+}
+
+@media (max-width: 820px) {
+    .tplan-cal__body {
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+    .tplan-week {
+        min-width: 760px;
+    }
+    .tplan-month {
+        min-width: 700px;
+    }
+    .tplan-year {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+    .tplan-head__main {
+        flex-wrap: wrap;
+    }
+    .tplan-head__side {
+        order: 3;
+        width: 100%;
+        padding-top: 0;
+    }
+    .tplan-title {
+        font-size: 23px;
+    }
+    .tplan-head__tip {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
+@media (max-width: 900px) {
+    .templates-page,
+    .guides-page,
+    .guide-detail {
+        padding: 18px 16px 48px;
+    }
+    .templates-hero,
+    .guides-hero {
+        flex-direction: column;
+        padding: 20px;
+    }
+    .guide-detail__hero {
+        flex-wrap: wrap;
+        padding: 20px;
+    }
+    .guide-detail__title {
+        font-size: 23px;
+    }
+    .guide-detail__hero .btn {
+        width: 100%;
+    }
+    .guide-calendar--week {
+        grid-template-columns: repeat(7, minmax(125px, 1fr));
+    }
+    .guide-month__cell {
+        min-height: 96px;
+    }
+    .guide-list__row {
+        grid-template-columns: 64px minmax(0, 1fr);
+    }
+    .guide-list__meta {
+        grid-column: 2;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+    .tmpl-item {
+        grid-template-columns: 34px minmax(0, 1fr) 30px;
+        padding: 10px;
+    }
+    .tmpl-editor__accent-field {
+        width: calc(50% - 6px);
+    }
+}
+
+@media (max-width: 640px) {
+    .guide-month__grid,
+    .guide-month__weekdays {
+        min-width: 640px;
+    }
+    .guide-calendar--month {
+        overflow-x: auto;
+    }
+    .templates-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .templates-search {
+        max-width: none;
+    }
+}

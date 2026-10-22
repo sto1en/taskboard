@@ -1,5 +1,6 @@
 import ShopPreview from './ShopPreview'
 import ShopPrice from './ShopPrice'
+import ShopCartButton from './ShopCartButton'
 import useT from '../../hooks/useT'
 
 const NEW_DAYS = 7
@@ -14,7 +15,7 @@ function hasDiscount(price, oldPrice) {
     return oldPrice != null && oldPrice > price
 }
 
-export default function AvatarCard({ item, onBuy, onEquip, userFrame }) {
+export default function AvatarCard({ item, onBuy, onEquip, userFrame, onAddToCart, inCart }) {
     const t = useT()
     const owned = item.owned
     const active = item.active
@@ -78,6 +79,9 @@ export default function AvatarCard({ item, onBuy, onEquip, userFrame }) {
                             <button className="btn btn-primary shop-card__btn" onClick={onBuy}>
                                 {t.shopBuy}
                             </button>
+                            {onAddToCart && (
+                                <ShopCartButton inCart={inCart} onClick={onAddToCart}/>
+                            )}
                         </>
                     )}
                     {owned && !active && (

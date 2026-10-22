@@ -1,38 +1,32 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { observer } from 'mobx-react-lite'
-import { projectFiltersApi } from '../../api/api'
 import useT from '../../hooks/useT'
 import { useUiStore } from '../../store/useUiStore'
+import { IconClose, IconFilter, IconPin } from '../common/ToolbarIcons'
 
 const PANEL_ID = 'filters-bar'
 
+/**
+ * Фильтр по статусам + закрепление.
+ *
+ * Кнопка в тулбаре теперь одна: воронка с количеством выбранных статусов.
+ * «Сбросить» и «Закрепить фильтр» живут внутри панели — раньше это были
+ * две безымянные иконки (🧹 и 📌) рядом с кнопкой, и было непонятно,
+ * что именно они делают.
+ */
 export default observer(function FiltersBar({
-                                       columns,
-                                       activeStatuses,
-                                       onStatusToggle,
-                                       onClear,
-                                       projectId,
-                                   }) {
+    columns,
+    activeStatuses,
+    onStatusToggle,
+    onClear,
+    pinned = false,
+    onTogglePin,
+    saving = false,
+}) {
     const t = useT()
     const ui = useUiStore()
     const open = ui.activeToolbar === PANEL_ID
-    const [pinned, setPinned] = useState(false)
-    const [saving, setSaving] = useState(false)
     const ref = useRef(null)
-
-    useEffect(() => {
-        if (!projectId) {
-            setPinned(false)
-            return
-        }
-        projectFiltersApi.get(projectId)
-            .then(({ data }) => {
-                setPinned(!!data && Array.isArray(data.statusIds) && data.statusIds.length > 0)
-            })
-            .catch(() => setPinned(false))
-        // activeStatuses намеренно НЕ в зависимостях: это новый массив при
-        // каждом обновлении и он вызывал шторм запросов /filters.
-    }, [projectId])
 
     useEffect(() => {
         if (!open) return
@@ -50,83 +44,32 @@ export default observer(function FiltersBar({
         else ui.openToolbar(PANEL_ID)
     }
 
-    const handlePin = async () => {
-        if (saving) return
-        setSaving(true)
-        try {
-            if (pinned) {
-                await projectFiltersApi.clear(projectId)
-                setPinned(false)
-            } else {
-                await projectFiltersApi.save(projectId, {
-                    statusIds: activeStatuses,
-                })
-                setPinned(true)
-            }
-        } catch (err) {
-            alert(err.response?.data?.message || 'Error')
-        } finally {
-            setSaving(false)
-        }
-    }
-
-    const handleReset = async () => {
-        onClear && onClear()
-
-        if (pinned && projectId) {
-            try {
-                await projectFiltersApi.clear(projectId)
-            } catch (err) {
-                console.error('Failed to clear pinned filter:', err)
-            }
-            setPinned(false)
-        }
-    }
-
-    const canReset = activeStatuses.length > 0 || pinned
-    const canPin = !saving && activeStatuses.length > 0
     const count = activeStatuses.length
+    const canReset = count > 0 || pinned
+    const canPin = count > 0 || pinned
 
     return (
         <div className="filters-bar" ref={ref}>
-            <div className="filters-bar__group">
-                <button
-                    type="button"
-                    className="filters-bar__action filters-bar__action--clear"
-                    onClick={handleReset}
-                    disabled={!canReset}
-                    title={t.resetFilters}
-                >
-                    🧹
-                </button>
-
-                <button
-                    className="filters-bar__btn"
-                    onClick={togglePanel}
-                >
-                    <span className="filters-bar__btn-icon">⚙</span>
-                    <span className="filters-bar__btn-label">{t.filters}</span>
-                    <span className={`filters-bar__badge-slot ${count > 0 ? 'filters-bar__badge-slot--visible' : ''}`}>
-                        {count > 0 ? count : ''}
-                    </span>
-                </button>
-
-                <button
-                    type="button"
-                    className={`filters-bar__action filters-bar__action--pin ${pinned ? 'filters-bar__action--pin-active' : ''}`}
-                    onClick={handlePin}
-                    disabled={!canPin && !pinned}
-                    title={pinned ? t.unpinFilter : t.pinFilter}
-                >
-                    {saving ? '…' : '📌'}
-                </button>
-            </div>
+            <button
+                type="button"
+                className={`filters-bar__btn ${count > 0 ? 'filters-bar__btn--active' : ''}`}
+                onClick={togglePanel}
+                title={t.filters}
+                aria-expanded={open}
+                aria-haspopup="dialog"
+            >
+                <IconFilter size={15} />
+                <span className="filters-bar__btn-label">{t.filters}</span>
+                {count > 0 && <span className="filters-bar__badge">{count}</span>}
+                {pinned && <IconPin className="filters-bar__pin-mark" filled size={12} />}
+            </button>
 
             {open && (
-                <div className="filters-bar__panel">
+                <div className="filters-bar__panel" role="dialog" aria-label={t.filters}>
                     <div className="filters-bar__title">{t.showStatuses}</div>
+
                     <div className="filters-bar__statuses">
-                        {columns.map(col => (
+                        {columns.map((col) => (
                             <label key={col.statusId} className="filters-bar__checkbox">
                                 <input
                                     type="checkbox"
@@ -137,10 +80,33 @@ export default observer(function FiltersBar({
                                     className="filters-bar__dot"
                                     style={{ background: `var(--accent-${col.accentCode || 'gray'})` }}
                                 />
-                                <span>{col.title}</span>
+                                <span className="filters-bar__checkbox-title">{col.title}</span>
                                 <span className="filters-bar__count">{col.count}</span>
                             </label>
                         ))}
+                    </div>
+
+                    <div className="filters-bar__footer">
+                        <button
+                            type="button"
+                            className="filters-bar__footer-btn"
+                            onClick={onClear}
+                            disabled={!canReset}
+                        >
+                            <IconClose size={13} />
+                            <span>{t.resetFilters}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            className={`filters-bar__footer-btn filters-bar__footer-btn--pin ${pinned ? 'filters-bar__footer-btn--active' : ''}`}
+                            onClick={onTogglePin}
+                            disabled={!canPin || saving}
+                            title={pinned ? t.unpinFilterShort : t.pinFilterShort}
+                        >
+                            <IconPin filled={pinned} size={13} />
+                            <span>{saving ? '…' : pinned ? t.unpinFilterShort : t.pinFilterShort}</span>
+                        </button>
                     </div>
                 </div>
             )}

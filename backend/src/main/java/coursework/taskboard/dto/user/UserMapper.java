@@ -46,6 +46,7 @@ public class UserMapper {
                 .bio(profile.getBio())
                 .avatarAttachmentId(profile.getAvatar() != null ? profile.getAvatar().getId() : null)
                 .avatarUrl(avatarMeta != null ? uploadBaseUrl + "/" + avatarMeta.getUrl() : null)
+                .backgroundCode(profile.getBackgroundCode())
                 .build();
     }
 

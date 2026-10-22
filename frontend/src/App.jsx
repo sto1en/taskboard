@@ -27,13 +27,22 @@ const ProjectKanbanPage = lazy(() => import('./pages/ProjectKanbanPage'))
 const CalendarPage = lazy(() => import('./pages/CalendarPage'))
 const StatsPage = lazy(() => import('./pages/StatsPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const UserProfilePage = lazy(() => import('./pages/UserProfilePage'))
 const HelpPage = lazy(() => import('./pages/HelpPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
 const ProjectSearchPage = lazy(() => import('./pages/ProjectSearchPage'))
 const ShopPage = lazy(() => import('./pages/ShopPage'))
+const GroupPage = lazy(() => import('./pages/GroupPage'))
+const GroupProjectPage = lazy(() => import('./pages/GroupProjectPage'))
+const GroupJoinPage = lazy(() => import('./pages/GroupJoinPage'))
 const AdminShopPage = lazy(() => import('./pages/AdminShopPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'))
+const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
+const TemplateEditorPage = lazy(() => import('./pages/TemplateEditorPage'))
+const GuidesPage = lazy(() => import('./pages/GuidesPage'))
+const GuideDetailPage = lazy(() => import('./pages/GuideDetailPage'))
 
 function PageFallback() {
     return (
@@ -87,13 +96,23 @@ export default function App() {
                                         <Route element={<AppLayout />}>
                                             <Route path="/" element={<DashboardPage />} />
                                             <Route path="/calendar" element={<CalendarPage />} />
+                                            <Route path="/templates" element={<TemplatesPage />} />
+                                            <Route path="/templates/new" element={<TemplateEditorPage />} />
+                                            <Route path="/templates/:id/edit" element={<TemplateEditorPage />} />
+                                            <Route path="/guides" element={<GuidesPage />} />
+                                            <Route path="/guides/:id" element={<GuideDetailPage />} />
                                             <Route path="/boards" element={<BoardsPage />} />
                                             <Route path="/boards/:id" element={<BoardDetailPage />} />
                                             <Route path="/boards/:boardId/settings" element={<BoardSettingsPage />} />
                                             <Route path="/boards/:boardId/projects/:projectId" element={<ProjectKanbanPage />} />
                                             <Route path="/stats" element={<StatsPage />} />
+                                            <Route path="/leaderboard" element={<LeaderboardPage />} />
                                             <Route path="/shop" element={<ShopPage />} />
+                <Route path="/group" element={<GroupPage />} />
+                <Route path="/group/:projectId" element={<GroupProjectPage />} />
+                <Route path="/join/:token" element={<GroupJoinPage />} />
                                             <Route path="/profile" element={<ProfilePage />} />
+                                            <Route path="/users/:id" element={<UserProfilePage />} />
                                             <Route path="/help" element={<HelpPage />} />
                                             <Route path="/settings" element={<SettingsPage />} />
                                             <Route path="/search" element={<SearchPage />} />

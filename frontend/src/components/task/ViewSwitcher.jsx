@@ -1,74 +1,72 @@
-import { useRef, useEffect } from 'react'
-import { observer } from 'mobx-react-lite'
 import useT from '../../hooks/useT'
-import { useUiStore } from '../../store/useUiStore'
+import { IconCalendar, IconCompact, IconKanban, IconList, IconPin } from '../common/ToolbarIcons'
 
 const MODES = [
-    { code: 'kanban',  icon: '▦' },
-    { code: 'list',    icon: '☰' },
-    { code: 'compact', icon: '⊞' },
+    { code: 'kanban',   Icon: IconKanban },
+    { code: 'list',     Icon: IconList },
+    { code: 'compact',  Icon: IconCompact },
+    { code: 'calendar', Icon: IconCalendar },
 ]
 
-const PANEL_ID = 'view-switcher'
-
-export default observer(function ViewSwitcher({ mode, onChange }) {
+/**
+ * Переключатель вида проекта — сегментированный контрол.
+ *
+ * Раньше это был выпадающий список с одной непонятной иконкой: какие виды
+ * вообще есть, приходилось узнавать наугад. Теперь все четыре режима видны
+ * сразу, у каждого — подпись в tooltip и своя узнаваемая иконка.
+ * Пин справа запоминает текущий вид (и сортировку) для проекта.
+ */
+export default function ViewSwitcher({
+    mode,
+    onChange,
+    pinned = false,
+    onTogglePin,
+    saving = false,
+}) {
     const t = useT()
-    const ui = useUiStore()
-    const open = ui.activeToolbar === PANEL_ID
-    const ref = useRef(null)
 
-    useEffect(() => {
-        if (!open) return
-        const onClick = (e) => {
-            if (ref.current && !ref.current.contains(e.target)) ui.closeToolbar(PANEL_ID)
-        }
-        window.addEventListener('mousedown', onClick)
-        return () => {
-            window.removeEventListener('mousedown', onClick)
-        }
-    }, [open, ui])
-
-    const toggle = () => {
-        if (open) ui.closeToolbar(PANEL_ID)
-        else ui.openToolbar(PANEL_ID)
-    }
-
-    const modeLabel = (code) => {
+    const label = (code) => {
         switch (code) {
-            case 'kanban':  return t.viewKanban
-            case 'list':    return t.viewList
-            case 'compact': return t.viewCompact
-            default:        return code
+            case 'kanban':   return t.viewKanban
+            case 'list':     return t.viewList
+            case 'compact':  return t.viewCompact
+            case 'calendar': return t.viewCalendar
+            default:         return code
         }
     }
-
-    const current = MODES.find(m => m.code === mode) || MODES[0]
 
     return (
-        <div className="view-switcher" ref={ref}>
-            <button
-                className="view-switcher__btn"
-                onClick={toggle}
-                title={t.viewProject}
-            >
-                <span className="view-switcher__icon">{current.icon}</span>
-                <span className="view-switcher__caret">▾</span>
-            </button>
-
-            {open && (
-                <div className="view-switcher__menu">
-                    {MODES.map(m => (
+        <div className="view-switcher" role="group" aria-label={t.viewProject}>
+            <div className="view-switcher__segmented">
+                {MODES.map(({ code, Icon }) => {
+                    const active = code === mode
+                    return (
                         <button
-                            key={m.code}
-                            className={`view-switcher__item ${m.code === mode ? 'view-switcher__item--active' : ''}`}
-                            onClick={() => { onChange(m.code); ui.closeToolbar(PANEL_ID) }}
+                            key={code}
+                            type="button"
+                            className={`view-switcher__option ${active ? 'view-switcher__option--active' : ''}`}
+                            onClick={() => onChange(code)}
+                            title={label(code)}
+                            aria-label={label(code)}
+                            aria-pressed={active}
                         >
-                            <span className="view-switcher__item-icon">{m.icon}</span>
-                            <span>{modeLabel(m.code)}</span>
+                            <Icon />
                         </button>
-                    ))}
-                </div>
-            )}
+                    )
+                })}
+            </div>
+
+            <button
+                type="button"
+                className={`view-switcher__pin ${pinned ? 'view-switcher__pin--active' : ''}`}
+                onClick={onTogglePin}
+                disabled={!onTogglePin || saving}
+                title={pinned ? t.unpinView : t.pinView}
+                aria-label={pinned ? t.unpinView : t.pinView}
+                aria-pressed={pinned}
+            >
+                <IconPin filled={pinned} size={15} />
+            </button>
         </div>
     )
-})
+}

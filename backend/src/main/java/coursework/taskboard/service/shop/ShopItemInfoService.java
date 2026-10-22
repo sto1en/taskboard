@@ -31,16 +31,19 @@ public class ShopItemInfoService {
     public static final String TYPE_FRAME = "FRAME";
     public static final String TYPE_AVATAR = "AVATAR";
     public static final String TYPE_ACCENT = "ACCENT";
+    public static final String TYPE_BACKGROUND = "BACKGROUND";
 
     private final AvatarRepository avatarRepository;
     private final FrameRepository frameRepository;
     private final TreeSkinRepository treeSkinRepository;
     private final AccentSkinRepository accentSkinRepository;
+    private final ProfileBackgroundRepository profileBackgroundRepository;
 
     private final UserAvatarRepository userAvatarRepository;
     private final UserFrameRepository userFrameRepository;
     private final UserTreeSkinRepository userTreeSkinRepository;
     private final UserAccentRepository userAccentRepository;
+    private final UserBackgroundRepository userBackgroundRepository;
 
     private final AchievementRepository achievementRepository;
 
@@ -100,6 +103,11 @@ public class ShopItemInfoService {
                             a.getHexColor(), a.getHexColorSecondary(), a.getHexColorTertiary(),
                             Boolean.TRUE.equals(a.getIsGradient()), Boolean.TRUE.equals(a.getIsRare())))
                     .orElse(null);
+            case TYPE_BACKGROUND -> profileBackgroundRepository.findByCode(code)
+                    .map(b -> new ItemInfo(b.getId(), TYPE_BACKGROUND, b.getCode(), b.getTitle(),
+                            b.getDescription(), b.getPrice(), b.getImageUrl(), "🖼️", b.getCssClass(),
+                            null, null, null, false, false))
+                    .orElse(null);
             default -> null;
         };
     }
@@ -122,6 +130,8 @@ public class ShopItemInfoService {
                     .existsByUserIdAndAvatarId(user.getId(), item.id());
             case TYPE_ACCENT -> userAccentRepository
                     .existsByUserIdAndAccentSkinId(user.getId(), item.id());
+            case TYPE_BACKGROUND -> userBackgroundRepository
+                    .existsByUserIdAndBackgroundId(user.getId(), item.id());
             default -> false;
         };
     }
@@ -157,6 +167,11 @@ public class ShopItemInfoService {
                     .accentSkin(accentSkinRepository.findById(item.id()).orElseThrow())
                     .pricePaid(null)
                     .build());
+            case TYPE_BACKGROUND -> userBackgroundRepository.save(UserBackground.builder()
+                    .user(user)
+                    .background(profileBackgroundRepository.findById(item.id()).orElseThrow())
+                    .pricePaid(null)
+                    .build());
             default -> {
                 return false;
             }
@@ -172,7 +187,7 @@ public class ShopItemInfoService {
         if (type == null) return null;
         String t = type.trim().toUpperCase(Locale.ROOT);
         return switch (t) {
-            case TYPE_TREE, TYPE_FRAME, TYPE_AVATAR, TYPE_ACCENT -> t;
+            case TYPE_TREE, TYPE_FRAME, TYPE_AVATAR, TYPE_ACCENT, TYPE_BACKGROUND -> t;
             default -> null;
         };
     }

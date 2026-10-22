@@ -201,6 +201,30 @@ export default observer(function BoardsPage() {
                                 onTogglePin={() => handleTogglePin(b)}
                             />
                         ))}
+
+                        {/* «Групповая» — виртуальная доска с групповыми
+                            проектами. Живёт отдельно от /boards, потому что
+                            её проекты не принадлежат ни одной из досок
+                            пользователя (доступ по project_members). */}
+                        <button
+                            type="button"
+                            className="board-card board-card--group"
+                            onClick={() => nav('/group')}
+                            title="Групповая доска"
+                        >
+                            <div className="board-card__cover board-card__cover--teal">
+                                <div className="board-card__cover-letter">👥</div>
+                            </div>
+                            <div className="board-card__body">
+                                <div className="board-card__title">Групповая</div>
+                                <div className="board-card__meta">
+                                    <span className="board-card__meta-item">
+                                        🤝 Совместные проекты
+                                    </span>
+                                </div>
+                            </div>
+                        </button>
+
                         <button
                             className="board-card board-card--new"
                             onClick={() => setShowCreate(true)}

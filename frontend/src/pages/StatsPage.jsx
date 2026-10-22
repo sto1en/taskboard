@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
     ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
     PieChart, Pie, Cell, BarChart, Bar,
@@ -149,6 +150,7 @@ export default function StatsPage() {
                         </span>
                     )}
                 </button>
+                <Link to="/leaderboard" className="stats__tab">🏆 Лидерборд</Link>
             </div>
 
             {tab === 'overview' && (

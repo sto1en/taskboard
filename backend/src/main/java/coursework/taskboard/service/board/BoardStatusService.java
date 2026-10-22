@@ -4,6 +4,7 @@ import coursework.taskboard.dto.board.*;
 import coursework.taskboard.model.board.*;
 import coursework.taskboard.model.user.User;
 import coursework.taskboard.repository.board.*;
+import coursework.taskboard.service.access.ProjectAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +22,15 @@ public class BoardStatusService {
     private final BoardStatusRepository boardStatusRepository;
     private final BoardStatusAppearanceRepository boardStatusAppearanceRepository;
     private final BoardStatusSettingsRepository boardStatusSettingsRepository;
+    private final ProjectAccessService accessService;
 
     @Transactional(readOnly = true)
     public List<BoardStatusDto> list(Long boardId, String scope, User user) {
-        checkAccess(boardId, user);
+        // Справочник статусов нужен и участнику группового проекта —
+        // иначе не отрисовать канбан. Изменения остаются за членами доски.
+        if (!accessService.canReadBoardReference(boardId, user)) {
+            throw new IllegalArgumentException("No access to board");
+        }
 
         List<BoardStatus> statuses = scope != null
                 ? boardStatusRepository.findByBoardIdAndScopeOrderByPositionAsc(boardId, scope)

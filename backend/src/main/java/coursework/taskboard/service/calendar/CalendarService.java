@@ -14,6 +14,7 @@ import coursework.taskboard.repository.attachment.AttachmentMetaRepository;
 import coursework.taskboard.repository.board.BoardMemberRepository;
 import coursework.taskboard.repository.board.BoardRepository;
 import coursework.taskboard.repository.board.BoardStatusAppearanceRepository;
+import coursework.taskboard.repository.project.ProjectMemberRepository;
 import coursework.taskboard.repository.project.ProjectRepository;
 import coursework.taskboard.repository.task.TaskAttachmentRepository;
 import coursework.taskboard.repository.task.TaskScheduleRepository;
@@ -38,17 +39,33 @@ public class CalendarService {
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final TaskAttachmentRepository taskAttachmentRepository;
     private final AttachmentMetaRepository attachmentMetaRepository;
 
     @Transactional(readOnly = true)
-    public CalendarDto getCalendar(LocalDate from, LocalDate to, User user) {
+    public CalendarDto getCalendar(LocalDate from, LocalDate to, Long projectId, User user) {
 
         List<Board> boards = boardRepository.findByOwnerIdOrderByPositionAsc(user.getId());
-        List<Long> projectIds = new ArrayList<>();
+        List<Long> ownedProjectIds = new ArrayList<>();
         for (Board board : boards) {
             projectRepository.findByBoardIdOrderByPositionAsc(board.getId())
-                    .forEach(p -> projectIds.add(p.getId()));
+                    .forEach(p -> ownedProjectIds.add(p.getId()));
+        }
+
+        // Групповые проекты: доступ через project_members, доски-носителя
+        // у пользователя нет, поэтому в список «своих» они не попадают.
+        for (Long id : projectMemberRepository.findProjectIdsByUserId(user.getId())) {
+            if (!ownedProjectIds.contains(id)) ownedProjectIds.add(id);
+        }
+
+        // Календарь проекта: оставляем только его задачи. Если проект не
+        // принадлежит пользователю, список пуст — данные не утекают.
+        List<Long> projectIds = ownedProjectIds;
+        if (projectId != null) {
+            projectIds = ownedProjectIds.contains(projectId)
+                    ? List.of(projectId)
+                    : List.of();
         }
 
         LocalDateTime fromDt = from.atStartOfDay();
@@ -74,8 +91,11 @@ public class CalendarService {
             Long boardId = task.getProject().getBoard() != null
                     ? task.getProject().getBoard().getId() : null;
             boolean coop = boardId != null
-                    && coopByBoard.computeIfAbsent(boardId,
-                        id -> boardMemberRepository.countByBoardId(id) > 0);
+                    && coopByBoard.computeIfAbsent(boardId, id -> {
+                        Board b = boardRepository.findById(id).orElse(null);
+                        if (b != null && Boolean.TRUE.equals(b.getIsGroup())) return true;
+                        return boardMemberRepository.countByBoardId(id) > 1;
+                    });
 
             BoardStatusAppearance appearance = null;
             if (settings != null && settings.getStatus() != null) {
@@ -105,6 +125,10 @@ public class CalendarService {
                     .projectTitle(task.getProject().getTitle())
                     .boardId(boardId)
                     .coop(coop)
+                    .group(task.getProject().getBoard() != null
+                            && Boolean.TRUE.equals(task.getProject().getBoard().getIsGroup()))
+                    .statusId(settings != null && settings.getStatus() != null
+                            ? settings.getStatus().getId() : null)
                     .statusCode(settings != null && settings.getStatus() != null
                             ? settings.getStatus().getCode() : null)
                     .statusTitle(settings != null && settings.getStatus() != null

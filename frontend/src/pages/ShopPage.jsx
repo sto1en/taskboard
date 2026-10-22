@@ -12,6 +12,7 @@ import AvatarCard from '../components/shop/AvatarCard'
 import FrameCard from '../components/shop/FrameCard'
 import TreeSkinCard from '../components/shop/TreeSkinCard'
 import AccentCard from '../components/shop/AccentCard'
+import BackgroundCard from '../components/shop/BackgroundCard'
 import CategoryChips from '../components/shop/CategoryChips'
 import SortToggle from '../components/shop/SortToggle'
 import ShopEmptyState from '../components/shop/ShopEmptyState'
@@ -19,6 +20,8 @@ import ShopPagination from '../components/shop/ShopPagination'
 import TreeThumb from '../components/shop/TreeThumb'
 import AvatarArt from '../components/layout/AvatarArt'
 import WeeklyGiftCard from '../components/shop/WeeklyGiftCard'
+import ShopCartDrawer from '../components/shop/ShopCartDrawer'
+import { cartTotal, readCart, toCartItem, writeCart } from '../utils/shopCart'
 
 const PAGE_SIZE = 24
 
@@ -29,7 +32,7 @@ const DEFAULT_SORT = { sortBy: 'popular', sortDir: 'desc' }
 // Хелпер: гарантирует массив, даже если с бэка пришёл null / не объект
 const asArray = (v) => (Array.isArray(v) ? v : [])
 
-const TABS = ['avatars', 'frames', 'trees', 'accents', 'chests']
+const TABS = ['avatars', 'frames', 'trees', 'accents', 'backgrounds', 'chests']
 
 const RARITY_LABELS = {
     common: 'Обычный',
@@ -80,6 +83,20 @@ export default function ShopPage() {
     // Подарок недели — отдельный лёгкий запрос, не часть каталога.
     const [weeklyGift, setWeeklyGift] = useState(null)
     const [claimingGift, setClaimingGift] = useState(false)
+
+    // Корзина: набор позиций в localStorage + выдвижная панель.
+    const [cart, setCart] = useState(() => readCart(user?.id))
+    const [cartOpen, setCartOpen] = useState(false)
+    const [checkingOut, setCheckingOut] = useState(false)
+    const [cartError, setCartError] = useState(null)
+    const [cartSuccess, setCartSuccess] = useState(null)
+
+    // Смена аккаунта — своя корзина.
+    useEffect(() => {
+        setCart(readCart(user?.id))
+        setCartSuccess(null)
+        setCartError(null)
+    }, [user?.id])
 
     useEffect(() => {
         let alive = true
@@ -183,6 +200,80 @@ export default function ShopPage() {
         }
     }
 
+    // ---------- Корзина ----------
+    const cartIndex = useMemo(
+        () => new Set(cart.map(it => `${it.type}:${it.id}`)),
+        [cart],
+    )
+
+    const inCart = (type, id) => cartIndex.has(`${type}:${id}`)
+
+    const persistCart = (next) => {
+        setCart(next)
+        writeCart(user?.id, next)
+    }
+
+    const toggleCart = (item, type) => {
+        setCartSuccess(null)
+        setCartError(null)
+        const key = `${type}:${item.id}`
+        const next = cartIndex.has(key)
+            ? cart.filter(it => `${it.type}:${it.id}` !== key)
+            : [...cart, toCartItem(item, type)]
+        persistCart(next)
+    }
+
+    const removeFromCart = (item) => {
+        persistCart(cart.filter(it => !(it.type === item.type && String(it.id) === String(item.id))))
+    }
+
+    const clearCart = () => {
+        setCartSuccess(null)
+        setCartError(null)
+        persistCart([])
+    }
+
+    // Купленное больше не предлагаем: если предмет появился в инвентаре
+    // (купили в другой вкладке или он выдан за ачивку) — убираем из корзины.
+    useEffect(() => {
+        if (!data) return
+        const owned = {
+            avatar: new Set(asArray(data.avatars).filter(i => i.owned).map(i => String(i.id))),
+            frame: new Set(asArray(data.frames).filter(i => i.owned).map(i => String(i.id))),
+            tree: new Set(asArray(data.treeSkins).filter(i => i.owned).map(i => String(i.id))),
+            accent: new Set(asArray(data.accents).filter(i => i.owned).map(i => String(i.id))),
+            background: new Set(asArray(data.backgrounds).filter(i => i.owned).map(i => String(i.id))),
+        }
+        setCart(prev => {
+            const next = prev.filter(it => !owned[it.type]?.has(String(it.id)))
+            if (next.length === prev.length) return prev
+            writeCart(user?.id, next)
+            return next
+        })
+    }, [data, user?.id])
+
+    const checkoutCart = async () => {
+        if (checkingOut || cart.length === 0) return
+        setCheckingOut(true)
+        setCartError(null)
+        setCartSuccess(null)
+        try {
+            const { data: result } = await shopApi.checkoutCart(
+                cart.map(it => ({ type: it.type, id: it.id })),
+            )
+            persistCart([])
+            if (result?.shop) setData(result.shop)
+            setCartSuccess(t.cartCheckoutDone(result?.count ?? 0, formatPrice(result?.total ?? 0)))
+            dispatch(fetchShop())
+            // Каталог мог измениться (флаги owned/active) — тихо обновляем.
+            load()
+        } catch (err) {
+            setCartError(err.response?.data?.message || 'Не удалось оформить покупку')
+        } finally {
+            setCheckingOut(false)
+        }
+    }
+
     // ---------- Сундуки ----------
     const loadChests = () => {
         setChestsLoading(true)
@@ -250,6 +341,7 @@ export default function ShopPage() {
             frame: asArray(source?.frames),
             tree: asArray(source?.treeSkins),
             accent: asArray(source?.accents),
+            background: asArray(source?.backgrounds),
         }
         const matches = (item) => String(item.id) === String(chestResult.itemId)
 
@@ -297,6 +389,7 @@ export default function ShopPage() {
             frame: shopApi.equipFrame,
             tree: shopApi.equipTreeSkin,
             accent: shopApi.equipAccent,
+            background: shopApi.equipBackground,
         }[type]
 
         if (!equip || id == null) {
@@ -380,6 +473,7 @@ export default function ShopPage() {
     const frames    = asArray(data?.frames)
     const treeSkins = asArray(data?.treeSkins)
     const accents   = asArray(data?.accents)
+    const backgrounds = asArray(data?.backgrounds)
 
     // Фильтр деревьев по типу (сервер дерево-категории не фильтрует:
     // /shop отдаёт все, поэтому фильтруем здесь — это дешевле запроса).
@@ -395,8 +489,9 @@ export default function ShopPage() {
         if (tab === 'frames') return frames
         if (tab === 'trees') return filteredTrees
         if (tab === 'accents') return accents
+        if (tab === 'backgrounds') return backgrounds
         return []
-    }, [tab, avatars, frames, filteredTrees, accents])
+    }, [tab, avatars, frames, filteredTrees, accents, backgrounds])
 
     // Подготовка списка: сортировка + размножение карточек по типам.
     // «Прочее» передаём на языке интерфейса — от него зависит буквенный блок.
@@ -418,10 +513,20 @@ export default function ShopPage() {
         if (tab === 'avatars') return 'Нет аватарок в этой категории'
         if (tab === 'frames') return 'Нет рамок в этой категории'
         if (tab === 'trees') return 'Нет деревьев в этой категории'
+        if (tab === 'backgrounds') return 'Фоны скоро появятся'
         return 'Нет акцентов в этой категории'
     })()
 
+    const cartType = { avatars: 'avatar', frames: 'frame', trees: 'tree', accents: 'accent', backgrounds: 'background' }[tab]
+
     const renderRow = ({ item, key }) => {
+        const cartProps = cartType
+            ? {
+                onAddToCart: () => toggleCart(item, cartType),
+                inCart: inCart(cartType, item.id),
+            }
+            : {}
+
         if (tab === 'avatars') {
             return (
                 <AvatarCard
@@ -430,6 +535,7 @@ export default function ShopPage() {
                     userFrame={activeFrame}
                     onBuy={() => wrap(() => shopApi.buyAvatar(item.id))}
                     onEquip={() => wrap(() => shopApi.equipAvatar(item.id))}
+                    {...cartProps}
                 />
             )
         }
@@ -444,6 +550,7 @@ export default function ShopPage() {
                     onBuy={() => wrap(() => shopApi.buyFrame(item.id))}
                     onEquip={() => wrap(() => shopApi.equipFrame(item.id))}
                     onUnequip={() => wrap(() => shopApi.unequipFrame())}
+                    {...cartProps}
                 />
             )
         }
@@ -455,6 +562,18 @@ export default function ShopPage() {
                     onBuy={() => wrap(() => shopApi.buyTreeSkin(item.id))}
                     onEquip={() => wrap(() => shopApi.equipTreeSkin(item.id))}
                     onUnequip={() => wrap(() => shopApi.unequipTreeSkin())}
+                    {...cartProps}
+                />
+            )
+        }
+        if (tab === 'backgrounds') {
+            return (
+                <BackgroundCard
+                    key={key}
+                    item={item}
+                    onBuy={() => wrap(() => shopApi.buyBackground(item.id))}
+                    onEquip={() => wrap(() => shopApi.equipBackground(item.id))}
+                    {...cartProps}
                 />
             )
         }
@@ -465,6 +584,7 @@ export default function ShopPage() {
                 onBuy={() => wrap(() => shopApi.buyAccent(item.id))}
                 onEquip={() => wrap(() => shopApi.equipAccent(item.id))}
                 onUnequip={() => wrap(() => shopApi.unequipAccent())}
+                {...cartProps}
             />
         )
     }
@@ -557,8 +677,12 @@ export default function ShopPage() {
                         onClick={() => setTab(TABS[3])}>
                     Акценты {tabCount(accents)}
                 </button>
-                <button className={`shop__tab ${tab === 'chests' ? 'shop__tab--active' : ''}`}
+                <button className={`shop__tab ${tab === 'backgrounds' ? 'shop__tab--active' : ''}`}
                         onClick={() => setTab(TABS[4])}>
+                    Фоны {tabCount(backgrounds)}
+                </button>
+                <button className={`shop__tab ${tab === 'chests' ? 'shop__tab--active' : ''}`}
+                        onClick={() => setTab(TABS[5])}>
                     Сундуки
                 </button>
             </div>
@@ -629,13 +753,15 @@ export default function ShopPage() {
             ) : (
                 <>
                     <div className="shop__toolbar">
-                        <CategoryChips
-                            categories={currentCategories}
-                            selectedIds={currentSelected}
-                            onToggle={toggleCategory}
-                            onClearAll={resetActiveFilter}
-                            allLabel={t.shopTypeAll}
-                        />
+                        {currentCategories.length > 0 && (
+                            <CategoryChips
+                                categories={currentCategories}
+                                selectedIds={currentSelected}
+                                onToggle={toggleCategory}
+                                onClearAll={resetActiveFilter}
+                                allLabel={t.shopTypeAll}
+                            />
+                        )}
                         <SortToggle
                             sortBy={sortBy}
                             sortDir={sortDir}
@@ -786,6 +912,35 @@ export default function ShopPage() {
                     </div>
                 </div>
             )}
+
+            <button
+                type="button"
+                className={`shop-cart-fab ${cart.length > 0 ? 'shop-cart-fab--active' : ''}`}
+                onClick={() => setCartOpen(true)}
+                title={t.cartOpen}
+                aria-label={t.cartOpen}
+            >
+                <span className="shop-cart-fab__icon" aria-hidden="true">🛒</span>
+                {cart.length > 0 && (
+                    <>
+                        <span className="shop-cart-fab__count">{cart.length}</span>
+                        <span className="shop-cart-fab__sum">🍃 {formatPrice(cartTotal(cart))}</span>
+                    </>
+                )}
+            </button>
+
+            <ShopCartDrawer
+                open={cartOpen}
+                items={cart}
+                leaves={data?.leaves ?? 0}
+                busy={checkingOut}
+                error={cartError}
+                success={cartSuccess}
+                onClose={() => setCartOpen(false)}
+                onRemove={removeFromCart}
+                onClear={clearCart}
+                onCheckout={checkoutCart}
+            />
         </div>
     )
 }

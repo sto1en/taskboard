@@ -12,6 +12,8 @@ public interface UserTreeSkinRepository extends JpaRepository<UserTreeSkin, Long
 
     boolean existsByUserIdAndTreeSkinId(Long userId, Long treeSkinId);
 
+    boolean existsByTreeSkinId(Long treeSkinId);
+
     /** Число покупок по каждому скину дерева: itemId → count. */
     @Query("SELECT ut.treeSkin.id, COUNT(ut) FROM UserTreeSkin ut GROUP BY ut.treeSkin.id")
     List<Object[]> countPurchasesByTreeSkin();

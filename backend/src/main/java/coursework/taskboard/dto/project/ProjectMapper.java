@@ -33,12 +33,18 @@ public class ProjectMapper {
     }
 
     public ProjectSettings toProjectSettings(Project project, BoardStatus status, String accentCode) {
+        return toProjectSettings(project, status, accentCode, false);
+    }
+
+    public ProjectSettings toProjectSettings(Project project, BoardStatus status,
+                                             String accentCode, Boolean isCoop) {
         return ProjectSettings.builder()
                 .project(project)
                 .status(status)
                 .isPinned(false)
                 .isTemplate(false)
                 .isManualPosition(false)
+                .isCoop(Boolean.TRUE.equals(isCoop))
                 .accentCode(accentCode)
                 .build();
     }
@@ -67,6 +73,7 @@ public class ProjectMapper {
                 .isPinned(settings != null && settings.getIsPinned())
                 .isTemplate(settings != null && settings.getIsTemplate())
                 .isManualPosition(settings != null && Boolean.TRUE.equals(settings.getIsManualPosition()))
+                .isCoop(settings != null && Boolean.TRUE.equals(settings.getIsCoop()))
                 .taskTotal(taskTotal)
                 .taskDone(taskDone)
                 .taskActive(taskActive)

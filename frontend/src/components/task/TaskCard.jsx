@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { tasksApi, projectsApi, boardMembersApi } from '../../api/api'
+import { tasksApi, projectsApi } from '../../api/api'
 import Subtask from './Subtask'
 import InlineEdit from '../common/InlineEdit'
 import DetailTextEditor from './DetailTextEditor'
@@ -10,22 +10,20 @@ import { isDone as checkIsDone, isCancelled as checkIsCancelled, isExpired as ch
 import { PriorityStars } from './PriorityStars'
 import useT from '../../hooks/useT'
 
-// Кэш «доска коопная?» по boardId: в личных проектах последний редактор
+// Кэш «проект коопный?» по projectId: в личных проектах последний редактор
 // не показывается, чтобы не дублировать единственного пользователя.
 const groupBoardCache = new Map()
 
 async function detectGroupBoard(projectId) {
     if (!projectId) return false
+    if (groupBoardCache.has(projectId)) return groupBoardCache.get(projectId)
     try {
         const { data: project } = await projectsApi.get(projectId)
-        const boardId = project?.boardId
-        if (!boardId) return false
-        if (groupBoardCache.has(boardId)) return groupBoardCache.get(boardId)
-
-        const { data: members } = await boardMembersApi.list(boardId)
-        const isGroup = (members?.length || 0) > 1
-        groupBoardCache.set(boardId, isGroup)
-        return isGroup
+        // Коопность задаётся явно в настройках проекта, а не числом
+        // участников доски: личный проект остаётся личным даже в общей доске.
+        const isCoop = project?.isCoop === true
+        groupBoardCache.set(projectId, isCoop)
+        return isCoop
     } catch {
         return false
     }

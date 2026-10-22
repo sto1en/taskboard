@@ -45,6 +45,7 @@ const EMPTY = {
     shop: null,
     boards: [],
     dailyGoal: null,
+    weeklyGift: null,
 }
 
 export default function useDashboardData() {
@@ -69,6 +70,7 @@ export default function useDashboardData() {
             shopApi.get(),
             boardsApi.list(),
             statsApi.dailyGoal(),
+            shopApi.weeklyGift(),
         ])
 
         const value = (index, fallback) =>
@@ -89,6 +91,7 @@ export default function useDashboardData() {
             shop: value(4, null),
             boards: value(5, []),
             dailyGoal: value(6, null),
+            weeklyGift: value(7, null),
         })
     }, [])
 

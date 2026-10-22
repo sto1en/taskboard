@@ -1,5 +1,7 @@
 package coursework.taskboard.controller;
 
+import coursework.taskboard.dto.shop.CartCheckoutDto;
+import coursework.taskboard.dto.shop.CartCheckoutRequest;
 import coursework.taskboard.dto.shop.CategoryDto;
 import coursework.taskboard.dto.shop.ChestOpenResultDto;
 import coursework.taskboard.dto.shop.ChestsDto;
@@ -158,5 +160,30 @@ public class ShopController {
     @PostMapping("/accents/unequip")
     public ResponseEntity<UserShopDto> unequipAccent() {
         return ResponseEntity.ok(shopService.unequipAccent(currentUserService.getCurrentUser()));
+    }
+
+    // Фоны профиля
+    @PostMapping("/backgrounds/{id}/buy")
+    public ResponseEntity<UserShopDto> buyBackground(@PathVariable Long id) {
+        return ResponseEntity.ok(shopService.buyBackground(currentUserService.getCurrentUser(), id));
+    }
+
+    @PostMapping("/backgrounds/{id}/equip")
+    public ResponseEntity<UserShopDto> equipBackground(@PathVariable Long id) {
+        return ResponseEntity.ok(shopService.equipBackground(currentUserService.getCurrentUser(), id));
+    }
+
+    // ============================================================
+    // Корзина
+    // ============================================================
+
+    /**
+     * Покупка всех позиций корзины одной транзакцией.
+     * Цены берутся из БД, поэтому подменить их на клиенте нельзя.
+     */
+    @PostMapping("/cart/checkout")
+    public ResponseEntity<CartCheckoutDto> checkoutCart(@RequestBody CartCheckoutRequest request) {
+        return ResponseEntity.ok(shopService.checkoutCart(
+                currentUserService.getCurrentUser(), request.getItems()));
     }
 }

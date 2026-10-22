@@ -12,4 +12,6 @@ public interface WeeklyRewardConfigRepository extends JpaRepository<WeeklyReward
     Optional<WeeklyRewardConfig> findByWeekStart(LocalDate weekStart);
 
     List<WeeklyRewardConfig> findAllByOrderByWeekStartAsc();
+
+    boolean existsByItemTypeAndItemCode(String itemType, String itemCode);
 }

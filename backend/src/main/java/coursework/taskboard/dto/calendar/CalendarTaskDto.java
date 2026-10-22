@@ -21,6 +21,9 @@ public class CalendarTaskDto {
     private Long boardId;
     /** true — доска с другими участниками (кооп), false — без участников (собственная) */
     private Boolean coop;
+    /** true — проект групповой (доступ через project_members, доски нет). */
+    private Boolean group;
+    private Long statusId;
     private String statusCode;
     private String statusTitle;
     private String statusCategoryCode;

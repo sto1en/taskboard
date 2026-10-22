@@ -1,5 +1,6 @@
 package coursework.taskboard.dto.search;
 
+import coursework.taskboard.dto.user.UserSearchDto;
 import lombok.*;
 
 import java.util.List;
@@ -14,5 +15,6 @@ public class SearchSuggestionsDto {
     private List<SearchItemDto> projects;
     private List<SearchItemDto> tasks;
     private List<SearchItemDto> tags;
+    private List<UserSearchDto> users;
     private long totalCount;
 }

@@ -15,4 +15,5 @@ public class CreateProjectRequest {
     private String description;
 
     private String accentCode;
+    private Boolean isCoop;
 }

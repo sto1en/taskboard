@@ -10,8 +10,10 @@ import {
 } from '../../store/slices/shopSlice'
 import {
     fetchPinned,
+    fetchGroupProjects,
     selectPinnedBoards,
     selectPinnedProjectsByBoard,
+    selectGroupProjects,
 } from '../../store/slices/sidebarSlice'
 import {
     fetchStats,
@@ -69,6 +71,7 @@ export default observer(function Sidebar() {
     // load + событие 'sidebar:refresh' в 6 файлах).
     const boards = useSelector(selectPinnedBoards)
     const projectsByBoard = useSelector(selectPinnedProjectsByBoard)
+    const groupProjects = useSelector(selectGroupProjects)
 
     // Дерево: количество выполненных за день — серверный факт из Redux.
     const doneTasks = useSelector(selectDoneToday)
@@ -76,6 +79,7 @@ export default observer(function Sidebar() {
     const claimingGoal = useSelector(selectClaimingDailyGoal)
 
     const [boardsOpen, setBoardsOpen] = useState(true)
+    const [groupOpen, setGroupOpen] = useState(true)
     const [showLogout, setShowLogout] = useState(false)
 
     // collapsed — локальная UI-логика из MobX (раньше: useState + localStorage).
@@ -106,6 +110,7 @@ export default observer(function Sidebar() {
     // dispatch(fetchPinned()) из точек мутации.
     useEffect(() => {
         dispatch(fetchPinned())
+        dispatch(fetchGroupProjects())
     }, [dispatch])
 
     // Дерево: загружаем дневную сводку, пока оно видимо. Обновление после
@@ -294,7 +299,76 @@ export default observer(function Sidebar() {
                         <div className="sidebar__hint">{t.noPinned}</div>
                     )}
 
+                    {/* «Групповая» — виртуальная доска: у неё нет board.id,
+                        её проекты приходят из /group/projects и доступны
+                        только участникам (project_members). Показываем её
+                        как обычную доску со списком проектов внутри. */}
+                    <div className="sidebar__group-row sidebar__group-row--group">
+                        <NavLink
+                            to="/group"
+                            end
+                            className={({ isActive }) =>
+                                `sidebar__group-link ${isActive ? 'active' : ''}`
+                            }
+                            title="Групповая доска"
+                        >
+                            <span className="sidebar__group-icon">👥</span>
+                            {!collapsed && <span>{t.groupBoardShort || 'Групповая'}</span>}
+                        </NavLink>
+                        {!collapsed && groupProjects.length > 0 && (
+                            <button
+                                type="button"
+                                className="sidebar__group-toggle"
+                                onClick={() => setGroupOpen(v => !v)}
+                                title={groupOpen ? 'Свернуть' : 'Развернуть'}
+                            >
+                                <span className={`sidebar__caret ${groupOpen ? 'sidebar__caret--open' : ''}`}>
+                                    ▸
+                                </span>
+                            </button>
+                        )}
+                    </div>
+
+                    {!collapsed && groupOpen && groupProjects.length > 0 && (
+                        <div className="sidebar__subnav">
+                            <div className="sidebar__pinned-projects">
+                                {groupProjects.map(p => (
+                                    <div key={p.id} className="sidebar__sublink-row">
+                                        <NavLink
+                                            to={`/group/${p.id}`}
+                                            className={({ isActive }) =>
+                                                `sidebar__sublink sidebar__sublink--project ${isActive ? 'active' : ''}`
+                                            }
+                                        >{p.title}</NavLink>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="sidebar__divider" />
+
+                    {/* Шаблоны — раздел, внутри которого живут гайды. */}
+                    <NavLink
+                        to="/templates"
+                        className={({ isActive }) => `sidebar__link ${isActive ? 'active' : ''}`}
+                        title={t.templates || 'Шаблоны'}
+                    >
+                        <span>🧩</span>
+                        {!collapsed && <span>{t.templates || 'Шаблоны'}</span>}
+                    </NavLink>
+                    {!collapsed && (
+                        <div className="sidebar__subnav">
+                            <NavLink
+                                to="/guides"
+                                className={({ isActive }) =>
+                                    `sidebar__sublink ${isActive ? 'active' : ''}`}
+                                title={t.guides || 'Гайды'}
+                            >
+                                🗺️ {t.guides || 'Гайды'}
+                            </NavLink>
+                        </div>
+                    )}
 
                     <NavLink
                         to="/calendar"
@@ -306,6 +380,7 @@ export default observer(function Sidebar() {
                         {!collapsed && <span>{t.calendar}</span>}
                     </NavLink>
 
+                    {/* Статистика — раздел, внутри которого живёт лидерборд. */}
                     <NavLink
                         to="/stats"
                         end
@@ -315,6 +390,18 @@ export default observer(function Sidebar() {
                         <span>📊</span>
                         {!collapsed && <span>{t.stats}</span>}
                     </NavLink>
+                    {!collapsed && (
+                        <div className="sidebar__subnav">
+                            <NavLink
+                                to="/leaderboard"
+                                className={({ isActive }) =>
+                                    `sidebar__sublink ${isActive ? 'active' : ''}`}
+                                title="Лидерборд"
+                            >
+                                🏆 Лидерборд
+                            </NavLink>
+                        </div>
+                    )}
                 </nav>
 
                 <div className="sidebar__bottom">

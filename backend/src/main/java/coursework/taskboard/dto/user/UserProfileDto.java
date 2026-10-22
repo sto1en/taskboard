@@ -12,4 +12,5 @@ public class UserProfileDto {
     private String bio;
     private Long avatarAttachmentId;
     private String avatarUrl;
+    private String backgroundCode;
 }

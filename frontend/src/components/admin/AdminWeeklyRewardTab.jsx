@@ -1,54 +1,38 @@
 import { useEffect, useMemo, useState } from 'react'
 import { adminApi, shopApi } from '../../api/api'
+import GiftItemThumb from './GiftItemThumb'
+import WeeklyGiftPicker from './WeeklyGiftPicker'
+import WeeklyGiftCart from './WeeklyGiftCart'
+import {
+    GIFT_TYPES,
+    formatRange,
+    isoDate,
+    mondayOf,
+    nextMonday,
+} from './weeklyGiftUtils'
 
-const TYPES = [
-    { code: 'TREE', label: 'Деревья' },
-    { code: 'FRAME', label: 'Рамки' },
-    { code: 'AVATAR', label: 'Аватарки' },
-    { code: 'ACCENT', label: 'Акценты' },
-]
-
-function isoDate(d) {
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${day}`
-}
-
-function nextMonday() {
-    const d = new Date()
-    const diff = (8 - d.getDay()) % 7 || 7
-    d.setDate(d.getDate() + diff)
-    return isoDate(d)
-}
-
-function formatRange(start, end) {
-    const fmt = (iso) => {
-        if (!iso) return ''
-        const d = new Date(`${iso}T00:00:00`)
-        return Number.isNaN(d.getTime())
-            ? iso
-            : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-    }
-    return `${fmt(start)} — ${fmt(end)}`
-}
-
+/**
+ * Подарок недели в админке.
+ *
+ * Вместо выпадающих списков — витрина с иконками, как в магазине.
+ * Выбранные предметы попадают в корзину, где рядом с каждым ставится дата.
+ * Сохранение отправляет все строки корзины разом.
+ */
 export default function AdminWeeklyRewardTab() {
     const [rewards, setRewards] = useState([])
-    const [catalog, setCatalog] = useState({ TREE: [], FRAME: [], AVATAR: [], ACCENT: [] })
+    const [catalog, setCatalog] = useState({
+        TREE: [],
+        FRAME: [],
+        AVATAR: [],
+        ACCENT: [],
+    })
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState(null)
 
-    const [weekStart, setWeekStart] = useState(nextMonday())
-    const [itemType, setItemType] = useState('TREE')
-    const [itemCode, setItemCode] = useState('')
-    const [enabled, setEnabled] = useState(true)
-
-    const items = useMemo(
-        () => catalog[itemType] || [],
-        [catalog, itemType],
-    )
+    const [activeType, setActiveType] = useState('TREE')
+    const [query, setQuery] = useState('')
+    const [cart, setCart] = useState([])
 
     const load = async () => {
         setLoading(true)
@@ -59,6 +43,7 @@ export default function AdminWeeklyRewardTab() {
                 shopApi.get(),
             ])
             setRewards(r.data || [])
+
             const data = shop.data || {}
             setCatalog({
                 TREE: data.treeSkins || [],
@@ -75,37 +60,91 @@ export default function AdminWeeklyRewardTab() {
 
     useEffect(() => { load() }, [])
 
-    // При смене типа подставляем первый доступный предмет.
-    useEffect(() => {
-        if (items.length === 0) {
-            setItemCode('')
-            return
-        }
-        if (!items.some(i => i.code === itemCode)) {
-            setItemCode(items[0].code)
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [itemType, items])
+    const catalogMap = useMemo(() => {
+        const map = new Map()
+        Object.entries(catalog).forEach(([type, items]) => {
+            items.forEach((item) => map.set(`${type}:${item.code}`, item))
+        })
+        return map
+    }, [catalog])
 
-    const submit = async () => {
-        if (!weekStart) {
-            setError('Укажи дату недели')
+    const selectedKeys = useMemo(
+        () => new Set(cart.map((row) => row.key)),
+        [cart],
+    )
+
+    /** Ближайший понедельник, которого нет ни в корзине, ни в расписании. */
+    const nextFreeMonday = (usedWeeks) => {
+        const d = new Date(`${nextMonday()}T00:00:00`)
+        while (usedWeeks.has(isoDate(d))) {
+            d.setDate(d.getDate() + 7)
+        }
+        return isoDate(d)
+    }
+
+    const toggleItem = (type, item) => {
+        const key = `${type}:${item.code}`
+
+        setCart((prev) => {
+            if (prev.some((row) => row.key === key)) {
+                return prev.filter((row) => row.key !== key)
+            }
+
+            const used = new Set([
+                ...prev.map((row) => mondayOf(row.weekStart)),
+                ...rewards.map((row) => row.weekStart),
+            ])
+
+            return [
+                ...prev,
+                {
+                    key,
+                    itemType: type,
+                    itemCode: item.code,
+                    title: item.title,
+                    weekStart: nextFreeMonday(used),
+                    enabled: true,
+                },
+            ]
+        })
+    }
+
+    const updateRow = (key, patch) => {
+        setCart((prev) => prev.map((row) => (
+            row.key === key ? { ...row, ...patch } : row
+        )))
+    }
+
+    const removeRow = (key) => {
+        setCart((prev) => prev.filter((row) => row.key !== key))
+    }
+
+    const saveAll = async () => {
+        if (cart.length === 0) return
+
+        const invalid = cart.find((row) => !row.weekStart || !row.itemCode)
+        if (invalid) {
+            setError('У каждого предмета должна быть дата')
             return
         }
-        if (!itemCode) {
-            setError('Выбери предмет')
+
+        const weeks = cart.map((row) => mondayOf(row.weekStart))
+        if (new Set(weeks).size !== weeks.length) {
+            setError('На одну неделю назначено несколько подарков — выбери разные даты')
             return
         }
+
         setSaving(true)
         setError(null)
         try {
-            await adminApi.saveWeeklyReward({
-                weekStart,
-                itemType,
-                itemCode,
-                enabled,
-            })
+            await Promise.all(cart.map((row) => adminApi.saveWeeklyReward({
+                weekStart: row.weekStart,
+                itemType: row.itemType,
+                itemCode: row.itemCode,
+                enabled: row.enabled,
+            })))
             await load()
+            setCart([])
         } catch (err) {
             setError(err.response?.data?.message || 'Ошибка сохранения')
         } finally {
@@ -113,14 +152,32 @@ export default function AdminWeeklyRewardTab() {
         }
     }
 
-    const editRow = (row) => {
-        setWeekStart(row.weekStart)
-        setItemType(row.itemType)
-        setItemCode(row.itemCode)
-        setEnabled(Boolean(row.enabled))
+    const editReward = (row) => {
+        const key = `${row.itemType}:${row.itemCode}`
+        setActiveType(row.itemType)
+        setCart((prev) => {
+            const without = prev.filter((r) => r.key !== key)
+            return [
+                ...without,
+                {
+                    key,
+                    itemType: row.itemType,
+                    itemCode: row.itemCode,
+                    title: row.itemTitle,
+                    weekStart: row.weekStart,
+                    enabled: Boolean(row.enabled),
+                },
+            ]
+        })
+        requestAnimationFrame(() => {
+            document.querySelector('.weekly-cart')?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            })
+        })
     }
 
-    const removeRow = async (row) => {
+    const removeReward = async (row) => {
         if (!confirm(`Удалить подарок на ${formatRange(row.weekStart, row.weekEnd)}?`)) return
         try {
             await adminApi.deleteWeeklyReward(row.id)
@@ -134,110 +191,134 @@ export default function AdminWeeklyRewardTab() {
         <div className="admin-weekly">
             {error && <div className="profile-msg profile-msg--error">{error}</div>}
 
-            <div className="admin-weekly__form">
-                <div className="admin-weekly__form-title">Настроить подарок</div>
-                <div className="admin-weekly__grid">
-                    <label className="admin-weekly__field">
-                        <span>Неделя (понедельник)</span>
-                        <input
-                            type="date"
-                            className="input"
-                            value={weekStart}
-                            onChange={e => setWeekStart(e.target.value)}
-                        />
-                    </label>
-                    <label className="admin-weekly__field">
-                        <span>Тип</span>
-                        <select
-                            className="input"
-                            value={itemType}
-                            onChange={e => setItemType(e.target.value)}
-                        >
-                            {TYPES.map(t => (
-                                <option key={t.code} value={t.code}>{t.label}</option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="admin-weekly__field admin-weekly__field--wide">
-                        <span>Предмет</span>
-                        <select
-                            className="input"
-                            value={itemCode}
-                            onChange={e => setItemCode(e.target.value)}
-                        >
-                            {items.length === 0 && <option value="">Нет предметов</option>}
-                            {items.map(i => (
-                                <option key={i.code} value={i.code}>
-                                    {i.title} · {i.code}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="admin-weekly__check">
-                        <input
-                            type="checkbox"
-                            checked={enabled}
-                            onChange={e => setEnabled(e.target.checked)}
-                        />
-                        <span>Включён</span>
-                    </label>
-                </div>
-                <div className="admin-weekly__hint">
-                    Игроки, закрывшие 5 задач за эту неделю, смогут забрать предмет
-                    в магазине. Одна и та же неделя перезаписывается.
-                </div>
-                <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={submit}
-                    disabled={saving || loading}
-                >
-                    {saving ? 'Сохранение...' : 'Сохранить'}
-                </button>
-            </div>
+            {loading && <div className="loading">Загрузка...</div>}
 
-            <div className="admin-weekly__list">
-                <div className="admin-weekly__list-title">Расписание</div>
-                {loading && <div className="loading">Загрузка...</div>}
-                {!loading && rewards.length === 0 && (
-                    <div className="admin-weekly__empty">Подарки ещё не настроены</div>
-                )}
-                {!loading && rewards.length > 0 && (
-                    <table className="admin-weekly__table">
-                        <thead>
-                        <tr>
-                            <th>Неделя</th>
-                            <th>Предмет</th>
-                            <th>Тип</th>
-                            <th>Статус</th>
-                            <th/>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {rewards.map(row => (
-                            <tr key={row.id}>
-                                <td>{formatRange(row.weekStart, row.weekEnd)}</td>
-                                <td>{row.itemTitle}<span className="admin-weekly__code">{row.itemCode}</span></td>
-                                <td>{TYPES.find(t => t.code === row.itemType)?.label || row.itemType}</td>
-                                <td>
-                                    <span className={`admin-weekly__status ${row.enabled ? 'admin-weekly__status--on' : ''}`}>
-                                        {row.enabled ? 'Включён' : 'Выключен'}
-                                    </span>
-                                </td>
-                                <td className="admin-weekly__actions">
-                                    <button className="btn btn-ghost" onClick={() => editRow(row)}>
-                                        Изменить
-                                    </button>
-                                    <button className="btn btn-icon btn-icon--danger" onClick={() => removeRow(row)}>
-                                        🗑
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+            {!loading && (
+                <>
+                    <div className="admin-weekly__builder">
+                        <section className="admin-weekly__catalog">
+                            <div className="admin-weekly__section-head">
+                                <div>
+                                    <h3 className="admin-weekly__section-title">Витрина</h3>
+                                    <p className="admin-weekly__section-sub">
+                                        Выбери предметы — они попадут в корзину
+                                    </p>
+                                </div>
+                                <span className="admin-weekly__selected">
+                                    Выбрано: {cart.length}
+                                </span>
+                            </div>
+
+                            <WeeklyGiftPicker
+                                catalog={catalog}
+                                activeType={activeType}
+                                onTypeChange={setActiveType}
+                                query={query}
+                                onQueryChange={setQuery}
+                                selectedKeys={selectedKeys}
+                                onToggle={toggleItem}
+                            />
+                        </section>
+
+                        <aside className="admin-weekly__cart-col">
+                            <WeeklyGiftCart
+                                cart={cart}
+                                catalogMap={catalogMap}
+                                rewards={rewards}
+                                onUpdate={updateRow}
+                                onRemove={removeRow}
+                                onClear={() => setCart([])}
+                                onSave={saveAll}
+                                saving={saving}
+                            />
+                        </aside>
+                    </div>
+
+                    <section className="admin-weekly__list">
+                        <div className="admin-weekly__section-head">
+                            <div>
+                                <h3 className="admin-weekly__section-title">Расписание</h3>
+                                <p className="admin-weekly__section-sub">
+                                    Игроки, закрывшие 5 задач за неделю, забирают подарок в магазине
+                                </p>
+                            </div>
+                        </div>
+
+                        {rewards.length === 0 && (
+                            <div className="admin-weekly__empty">Подарки ещё не настроены</div>
+                        )}
+
+                        {rewards.length > 0 && (
+                            <table className="admin-weekly__table">
+                                <thead>
+                                <tr>
+                                    <th>Неделя</th>
+                                    <th>Предмет</th>
+                                    <th>Тип</th>
+                                    <th>Статус</th>
+                                    <th/>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {rewards.map((row) => {
+                                    const item = catalogMap.get(`${row.itemType}:${row.itemCode}`)
+                                        || { code: row.itemCode, title: row.itemTitle }
+
+                                    return (
+                                        <tr key={row.id}>
+                                            <td>
+                                                {formatRange(row.weekStart, row.weekEnd)}
+                                            </td>
+                                            <td>
+                                                <div className="admin-weekly__item">
+                                                    <GiftItemThumb
+                                                        itemType={row.itemType}
+                                                        item={item}
+                                                        size={38}
+                                                    />
+                                                    <div>
+                                                        <div className="admin-weekly__item-title">
+                                                            {row.itemTitle}
+                                                        </div>
+                                                        <div className="admin-weekly__code">
+                                                            {row.itemCode}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {GIFT_TYPES.find((t) => t.code === row.itemType)?.label
+                                                    || row.itemType}
+                                            </td>
+                                            <td>
+                                                <span className={`admin-weekly__status ${row.enabled ? 'admin-weekly__status--on' : ''}`}>
+                                                    {row.enabled ? 'Включён' : 'Выключен'}
+                                                </span>
+                                            </td>
+                                            <td className="admin-weekly__actions">
+                                                <button
+                                                    className="btn btn-ghost"
+                                                    onClick={() => editReward(row)}
+                                                >
+                                                    Изменить
+                                                </button>
+                                                <button
+                                                    className="btn btn-icon btn-icon--danger"
+                                                    onClick={() => removeReward(row)}
+                                                    title="Удалить"
+                                                >
+                                                    🗑
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                                </tbody>
+                            </table>
+                        )}
+                    </section>
+                </>
+            )}
         </div>
     )
 }

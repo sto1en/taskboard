@@ -10,6 +10,7 @@ import coursework.taskboard.repository.board.BoardRepository;
 import coursework.taskboard.repository.tag.TagAppearanceRepository;
 import coursework.taskboard.repository.tag.TagRepository;
 import coursework.taskboard.repository.task.TaskTagRepository;
+import coursework.taskboard.service.access.ProjectAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class TagService {
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final TaskTagRepository taskTagRepository;
+    private final ProjectAccessService accessService;
 
     private final TagMapper tagMapper;
 
@@ -34,7 +36,7 @@ public class TagService {
     // ============================================================
     @Transactional(readOnly = true)
     public List<TagDto> getBoardTags(Long boardId, User user) {
-        checkBoardAccess(boardId, user);
+        checkReadAccess(boardId, user);
 
         List<Tag> tags = tagRepository.findByBoardIdOrderByPositionAsc(boardId);
         List<TagDto> result = new ArrayList<>();
@@ -136,7 +138,7 @@ public class TagService {
     // ============================================================
     @Transactional(readOnly = true)
     public List<TagDto> searchTags(Long boardId, String query, User user) {
-        checkBoardAccess(boardId, user);
+        checkReadAccess(boardId, user);
 
         if (query == null || query.isBlank()) {
             return getBoardTags(boardId, user);
@@ -166,6 +168,17 @@ public class TagService {
 
     private void checkBoardAccess(Long boardId, User user) {
         if (!boardMemberRepository.existsByBoardIdAndUserId(boardId, user.getId())) {
+            throw new IllegalArgumentException("No access to board");
+        }
+    }
+
+    /**
+     * Чтение справочника тегов доступно и участнику группового проекта:
+     * без тегов не отрисовать карточку задачи. Создание/изменение тегов
+     * по-прежнему только для членов доски.
+     */
+    private void checkReadAccess(Long boardId, User user) {
+        if (!accessService.canReadBoardReference(boardId, user)) {
             throw new IllegalArgumentException("No access to board");
         }
     }

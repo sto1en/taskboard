@@ -21,6 +21,8 @@ import coursework.taskboard.repository.search.SearchRepository;
 import coursework.taskboard.repository.tag.TagAppearanceRepository;
 import coursework.taskboard.repository.tag.TagRepository;
 import coursework.taskboard.repository.task.*;
+import coursework.taskboard.service.user.UserService;
+import coursework.taskboard.dto.user.UserSearchDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +47,7 @@ public class SearchService {
     private final TaskTagRepository taskTagRepository;
     private final BoardStatusAppearanceRepository boardStatusAppearanceRepository;
     private final SearchRepository searchRepository;
+    private final UserService userService;
 
     private final TaskMapper taskMapper;    // ← добавлено
 
@@ -60,24 +63,32 @@ public class SearchService {
                     .projects(List.of())
                     .tasks(List.of())
                     .tags(List.of())
+                    .users(List.of())
                     .build();
         }
 
+        String trimmed = query.trim();
+        boolean usernameSearch = trimmed.startsWith("@");
+
         SearchFilterRequestDto f = new SearchFilterRequestDto();
-        f.setQ(query.trim());
+        f.setQ(usernameSearch ? "" : trimmed);
         f.setPage(0);
         f.setSize(SUGGESTIONS_PER_KIND);
 
-        List<SearchItemDto> boards = searchBoards(user.getId(), f);
-        List<SearchItemDto> projects = searchProjects(user.getId(), f);
-        List<SearchItemDto> tasks = searchTasks(user.getId(), f);
-        List<SearchItemDto> tags = searchTags(user.getId(), f);
+        List<UserSearchDto> users = usersFor(trimmed, user);
+
+        // «@ник» — это адресный поиск человека: остальные сущности не мешают.
+        List<SearchItemDto> boards = usernameSearch ? List.of() : searchBoards(user.getId(), f);
+        List<SearchItemDto> projects = usernameSearch ? List.of() : searchProjects(user.getId(), f);
+        List<SearchItemDto> tasks = usernameSearch ? List.of() : searchTasks(user.getId(), f);
+        List<SearchItemDto> tags = usernameSearch ? List.of() : searchTags(user.getId(), f);
 
         return SearchResultDto.builder()
                 .boards(boards.stream().limit(SUGGESTIONS_PER_KIND).toList())
                 .projects(projects.stream().limit(SUGGESTIONS_PER_KIND).toList())
                 .tasks(tasks.stream().limit(SUGGESTIONS_PER_KIND).toList())
                 .tags(tags.stream().limit(SUGGESTIONS_PER_KIND).toList())
+                .users(users)
                 .build();
     }
 
@@ -93,27 +104,46 @@ public class SearchService {
                     .projects(List.of())
                     .tasks(List.of())
                     .tags(List.of())
+                    .users(List.of())
                     .totalCount(0)
                     .build();
         }
 
+        String trimmed = query.trim();
+        boolean usernameSearch = trimmed.startsWith("@");
+
         SearchFilterRequestDto f = new SearchFilterRequestDto();
-        f.setQ(query.trim());
+        f.setQ(usernameSearch ? "" : trimmed);
 
-        List<SearchItemDto> boards = searchBoards(user.getId(), f);
-        List<SearchItemDto> projects = searchProjects(user.getId(), f);
-        List<SearchItemDto> tasks = searchTasks(user.getId(), f);
-        List<SearchItemDto> tags = searchTags(user.getId(), f);
+        List<UserSearchDto> users = usersFor(trimmed, user);
+        List<SearchItemDto> boards = usernameSearch ? List.of() : searchBoards(user.getId(), f);
+        List<SearchItemDto> projects = usernameSearch ? List.of() : searchProjects(user.getId(), f);
+        List<SearchItemDto> tasks = usernameSearch ? List.of() : searchTasks(user.getId(), f);
+        List<SearchItemDto> tags = usernameSearch ? List.of() : searchTags(user.getId(), f);
 
-        long total = boards.size() + (long) projects.size() + tasks.size() + tags.size();
+        long total = boards.size() + (long) projects.size() + tasks.size()
+                + tags.size() + users.size();
 
         return SearchSuggestionsDto.builder()
                 .boards(boards.stream().limit(SUGGESTIONS_PER_KIND).toList())
                 .projects(projects.stream().limit(SUGGESTIONS_PER_KIND).toList())
                 .tasks(tasks.stream().limit(SUGGESTIONS_PER_KIND).toList())
                 .tags(tags.stream().limit(SUGGESTIONS_PER_KIND).toList())
+                .users(users.stream().limit(SUGGESTIONS_PER_KIND).toList())
                 .totalCount(total)
                 .build();
+    }
+
+    /** Пользователи для глобального поиска: «@ник» — только по нику. */
+    private List<UserSearchDto> usersFor(String trimmedQuery, User user) {
+        if (trimmedQuery.startsWith("@")) {
+            String nick = trimmedQuery.substring(1).trim();
+            if (nick.isEmpty()) return List.of();
+            return userService.searchUsersByUsername(nick, user)
+                    .stream().limit(SUGGESTIONS_PER_KIND).toList();
+        }
+        return userService.searchUsers(trimmedQuery, user)
+                .stream().limit(SUGGESTIONS_PER_KIND).toList();
     }
 
     // ============================================================

@@ -93,6 +93,7 @@
 .board-card__cover--red    { background: linear-gradient(135deg, #ff5630 0%, #ff8f73 100%); }
 .board-card__cover--pink   { background: linear-gradient(135deg, #ff78c4 0%, #d16bdd 100%); }
 .board-card__cover--gray   { background: linear-gradient(135deg, #97a0af 0%, #6b778c 100%); }
+.board-card__cover--teal   { background: linear-gradient(135deg, #00b8d9 0%, #2f9e6c 100%); }
 
 .board-card__cover-img {
     position: absolute;
@@ -246,6 +247,22 @@
     font-size: 36px;
     line-height: 1;
     font-weight: 300;
+}
+
+/* «Групповая» — виртуальная доска. Выглядит как обычная карточка доски,
+   но не участвует в drag&drop и не имеет меню редактирования. */
+.board-card--group {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+.board-card--group .board-card__cover-letter {
+    font-size: 52px;
+}
+
+.board-card--group:hover {
+    border-color: var(--border);
 }
 
 /* ============================================================

@@ -22,8 +22,9 @@ public class CalendarController {
     @GetMapping
     public ResponseEntity<CalendarDto> get(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long projectId) {
         User user = currentUserService.getCurrentUser();
-        return ResponseEntity.ok(calendarService.getCalendar(from, to, user));
+        return ResponseEntity.ok(calendarService.getCalendar(from, to, projectId, user));
     }
 }

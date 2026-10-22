@@ -1,5 +1,6 @@
 import ShopPreview, { accentVars } from './ShopPreview'
 import ShopPrice from './ShopPrice'
+import ShopCartButton from './ShopCartButton'
 import useT from '../../hooks/useT'
 
 const NEW_DAYS = 7
@@ -14,7 +15,7 @@ function hasDiscount(price, oldPrice) {
     return oldPrice != null && oldPrice > price
 }
 
-export default function AccentCard({ item, onBuy, onEquip, onUnequip }) {
+export default function AccentCard({ item, onBuy, onEquip, onUnequip, onAddToCart, inCart }) {
     const t = useT()
     const owned = item.owned
     const active = item.active
@@ -87,6 +88,9 @@ export default function AccentCard({ item, onBuy, onEquip, onUnequip }) {
                             <button className="btn btn-primary shop-card__btn" onClick={onBuy}>
                                 {free ? t.shopGet : t.shopBuy}
                             </button>
+                            {onAddToCart && (
+                                <ShopCartButton inCart={inCart} onClick={onAddToCart}/>
+                            )}
                         </>
                     )}
                     {owned && !active && (

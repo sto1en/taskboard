@@ -13,6 +13,7 @@
 
 import { useState } from 'react'
 import ShopPrice from './ShopPrice'
+import ShopCartButton from './ShopCartButton'
 import TreePreviewPopup from './TreePreviewPopup'
 import TreeThumb from './TreeThumb'
 import useT from '../../hooks/useT'
@@ -27,7 +28,7 @@ function isNew(createdAt) {
     return Number.isFinite(created) && (Date.now() - created) < NEW_DAYS * 24 * 60 * 60 * 1000
 }
 
-export default function TreeSkinCard({ item, onBuy, onEquip, onUnequip }) {
+export default function TreeSkinCard({ item, onBuy, onEquip, onUnequip, onAddToCart, inCart }) {
     const t = useT()
     const owned = item.owned
     const active = item.active
@@ -95,6 +96,9 @@ export default function TreeSkinCard({ item, onBuy, onEquip, onUnequip }) {
                             <button className="btn btn-primary shop-card__btn" onClick={onBuy}>
                                 {free ? t.shopGet : t.shopBuy}
                             </button>
+                            {onAddToCart && (
+                                <ShopCartButton inCart={inCart} onClick={onAddToCart}/>
+                            )}
                         </>
                     )}
                     {owned && !active && (

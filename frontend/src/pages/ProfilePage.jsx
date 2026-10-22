@@ -8,6 +8,7 @@ import useT from '../hooks/useT'
 import AccentDot from '../components/shop/AccentDot'
 import HelpTip from '../components/common/HelpTip'
 import AvatarArt from '../components/layout/AvatarArt'
+import ProfileWall from '../components/profile/ProfileWall'
 
 const RUSSIAN_TIMEZONES = [
     { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
@@ -97,7 +98,7 @@ export default function ProfilePage() {
     const t = useT()
     const [searchParams, setSearchParams] = useSearchParams()
 
-    const initialTab = searchParams.get('tab') || 'profile'
+    const initialTab = searchParams.get('tab') || 'wall'
     const [tab, setTab] = useState(initialTab)
 
     useEffect(() => {
@@ -359,6 +360,7 @@ export default function ProfilePage() {
     if (!user) return <div className="loading">Loading...</div>
 
     const TABS = [
+        ['wall', 'Стена'],
         ['profile', t.tabProfile || 'Профиль'],
         ['appearance', t.tabAppearance || 'Внешний вид'],
         ['locale', t.tabLocale || 'Язык и время'],
@@ -386,8 +388,10 @@ export default function ProfilePage() {
         || null
 
     return (
-        <div className="profile-page">
-            <h1 className="profile-page__title">{t.userSettings || 'Настройки пользователя'}</h1>
+        <div className={`profile-page ${tab === 'wall' ? 'profile-page--wall' : ''}`}>
+            <h1 className="profile-page__title">
+                {tab === 'wall' ? 'Мой профиль' : (t.userSettings || 'Настройки пользователя')}
+            </h1>
 
             <div className="profile-tabs">
                 {TABS.map(([code, label]) => (
@@ -403,6 +407,10 @@ export default function ProfilePage() {
 
             {msg && <div className="profile-msg profile-msg--success">{msg}</div>}
             {err && <div className="profile-msg profile-msg--error">{err}</div>}
+
+            {tab === 'wall' && (
+                <ProfileWall userId={user.id} own />
+            )}
 
             {tab === 'profile' && (
                 <div className="profile-section">

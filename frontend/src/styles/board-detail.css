@@ -197,6 +197,16 @@
     display: flex;
     flex-direction: column;
 }
+
+/* Календарный вид проекта: вся прокрутка — внутри правой колонки.
+   На узких экранах колонки складываются, и скроллится уже страница. */
+.board-detail__scroll--calendar {
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+}
 .board-detail__scroll--kanban::-webkit-scrollbar { height: 10px; }
 .board-detail__scroll--kanban::-webkit-scrollbar-track {
     background: transparent;

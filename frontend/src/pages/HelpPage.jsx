@@ -61,6 +61,21 @@ export default function HelpPage() {
             </section>
 
             <section className="info-page__section">
+                <h2>Шаблоны и гайды</h2>
+                <ul>
+                    <li>
+                        <Link to="/templates"><b>Шаблоны задач</b></Link> — сохраните порядок задач
+                        с заполненными или пустыми полями и применяйте его на любую доску одним кликом.
+                    </li>
+                    <li>
+                        <Link to="/guides"><b>Гайды</b></Link> — готовые сценарии на неделю или месяц:
+                        задачи, описания, подзадачи и дедлайны. Открываются в календарном виде,
+                        применяются на доску и могут висеть в витрине на вашей стене.
+                    </li>
+                </ul>
+            </section>
+
+            <section className="info-page__section">
                 <h2>{sections.hotkeys}</h2>
                 <p>
                     Press <kbd>H</kbd> on any page — the help shows only the shortcuts

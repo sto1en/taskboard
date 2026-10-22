@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import useT from '../hooks/useT'
 import AdminAvatarTab from '../components/admin/AdminAvatarTab'
 import AdminFrameTab from '../components/admin/AdminFrameTab'
 import AdminAccentTab from '../components/admin/AdminAccentTab'
+import AdminBackgroundTab from '../components/admin/AdminBackgroundTab'
+import AdminTreeTab from '../components/admin/AdminTreeTab'
 import AdminWeeklyRewardTab from '../components/admin/AdminWeeklyRewardTab'
 
 export default function AdminShopPage() {
     const { user } = useAuth()
     const nav = useNavigate()
-    const t = useT()
 
     const [tab, setTab] = useState('avatars')
 
@@ -52,9 +52,14 @@ export default function AdminShopPage() {
                 <button
                     className={`admin-tab ${tab === 'trees' ? 'admin-tab--active' : ''}`}
                     onClick={() => setTab('trees')}
-                    disabled
                 >
-                    Деревья (скоро)
+                    Деревья
+                </button>
+                <button
+                    className={`admin-tab ${tab === 'backgrounds' ? 'admin-tab--active' : ''}`}
+                    onClick={() => setTab('backgrounds')}
+                >
+                    Фоны
                 </button>
                 <button
                     className={`admin-tab ${tab === 'weekly' ? 'admin-tab--active' : ''}`}
@@ -68,6 +73,8 @@ export default function AdminShopPage() {
                 {tab === 'avatars' && <AdminAvatarTab />}
                 {tab === 'frames' && <AdminFrameTab />}
                 {tab === 'accents' && <AdminAccentTab />}
+                {tab === 'trees' && <AdminTreeTab />}
+                {tab === 'backgrounds' && <AdminBackgroundTab />}
                 {tab === 'weekly' && <AdminWeeklyRewardTab />}
             </div>
         </div>

@@ -1,0 +1,274 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 031 — Фоны профиля как товар магазина
+  #
+  # Раньше фон был просто строкой background_code в user_profiles,
+  # а список вариантов был захардкожен на фронте. Теперь фон — обычный
+  # предмет магазина: его можно купить за листья, а админ может
+  # загрузить новую картинку через админку.
+  #
+  # Бесплатные фоны (price = 0) считаются «выданными всем»: их не нужно
+  # покупать, они сразу доступны в выборе фона профиля.
+  # ============================================================
+
+  # ------------------------------------------------------------
+  # 031-01. Каталог фонов
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 031-01-profile-backgrounds
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: profile_backgrounds }
+      changes:
+        - createTable:
+            tableName: profile_backgrounds
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: code
+                  type: VARCHAR(64)
+                  constraints: { nullable: false, unique: true }
+              - column:
+                  name: title
+                  type: VARCHAR(120)
+                  constraints: { nullable: false }
+              - column:
+                  name: description
+                  type: VARCHAR(500)
+                  constraints: { nullable: false }
+              - column:
+                  name: image_url
+                  type: VARCHAR(255)
+                  constraints: { nullable: true }
+              - column:
+                  name: css_class
+                  type: VARCHAR(64)
+                  constraints: { nullable: true }
+              - column:
+                  name: price
+                  type: INTEGER
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+              - column:
+                  name: old_price
+                  type: INTEGER
+                  constraints: { nullable: true }
+              - column:
+                  name: sort_order
+                  type: INTEGER
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints: { nullable: false }
+
+  # ------------------------------------------------------------
+  # 031-02. Купленные фоны
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 031-02-user-backgrounds
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_backgrounds }
+      changes:
+        - createTable:
+            tableName: user_backgrounds
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_backgrounds_user
+                    deleteCascade: true
+              - column:
+                  name: background_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: profile_backgrounds(id)
+                    foreignKeyName: fk_user_backgrounds_background
+                    deleteCascade: true
+              - column:
+                  name: price_paid
+                  type: INTEGER
+                  constraints: { nullable: true }
+              - column:
+                  name: purchased_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints: { nullable: false }
+        - addUniqueConstraint:
+            tableName: user_backgrounds
+            columnNames: user_id, background_id
+            constraintName: uq_user_backgrounds_pair
+        - createIndex:
+            tableName: user_backgrounds
+            indexName: idx_user_backgrounds_user
+            columns:
+              - column: { name: user_id }
+
+  # ------------------------------------------------------------
+  # 031-03. Базовые фоны: прежние бесплатные градиенты
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 031-03-seed-free-backgrounds
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM profile_backgrounds
+      changes:
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'aurora' }
+              - column: { name: title, value: 'Аврора' }
+              - column: { name: description, value: 'Классическое северное сияние TaskBoard' }
+              - column: { name: css_class, value: 'aurora' }
+              - column: { name: price, valueNumeric: 0 }
+              - column: { name: sort_order, valueNumeric: 10 }
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'sunset' }
+              - column: { name: title, value: 'Закат' }
+              - column: { name: description, value: 'Тёплый вечерний градиент' }
+              - column: { name: css_class, value: 'sunset' }
+              - column: { name: price, valueNumeric: 0 }
+              - column: { name: sort_order, valueNumeric: 20 }
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'ocean' }
+              - column: { name: title, value: 'Океан' }
+              - column: { name: description, value: 'Глубина и спокойствие моря' }
+              - column: { name: css_class, value: 'ocean' }
+              - column: { name: price, valueNumeric: 0 }
+              - column: { name: sort_order, valueNumeric: 30 }
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'forest' }
+              - column: { name: title, value: 'Лес' }
+              - column: { name: description, value: 'Зелёная прохлада' }
+              - column: { name: css_class, value: 'forest' }
+              - column: { name: price, valueNumeric: 0 }
+              - column: { name: sort_order, valueNumeric: 40 }
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'neon' }
+              - column: { name: title, value: 'Неон' }
+              - column: { name: description, value: 'Ночной город в фиолетовых огнях' }
+              - column: { name: css_class, value: 'neon' }
+              - column: { name: price, valueNumeric: 0 }
+              - column: { name: sort_order, valueNumeric: 50 }
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'ember' }
+              - column: { name: title, value: 'Угли' }
+              - column: { name: description, value: 'Тлеющий костёр' }
+              - column: { name: css_class, value: 'ember' }
+              - column: { name: price, valueNumeric: 0 }
+              - column: { name: sort_order, valueNumeric: 60 }
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'candy' }
+              - column: { name: title, value: 'Карамель' }
+              - column: { name: description, value: 'Сладкий розовый градиент' }
+              - column: { name: css_class, value: 'candy' }
+              - column: { name: price, valueNumeric: 0 }
+              - column: { name: sort_order, valueNumeric: 70 }
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'midnight' }
+              - column: { name: title, value: 'Полночь' }
+              - column: { name: description, value: 'Тихий тёмно-синий фон' }
+              - column: { name: css_class, value: 'midnight' }
+              - column: { name: price, valueNumeric: 0 }
+              - column: { name: sort_order, valueNumeric: 80 }
+
+  # ------------------------------------------------------------
+  # 031-04. Обычные фоны, которые можно купить
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 031-04-seed-paid-backgrounds
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM profile_backgrounds WHERE code = 'rose'
+      changes:
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'rose' }
+              - column: { name: title, value: 'Розовый кварц' }
+              - column: { name: description, value: 'Нежный минеральный градиент' }
+              - column: { name: css_class, value: 'rose' }
+              - column: { name: price, valueNumeric: 350 }
+              - column: { name: sort_order, valueNumeric: 90 }
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'mint' }
+              - column: { name: title, value: 'Мятный бриз' }
+              - column: { name: description, value: 'Свежий зелёно-голубой фон' }
+              - column: { name: css_class, value: 'mint' }
+              - column: { name: price, valueNumeric: 450 }
+              - column: { name: sort_order, valueNumeric: 100 }
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'gold' }
+              - column: { name: title, value: 'Золотая осень' }
+              - column: { name: description, value: 'Тёплые оттенки сентября' }
+              - column: { name: css_class, value: 'gold' }
+              - column: { name: price, valueNumeric: 800 }
+              - column: { name: sort_order, valueNumeric: 110 }
+        - insert:
+            tableName: profile_backgrounds
+            columns:
+              - column: { name: code, value: 'galaxy' }
+              - column: { name: title, value: 'Галактика' }
+              - column: { name: description, value: 'Звёздная бездна для смелых профилей' }
+              - column: { name: css_class, value: 'galaxy' }
+              - column: { name: price, valueNumeric: 1500 }
+              - column: { name: sort_order, valueNumeric: 120 }
+
+  # ------------------------------------------------------------
+  # 031-05. Код фона теперь до 64 символов (как profile_backgrounds.code)
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 031-05-profile-background-code-width
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+      changes:
+        - modifyDataType:
+            tableName: user_profiles
+            columnName: background_code
+            newDataType: VARCHAR(64)

@@ -39,6 +39,15 @@ public class ProjectSettings {
     @Builder.Default
     private Boolean isManualPosition = false;
 
+    /**
+     * Коопный проект: несколько людей реально работают над задачами.
+     * Только в нём в карточке/деталях задачи показывается последний редактор —
+     * в личном проекте это шум.
+     */
+    @Column(name = "is_coop", nullable = false)
+    @Builder.Default
+    private Boolean isCoop = false;
+
     @Column(name = "accent_code", length = 30)
     private String accentCode;
 

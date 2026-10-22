@@ -14,6 +14,7 @@ import coursework.taskboard.repository.task.TaskMessageRepository;
 import coursework.taskboard.repository.task.TaskRepository;
 import coursework.taskboard.repository.user.UserAppearanceRepository;
 import coursework.taskboard.repository.user.UserProfileRepository;
+import coursework.taskboard.service.access.ProjectAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class TaskMessageService {
     private final UserProfileRepository userProfileRepository;
     private final UserAppearanceRepository userAppearanceRepository;
     private final AttachmentMetaRepository attachmentMetaRepository;
+    private final ProjectAccessService accessService;
 
     @Value("${app.upload.base-url}")
     private String uploadBaseUrl;
@@ -95,8 +97,7 @@ public class TaskMessageService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        if (!boardMemberRepository.existsByBoardIdAndUserId(
-                task.getProject().getBoard().getId(), user.getId())) {
+        if (!accessService.canAccessProject(task.getProject(), user)) {
             throw new IllegalArgumentException("No access to task");
         }
         return task;

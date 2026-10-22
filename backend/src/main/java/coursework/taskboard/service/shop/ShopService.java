@@ -1,13 +1,17 @@
 package coursework.taskboard.service.shop;
 
+import coursework.taskboard.dto.shop.CartCheckoutDto;
+import coursework.taskboard.dto.shop.CartItemDto;
 import coursework.taskboard.dto.shop.CategoryDto;
 import coursework.taskboard.dto.shop.ShopItemDto;
 import coursework.taskboard.dto.shop.UserShopDto;
 import coursework.taskboard.model.shop.*;
 import coursework.taskboard.model.user.User;
 import coursework.taskboard.model.user.UserAppearance;
+import coursework.taskboard.model.user.UserProfile;
 import coursework.taskboard.repository.shop.*;
 import coursework.taskboard.repository.user.UserAppearanceRepository;
+import coursework.taskboard.repository.user.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,12 +33,15 @@ public class ShopService {
     private final FrameRepository frameRepository;
     private final TreeSkinRepository treeSkinRepository;
     private final AccentSkinRepository accentSkinRepository;
+    private final ProfileBackgroundRepository profileBackgroundRepository;
     private final UserCurrencyRepository userCurrencyRepository;
     private final UserAvatarRepository userAvatarRepository;
     private final UserFrameRepository userFrameRepository;
     private final UserTreeSkinRepository userTreeSkinRepository;
     private final UserAccentRepository userAccentRepository;
+    private final UserBackgroundRepository userBackgroundRepository;
     private final UserAppearanceRepository userAppearanceRepository;
+    private final UserProfileRepository userProfileRepository;
     private final TreeCategoryRepository treeCategoryRepository;
     private final AvatarCategoryRepository avatarCategoryRepository;
     private final FrameCategoryRepository frameCategoryRepository;
@@ -62,6 +69,8 @@ public class ShopService {
         Long activeSkinId = appearance != null && appearance.getActiveTreeSkin() != null
                 ? appearance.getActiveTreeSkin().getId() : null;
         String activeAccentCode = appearance != null ? appearance.getAccentCode() : null;
+        UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+        String activeBackgroundCode = profile != null ? profile.getBackgroundCode() : null;
 
         // Предметы-награды за ачивки не продаются: отдаём фронту флаг
         // rewardOnly, чтобы вместо цены/кнопки он показал «За ачивку».
@@ -73,6 +82,7 @@ public class ShopService {
                 .frames(buildFrameDtos(user, activeFrameId, frameCategoryIds, sortBy, sortDir, rewardOnly))
                 .treeSkins(buildTreeSkinDtos(user, activeSkinId, sortBy, sortDir, rewardOnly))
                 .accents(buildAccentDtos(user, activeAccentCode, accentCategoryIds, sortBy, sortDir, rewardOnly))
+                .backgrounds(buildBackgroundDtos(user, activeBackgroundCode, sortBy, sortDir))
                 .build();
     }
 
@@ -284,6 +294,44 @@ public class ShopService {
     }
 
     // ============================================================
+    // Backgrounds
+    // ============================================================
+    private List<ShopItemDto> buildBackgroundDtos(User user, String activeCode,
+                                                  String sortBy, String sortDir) {
+        Map<Long, Integer> paid = new HashMap<>();
+        for (UserBackground ub : userBackgroundRepository.findByUserId(user.getId())) {
+            paid.put(ub.getBackground().getId(), ub.getPricePaid());
+        }
+        Map<Long, Long> purchases = purchCounts(userBackgroundRepository.countPurchasesByBackground());
+
+        List<ProfileBackground> list = sortItems(
+                profileBackgroundRepository.findAllByOrderBySortOrderAsc(),
+                sortBy, sortDir, ProfileBackground::getPrice,
+                ProfileBackground::getCreatedAt, purchases);
+
+        List<ShopItemDto> result = new ArrayList<>();
+        for (ProfileBackground bg : list) {
+            boolean free = bg.getPrice() == null || bg.getPrice() <= 0;
+            result.add(ShopItemDto.builder()
+                    .id(bg.getId())
+                    .code(bg.getCode())
+                    .title(bg.getTitle())
+                    .description(bg.getDescription())
+                    .price(bg.getPrice())
+                    .oldPrice(bg.getOldPrice())
+                    .imageUrl(bg.getImageUrl())
+                    .cssClass(bg.getCssClass() != null ? bg.getCssClass() : bg.getCode())
+                    .owned(free || paid.containsKey(bg.getId()))
+                    .pricePaid(paid.get(bg.getId()))
+                    .purchaseCount(purchases.getOrDefault(bg.getId(), 0L))
+                    .active(bg.getCode().equalsIgnoreCase(activeCode))
+                    .createdAt(bg.getCreatedAt())
+                    .build());
+        }
+        return result;
+    }
+
+    // ============================================================
     // Helpers
     // ============================================================
 
@@ -347,6 +395,7 @@ public class ShopService {
         if (item instanceof Frame f) return f.getId();
         if (item instanceof TreeSkin t) return t.getId();
         if (item instanceof AccentSkin s) return s.getId();
+        if (item instanceof ProfileBackground b) return b.getId();
         return -1L;
     }
 
@@ -539,6 +588,175 @@ public class ShopService {
     }
 
     // ============================================================
+    // Фоны профиля
+    // ============================================================
+    @Transactional
+    public UserShopDto buyBackground(User user, Long backgroundId) {
+        ProfileBackground bg = profileBackgroundRepository.findById(backgroundId)
+                .orElseThrow(() -> new IllegalArgumentException("Фон не найден"));
+        if (isBackgroundOwned(user, bg)) {
+            throw new IllegalArgumentException("Уже куплено");
+        }
+        deductLeaves(user, bg.getPrice() != null ? bg.getPrice() : 0);
+        userBackgroundRepository.save(UserBackground.builder()
+                .user(user).background(bg).pricePaid(bg.getPrice()).build());
+        return getShop(user);
+    }
+
+    @Transactional
+    public UserShopDto equipBackground(User user, Long backgroundId) {
+        ProfileBackground bg = profileBackgroundRepository.findById(backgroundId)
+                .orElseThrow(() -> new IllegalArgumentException("Фон не найден"));
+        if (!isBackgroundOwned(user, bg)) {
+            throw new IllegalArgumentException("Фон не куплен");
+        }
+        UserProfile profile = userProfileRepository.findById(user.getId())
+                .orElseThrow(() -> new IllegalStateException("Profile not found"));
+        profile.setBackgroundCode(bg.getCode());
+        userProfileRepository.save(profile);
+        return getShop(user);
+    }
+
+    private boolean isBackgroundOwned(User user, ProfileBackground bg) {
+        boolean free = bg.getPrice() == null || bg.getPrice() <= 0;
+        return free || userBackgroundRepository
+                .existsByUserIdAndBackgroundId(user.getId(), bg.getId());
+    }
+
+    // ============================================================
+    // Корзина
+    // ============================================================
+
+    /** Одна проверенная позиция корзины: тип, id, цена и название. */
+    private record CartLine(String type, Long id, int price, String title) {}
+
+    /**
+     * Оформление корзины одной транзакцией.
+     *
+     * Порядок важен: сначала проверяем ВСЕ позиции (существует, не награда за
+     * ачивку, ещё не куплено) и только потом списываем суммарную стоимость.
+     * Если хоть одна позиция не проходит проверку — корзина не покупается
+     * частично, баланс не меняется. Цена берётся с сервера, а не с клиента.
+     */
+    @Transactional
+    public CartCheckoutDto checkoutCart(User user, List<CartItemDto> items) {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("Корзина пуста");
+        }
+
+        // Убираем дубли: одну и ту же аватарку не должны списать дважды.
+        Set<String> seen = new HashSet<>();
+        List<CartLine> lines = new ArrayList<>();
+
+        for (CartItemDto item : items) {
+            if (item == null || item.getId() == null) {
+                throw new IllegalArgumentException("Некорректный предмет в корзине");
+            }
+            String type = ShopItemInfoService.normalizeType(item.getType());
+            if (type == null) {
+                throw new IllegalArgumentException("Неизвестный тип предмета");
+            }
+            if (!seen.add(type + ":" + item.getId())) continue;
+
+            Long id = item.getId();
+            switch (type) {
+                case ShopItemInfoService.TYPE_AVATAR -> {
+                    Avatar avatar = avatarRepository.findById(id)
+                            .orElseThrow(() -> new IllegalArgumentException("Аватарка не найдена"));
+                    ensureNotAchievementReward(ShopItemInfoService.TYPE_AVATAR, avatar.getCode());
+                    if (userAvatarRepository.existsByUserIdAndAvatarId(user.getId(), id)) {
+                        throw new IllegalArgumentException("«" + avatar.getTitle() + "» уже куплено");
+                    }
+                    lines.add(new CartLine(type, id, avatar.getPrice(), avatar.getTitle()));
+                }
+                case ShopItemInfoService.TYPE_FRAME -> {
+                    Frame frame = frameRepository.findById(id)
+                            .orElseThrow(() -> new IllegalArgumentException("Рамка не найдена"));
+                    ensureNotAchievementReward(ShopItemInfoService.TYPE_FRAME, frame.getCode());
+                    if (userFrameRepository.existsByUserIdAndFrameId(user.getId(), id)) {
+                        throw new IllegalArgumentException("«" + frame.getTitle() + "» уже куплено");
+                    }
+                    lines.add(new CartLine(type, id, frame.getPrice(), frame.getTitle()));
+                }
+                case ShopItemInfoService.TYPE_TREE -> {
+                    TreeSkin skin = treeSkinRepository.findById(id)
+                            .orElseThrow(() -> new IllegalArgumentException("Дерево не найдено"));
+                    ensureNotAchievementReward(ShopItemInfoService.TYPE_TREE, skin.getCode());
+                    if (userTreeSkinRepository.existsByUserIdAndTreeSkinId(user.getId(), id)) {
+                        throw new IllegalArgumentException("«" + skin.getTitle() + "» уже куплено");
+                    }
+                    lines.add(new CartLine(type, id, skin.getPrice(), skin.getTitle()));
+                }
+                case ShopItemInfoService.TYPE_ACCENT -> {
+                    AccentSkin skin = accentSkinRepository.findById(id)
+                            .orElseThrow(() -> new IllegalArgumentException("Акцент не найден"));
+                    ensureNotAchievementReward(ShopItemInfoService.TYPE_ACCENT, skin.getCode());
+                    if (userAccentRepository.existsByUserIdAndAccentSkinId(user.getId(), id)) {
+                        throw new IllegalArgumentException("«" + skin.getTitle() + "» уже куплено");
+                    }
+                    lines.add(new CartLine(type, id, skin.getPrice(), skin.getTitle()));
+                }
+                case ShopItemInfoService.TYPE_BACKGROUND -> {
+                    ProfileBackground bg = profileBackgroundRepository.findById(id)
+                            .orElseThrow(() -> new IllegalArgumentException("Фон не найден"));
+                    if (isBackgroundOwned(user, bg)) {
+                        throw new IllegalArgumentException("«" + bg.getTitle() + "» уже куплено");
+                    }
+                    lines.add(new CartLine(type, id, bg.getPrice() != null ? bg.getPrice() : 0, bg.getTitle()));
+                }
+                default -> throw new IllegalArgumentException("Неизвестный тип предмета");
+            }
+        }
+
+        if (lines.isEmpty()) {
+            throw new IllegalArgumentException("Корзина пуста");
+        }
+
+        int total = lines.stream().mapToInt(CartLine::price).sum();
+        deductLeaves(user, total);
+
+        List<String> titles = new ArrayList<>(lines.size());
+        for (CartLine line : lines) {
+            switch (line.type()) {
+                case ShopItemInfoService.TYPE_AVATAR -> userAvatarRepository.save(UserAvatar.builder()
+                        .user(user)
+                        .avatar(avatarRepository.getReferenceById(line.id()))
+                        .pricePaid(line.price())
+                        .build());
+                case ShopItemInfoService.TYPE_FRAME -> userFrameRepository.save(UserFrame.builder()
+                        .user(user)
+                        .frame(frameRepository.getReferenceById(line.id()))
+                        .pricePaid(line.price())
+                        .build());
+                case ShopItemInfoService.TYPE_TREE -> userTreeSkinRepository.save(UserTreeSkin.builder()
+                        .user(user)
+                        .treeSkin(treeSkinRepository.getReferenceById(line.id()))
+                        .pricePaid(line.price())
+                        .build());
+                case ShopItemInfoService.TYPE_ACCENT -> userAccentRepository.save(UserAccent.builder()
+                        .user(user)
+                        .accentSkin(accentSkinRepository.getReferenceById(line.id()))
+                        .pricePaid(line.price())
+                        .build());
+                case ShopItemInfoService.TYPE_BACKGROUND -> userBackgroundRepository.save(UserBackground.builder()
+                        .user(user)
+                        .background(profileBackgroundRepository.getReferenceById(line.id()))
+                        .pricePaid(line.price())
+                        .build());
+                default -> { }
+            }
+            titles.add(line.title());
+        }
+
+        return CartCheckoutDto.builder()
+                .shop(getShop(user))
+                .count(lines.size())
+                .total(total)
+                .titles(titles)
+                .build();
+    }
+
+    // ============================================================
     // Листья
     // ============================================================
 
@@ -568,6 +786,7 @@ public class ShopService {
         if (amount <= 0) return;
         UserCurrency cur = ensureCurrency(user);
         cur.setLeaves(cur.getLeaves() + amount);
+        cur.setTotalEarned((cur.getTotalEarned() == null ? 0 : cur.getTotalEarned()) + amount);
         userCurrencyRepository.save(cur);
     }
 
@@ -579,8 +798,10 @@ public class ShopService {
     public void deductLeavesSafe(User user, int amount) {
         if (amount <= 0) return;
         UserCurrency cur = ensureCurrency(user);
+        int spent = Math.min(amount, Math.max(0, cur.getLeaves()));
         int newVal = Math.max(0, cur.getLeaves() - amount);
         cur.setLeaves(newVal);
+        cur.setTotalSpent((cur.getTotalSpent() == null ? 0 : cur.getTotalSpent()) + spent);
         userCurrencyRepository.save(cur);
     }
 
@@ -602,6 +823,7 @@ public class ShopService {
             throw new IllegalArgumentException("Недостаточно листьев");
         }
         cur.setLeaves(cur.getLeaves() - amount);
+        cur.setTotalSpent((cur.getTotalSpent() == null ? 0 : cur.getTotalSpent()) + amount);
         userCurrencyRepository.save(cur);
     }
 

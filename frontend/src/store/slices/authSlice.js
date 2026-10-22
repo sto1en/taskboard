@@ -46,7 +46,10 @@ export const fetchMe = createAsyncThunk(
         // инициализируется как true и остаётся true до завершения ЭТОГО запроса.
         // Условие по loading создавало взаимную блокировку: fetchMe никогда не
         // выполнялся (его же condition его и блокировал), профиль не грузился.
-        condition: (_, { getState }) => !getState().auth.user,
+        // meError не даёт зациклиться на постоянной ошибке (500/403): без него
+        // ProtectedRoute перезапускал бы запрос после каждого рендера.
+        condition: (_, { getState }) =>
+            !getState().auth.user && !getState().auth.meError,
     },
 )
 
@@ -83,6 +86,8 @@ const initialState = {
     loading: Boolean(readToken()),
     /** последняя ошибка авторизации — для форм логина/регистрации */
     error: null,
+    /** статус неудачной загрузки профиля: защита от повторного цикла fetchMe */
+    meError: null,
 }
 
 const authSlice = createSlice({
@@ -100,6 +105,7 @@ const authSlice = createSlice({
             state.user = null
             state.loading = false
             state.error = null
+            state.meError = null
         },
     },
     extraReducers: (builder) => {
@@ -107,16 +113,21 @@ const authSlice = createSlice({
             // --- fetchMe ---
             .addCase(fetchMe.pending, (state) => {
                 state.loading = true
+                state.meError = null
             })
             .addCase(fetchMe.fulfilled, (state, action) => {
                 state.user = action.payload
                 state.loading = false
                 state.error = null
+                state.meError = null
             })
             .addCase(fetchMe.rejected, (state, action) => {
                 state.loading = false
-                // 401/403 — токен протух, чистим; прочие ошибки оставляем как есть
-                if (action.payload === 401 || action.payload === 403) {
+                state.meError = action.payload ?? 0
+                // 401 — токен протух, чистим. 403 — запрет доступа к профилю,
+                // это не повод выкидывать из аккаунта (и не повод зацикливать
+                // повторные запросы). Прочие ошибки тоже оставляем как есть.
+                if (action.payload === 401) {
                     writeToken(null)
                     state.token = null
                 }
@@ -129,6 +140,7 @@ const authSlice = createSlice({
             .addCase(login.fulfilled, (state, action) => {
                 state.token = action.payload.token
                 state.error = null
+                state.meError = null
             })
             .addCase(login.rejected, (state, action) => {
                 state.error = action.payload

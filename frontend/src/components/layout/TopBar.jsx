@@ -67,6 +67,10 @@ export default function TopBar() {
     const openFullSearch = () => {
         const q = query.trim()
         if (!q) return
+        if (q.startsWith('@') && results?.users?.length) {
+            go(`/users/${results.users[0].userId}`)
+            return
+        }
         nav(`/search?q=${encodeURIComponent(q)}`)
         setResults(null)
         setOpen(false)
@@ -79,6 +83,7 @@ export default function TopBar() {
 
     const total = results?.totalCount || 0
     const hasResults = results && total > 0
+    const usernameMode = query.trim().startsWith('@')
 
     return (
         <header className="topbar">
@@ -100,7 +105,28 @@ export default function TopBar() {
                         )}
                         {!loading && results && (
                             <>
-                                {results.boards?.length > 0 && (
+                                {results.users?.length > 0 && (
+                                    <div className="topbar__group">
+                                        <div className="topbar__group-title">
+                                            {usernameMode ? 'Пользователь' : 'Пользователи'}
+                                        </div>
+                                        {results.users.map(u => (
+                                            <div key={`u-${u.userId}`} className="topbar__item topbar__item--user"
+                                                 onClick={() => go(`/users/${u.userId}`)}>
+                                                <span className="topbar__user-avatar">
+                                                    {u.avatarUrl
+                                                        ? <img src={u.avatarUrl} alt="" />
+                                                        : <span>{(u.displayName || u.username || 'U').charAt(0).toUpperCase()}</span>}
+                                                </span>
+                                                <span className="topbar__user-meta">
+                                                    <span className="topbar__item-title">{u.displayName || u.username}</span>
+                                                    <span className="topbar__item-sub">@{u.username}</span>
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {!usernameMode && results.boards?.length > 0 && (
                                     <div className="topbar__group">
                                         <div className="topbar__group-title">{t.groupBoards}</div>
                                         {results.boards.map(b => (
@@ -111,7 +137,7 @@ export default function TopBar() {
                                         ))}
                                     </div>
                                 )}
-                                {results.projects?.length > 0 && (
+                                {!usernameMode && results.projects?.length > 0 && (
                                     <div className="topbar__group">
                                         <div className="topbar__group-title">{t.groupProjects}</div>
                                         {results.projects.map(p => (
@@ -123,7 +149,7 @@ export default function TopBar() {
                                         ))}
                                     </div>
                                 )}
-                                {results.tasks?.length > 0 && (
+                                {!usernameMode && results.tasks?.length > 0 && (
                                     <div className="topbar__group">
                                         <div className="topbar__group-title">{t.groupTasks}</div>
                                         {results.tasks.map(task => (
@@ -135,7 +161,7 @@ export default function TopBar() {
                                         ))}
                                     </div>
                                 )}
-                                {results.tags?.length > 0 && (
+                                {!usernameMode && results.tags?.length > 0 && (
                                     <div className="topbar__group">
                                         <div className="topbar__group-title">{t.groupTags}</div>
                                         {results.tags.map(tag => (
@@ -147,7 +173,7 @@ export default function TopBar() {
                                         ))}
                                     </div>
                                 )}
-                                {hasResults && (
+                                {hasResults && !usernameMode && (
                                     <button type="button" className="topbar__show-all" onClick={openFullSearch}>
                                         {t.showAllResults || 'Show all results'} →
                                     </button>

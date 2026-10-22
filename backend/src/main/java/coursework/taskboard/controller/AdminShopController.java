@@ -5,7 +5,9 @@ import coursework.taskboard.model.user.User;
 import coursework.taskboard.service.auth.CurrentUserService;
 import coursework.taskboard.service.shop.AdminAccentService;
 import coursework.taskboard.service.shop.AdminAvatarService;
+import coursework.taskboard.service.shop.AdminBackgroundService;
 import coursework.taskboard.service.shop.AdminFrameService;
+import coursework.taskboard.service.shop.AdminTreeService;
 import coursework.taskboard.service.shop.AdminWeeklyRewardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -23,6 +25,8 @@ public class AdminShopController {
     private final AdminAvatarService adminAvatarService;
     private final AdminFrameService adminFrameService;
     private final AdminAccentService adminAccentService;
+    private final AdminBackgroundService adminBackgroundService;
+    private final AdminTreeService adminTreeService;
     private final AdminWeeklyRewardService adminWeeklyRewardService;
     private final CurrentUserService currentUserService;
 
@@ -273,6 +277,112 @@ public class AdminShopController {
     public ResponseEntity<Void> deleteAccent(@PathVariable Long id) {
         checkAdmin();
         adminAccentService.deleteAccent(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ============================================================
+    // BACKGROUNDS
+    // ============================================================
+    @GetMapping("/backgrounds")
+    public ResponseEntity<List<AdminBackgroundDto>> listBackgrounds() {
+        checkAdmin();
+        return ResponseEntity.ok(adminBackgroundService.listBackgrounds());
+    }
+
+    @PostMapping(value = "/backgrounds", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<AdminBackgroundDto> createBackground(
+            @RequestParam("title") String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "code", required = false) String code,
+            @RequestParam(value = "cssClass", required = false) String cssClass,
+            @RequestParam("price") Integer price,
+            @RequestParam(value = "oldPrice", required = false) Integer oldPrice,
+            @RequestParam(value = "sortOrder", required = false) Integer sortOrder,
+            @RequestParam(value = "file", required = false) MultipartFile file) {
+        checkAdmin();
+        return ResponseEntity.ok(adminBackgroundService.createBackground(
+                title, description, code, cssClass, price, oldPrice, sortOrder, file
+        ));
+    }
+
+    @PatchMapping(value = "/backgrounds/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<AdminBackgroundDto> updateBackground(
+            @PathVariable Long id,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "cssClass", required = false) String cssClass,
+            @RequestParam(value = "price", required = false) Integer price,
+            @RequestParam(value = "oldPrice", required = false) Integer oldPrice,
+            @RequestParam(value = "sortOrder", required = false) Integer sortOrder,
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "clearImage", required = false) Boolean clearImage) {
+        checkAdmin();
+        return ResponseEntity.ok(adminBackgroundService.updateBackground(
+                id, title, description, cssClass, price, oldPrice, sortOrder, file, clearImage
+        ));
+    }
+
+    @DeleteMapping("/backgrounds/{id}")
+    public ResponseEntity<Void> deleteBackground(@PathVariable Long id) {
+        checkAdmin();
+        adminBackgroundService.deleteBackground(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ============================================================
+    // TREE CATEGORIES
+    // ============================================================
+    @GetMapping("/tree-categories")
+    public ResponseEntity<List<CategoryDto>> listTreeCategories() {
+        checkAdmin();
+        return ResponseEntity.ok(adminTreeService.listCategories());
+    }
+
+    @PostMapping("/tree-categories")
+    public ResponseEntity<CategoryDto> createTreeCategory(@RequestBody CategoryDto dto) {
+        checkAdmin();
+        return ResponseEntity.ok(adminTreeService.createCategory(dto.getCode(), dto.getTitle(), dto.getSortOrder()));
+    }
+
+    @PatchMapping("/tree-categories/{id}")
+    public ResponseEntity<CategoryDto> updateTreeCategory(@PathVariable Long id, @RequestBody CategoryDto dto) {
+        checkAdmin();
+        return ResponseEntity.ok(adminTreeService.updateCategory(id, dto.getTitle(), dto.getSortOrder()));
+    }
+
+    @DeleteMapping("/tree-categories/{id}")
+    public ResponseEntity<Void> deleteTreeCategory(@PathVariable Long id) {
+        checkAdmin();
+        adminTreeService.deleteCategory(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ============================================================
+    // TREES
+    // ============================================================
+    @GetMapping("/trees")
+    public ResponseEntity<List<AdminTreeDto>> listTrees() {
+        checkAdmin();
+        return ResponseEntity.ok(adminTreeService.listTrees());
+    }
+
+    @PostMapping("/trees")
+    public ResponseEntity<AdminTreeDto> createTree(@RequestBody AdminTreeRequest request) {
+        checkAdmin();
+        return ResponseEntity.ok(adminTreeService.createTree(request));
+    }
+
+    @PatchMapping("/trees/{id}")
+    public ResponseEntity<AdminTreeDto> updateTree(@PathVariable Long id,
+                                                   @RequestBody AdminTreeRequest request) {
+        checkAdmin();
+        return ResponseEntity.ok(adminTreeService.updateTree(id, request));
+    }
+
+    @DeleteMapping("/trees/{id}")
+    public ResponseEntity<Void> deleteTree(@PathVariable Long id) {
+        checkAdmin();
+        adminTreeService.deleteTree(id);
         return ResponseEntity.noContent().build();
     }
 

@@ -1,0 +1,142 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 029 — Лидерборд и пользовательские группы
+  #
+  #   • user_currency.total_earned / total_spent / chests_opened —
+  #     накопительные счётчики для категорий лидерборда;
+  #   • user_groups — именованные списки людей, которыми владеет user;
+  #   • user_group_members — приглашение (pending) и участие (accepted);
+  #   • project_invites.invited_user_id — адресное приглашение в проект
+  #     из группы (NULL = обычная ссылка-приглашение).
+  # ============================================================
+
+  - changeSet:
+      id: 029-01-user-currency-counters
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists: { tableName: user_currency, columnName: total_earned }
+      changes:
+        - addColumn:
+            tableName: user_currency
+            columns:
+              - column:
+                  name: total_earned
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+              - column:
+                  name: total_spent
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+              - column:
+                  name: chests_opened
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+
+  - changeSet:
+      id: 029-02-user-groups
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_groups }
+      changes:
+        - createTable:
+            tableName: user_groups
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: owner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_groups_owner
+              - column: { name: name, type: VARCHAR(64), constraints: { nullable: false } }
+              - column: { name: origin_group_id, type: BIGINT }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+        - createIndex:
+            tableName: user_groups
+            indexName: idx_user_groups_owner
+            columns:
+              - column: { name: owner_id }
+
+  - changeSet:
+      id: 029-03-user-group-members
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_group_members }
+      changes:
+        - createTable:
+            tableName: user_group_members
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: group_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: user_groups(id)
+                    foreignKeyName: fk_user_group_members_group
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_user_group_members_user
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: pending
+                  constraints: { nullable: false }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: responded_at, type: TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: user_group_members
+            columnNames: group_id, user_id
+            constraintName: uq_user_group_members
+        - createIndex:
+            tableName: user_group_members
+            indexName: idx_user_group_members_user
+            columns:
+              - column: { name: user_id }
+
+  - changeSet:
+      id: 029-04-project-invites-invited-user
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists: { tableName: project_invites, columnName: invited_user_id }
+      changes:
+        - addColumn:
+            tableName: project_invites
+            columns:
+              - column:
+                  name: invited_user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+                    references: users(id)
+                    foreignKeyName: fk_project_invites_invited_user
+        - createIndex:
+            tableName: project_invites
+            indexName: idx_project_invites_invited_user
+            columns:
+              - column: { name: invited_user_id }

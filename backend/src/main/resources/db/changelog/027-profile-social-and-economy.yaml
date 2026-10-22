@@ -1,0 +1,266 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 027 — Steam-профиль, социальные связи и новая экономика
+  #
+  # Экономика (целевые ориентиры):
+  #   • первая неделя — любой самый дорогой предмет магазина (5000 листьев)
+  #     только за счёт достижений и обычного фарма задач;
+  #   • дальше — примерно один топовый предмет за 1.5 недели
+  #     при постоянном фарме (10+ задач в день).
+  #
+  # Чтобы это выполнялось, награды достижений пересобраны так, чтобы
+  # «первонедельные» ачивки давали ~5600 листьев, а повторяемый фарм
+  # (задачи + ежедневная цель + бонус дерева) — ~5700 за 1.5 недели.
+  # Цены предметов при этом не меняются: топ остаётся на 5000.
+  # ============================================================
+
+  # ------------------------------------------------------------
+  # 027-01. Фон профиля (Steam-style «стена»)
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 027-01-user-profile-background
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: user_profiles
+                columnName: background_code
+      changes:
+        - addColumn:
+            tableName: user_profiles
+            columns:
+              - column:
+                  name: background_code
+                  type: VARCHAR(40)
+                  defaultValue: 'aurora'
+                  constraints: { nullable: true }
+
+  # ------------------------------------------------------------
+  # 027-02. Друзья
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 027-02-friendships
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: friendships }
+      changes:
+        - createTable:
+            tableName: friendships
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: requester_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_friendships_requester
+                    deleteCascade: true
+              - column:
+                  name: addressee_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_friendships_addressee
+                    deleteCascade: true
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: 'PENDING'
+                  constraints: { nullable: false }
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints: { nullable: false }
+              - column:
+                  name: responded_at
+                  type: TIMESTAMP
+                  constraints: { nullable: true }
+        - addUniqueConstraint:
+            tableName: friendships
+            columnNames: requester_id, addressee_id
+            constraintName: uq_friendships_pair
+        - createIndex:
+            tableName: friendships
+            indexName: idx_friendships_addressee
+            columns:
+              - column: { name: addressee_id }
+
+  # ------------------------------------------------------------
+  # 027-03. Стена профиля
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 027-03-profile-wall-posts
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: profile_wall_posts }
+      changes:
+        - createTable:
+            tableName: profile_wall_posts
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: profile_user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_wall_profile_user
+                    deleteCascade: true
+              - column:
+                  name: author_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_wall_author
+                    deleteCascade: true
+              - column:
+                  name: body
+                  type: VARCHAR(1000)
+                  constraints: { nullable: false }
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints: { nullable: false }
+        - createIndex:
+            tableName: profile_wall_posts
+            indexName: idx_wall_profile
+            columns:
+              - column: { name: profile_user_id }
+              - column: { name: created_at }
+
+  # ------------------------------------------------------------
+  # 027-04. Витрина достижений (до 3 слотов)
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 027-04-profile-showcase
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: user_profile_showcase }
+      changes:
+        - createTable:
+            tableName: user_profile_showcase
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_showcase_user
+                    deleteCascade: true
+              - column:
+                  name: achievement_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: achievements(id)
+                    foreignKeyName: fk_showcase_achievement
+                    deleteCascade: true
+              - column:
+                  name: position
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+        - addUniqueConstraint:
+            tableName: user_profile_showcase
+            columnNames: user_id, achievement_id
+            constraintName: uq_profile_showcase_item
+
+  # ------------------------------------------------------------
+  # 027-05. Коопный проект (флаг вместо «в доске >1 участника»)
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 027-05-project-is-coop
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: project_settings
+                columnName: is_coop
+      changes:
+        - addColumn:
+            tableName: project_settings
+            columns:
+              - column:
+                  name: is_coop
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+
+  # ------------------------------------------------------------
+  # 027-06. Экономика: награды достижений
+  # ------------------------------------------------------------
+  - changeSet:
+      id: 027-06-achievement-rewards-one-week-top
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists: { tableName: achievements }
+      changes:
+        - sql:
+            sql: |
+              UPDATE achievements SET reward = CASE code
+                -- Первый день / лёгкие
+                WHEN 'FIRST_TASK'     THEN 100
+                WHEN 'DUCK'           THEN 50
+                WHEN 'JOKER'          THEN 50
+                WHEN 'COVER_SET'      THEN 100
+                WHEN 'FIRST_EXPIRED'  THEN 30
+                WHEN 'NIGHT_OWL'      THEN 100
+                -- Первая неделя
+                WHEN 'TEN_TASKS'      THEN 250
+                WHEN 'MARATHON_10'    THEN 300
+                WHEN 'NINJA'          THEN 300
+                WHEN 'WEEK_STREAK'    THEN 400
+                WHEN 'FIVE_BOARDS'    THEN 250
+                WHEN 'ON_TIME_10'     THEN 300
+                WHEN 'DEBTOR'         THEN 60
+                WHEN 'TREE_YOUNG'     THEN 300
+                WHEN 'CLEAN_WEEK'     THEN 500
+                WHEN 'FIRE_25'        THEN 800
+                WHEN 'FIFTY_TASKS'    THEN 700
+                WHEN 'TREE_MATURE'    THEN 600
+                WHEN 'TEN_PROJECTS'   THEN 400
+                -- Длинный хвост (вторая неделя+)
+                WHEN 'HUNDRED_TASKS'  THEN 1500
+                WHEN 'TREE_HARVEST'   THEN 1500
+                WHEN 'MONTH_STREAK'   THEN 1500
+                WHEN 'FIVE_HUNDRED'   THEN 2000
+                WHEN 'XMAS_TREE'      THEN 2000
+                ELSE reward
+              END
+              WHERE code IN (
+                'FIRST_TASK','DUCK','JOKER','COVER_SET','FIRST_EXPIRED','NIGHT_OWL',
+                'TEN_TASKS','MARATHON_10','NINJA','WEEK_STREAK','FIVE_BOARDS',
+                'ON_TIME_10','DEBTOR','TREE_YOUNG','CLEAN_WEEK','FIRE_25',
+                'FIFTY_TASKS','TREE_MATURE','TEN_PROJECTS','HUNDRED_TASKS',
+                'TREE_HARVEST','MONTH_STREAK','FIVE_HUNDRED','XMAS_TREE'
+              );
+
+              -- Новая валюта не должна обнуляться при будущих пересчётах:
+              -- верхняя граница одной ачивки — 2000 (топовый предмет = 5000).

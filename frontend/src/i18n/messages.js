@@ -5,7 +5,12 @@ export const MESSAGES = {
         // Sidebar
         home: 'Главная',
         boards: 'Доски',
+        templates: 'Шаблоны',
+        guides: 'Гайды',
         calendar: 'Календарь',
+        groupProjects: 'Групповое',
+        groupBoard: 'Групповая доска',
+        groupBoardShort: 'Групповая',
         stats: 'Статистика',
         help: 'Помощь',
         settings: 'Настройки',
@@ -115,6 +120,13 @@ export const MESSAGES = {
         viewKanban: 'Таблица',
         viewList: 'Список',
         viewCompact: 'Компакт',
+        viewCalendar: 'Календарь',
+        projectCalendarAgenda: 'Задачи по дням',
+        projectCalendarEmpty: 'В этом месяце задач нет',
+        projectCalendarNoTasks: 'Нет задач',
+        projectCalendarAdd: '+ задача',
+        projectCalendarToday: 'Сегодня',
+        projectCalendarDropHere: 'Перенести сюда',
 
         emailNotifications: 'Email-уведомления',
         deadlineNotifications: 'Уведомления о дедлайнах',
@@ -125,7 +137,7 @@ export const MESSAGES = {
         remindBefore: 'Напомнить за N дней до дедлайна',
 
         // TopBar
-        searchPlaceholder: 'Поиск по доскам, проектам, задачам, тегам...',
+        searchPlaceholder: 'Поиск… @ник — найти пользователя',
         searchLoading: 'Поиск...',
         searchEmpty: 'Ничего не найдено',
         groupBoards: 'Доски',
@@ -148,6 +160,10 @@ export const MESSAGES = {
         resetFilters: 'Сбросить фильтры',
         pinFilter: 'Закрепить фильтр (сохранится для этого проекта)',
         unpinFilter: 'Открепить фильтр',
+        pinFilterShort: 'Закрепить фильтр',
+        unpinFilterShort: 'Открепить фильтр',
+        pinView: 'Закрепить вид и сортировку для этого проекта',
+        unpinView: 'Открепить вид проекта',
         reorderOn: 'Включить режим перестановки',
         reorderOff: 'Выйти из режима перестановки',
 
@@ -371,6 +387,23 @@ export const MESSAGES = {
         weeklyGiftLocked: 'Выполни 5 задач за неделю',
         weeklyGiftOwned: 'Уже в коллекции',
 
+        // Корзина
+        cartTitle: 'Корзина',
+        cartClose: 'Закрыть корзину',
+        cartEmpty: 'Пока пусто',
+        cartEmptyHint: 'Нажми 🛒 на карточке товара — и он появится здесь. Купить можно всё сразу, одной покупкой.',
+        cartAdd: 'В корзину',
+        cartInCart: 'В корзине',
+        cartRemove: 'Убрать из корзины',
+        cartTotal: 'Итого',
+        cartBalance: 'Баланс',
+        cartAfter: 'останется',
+        cartNotEnough: 'Не хватает листьев на всю корзину',
+        cartClear: 'Очистить',
+        cartCheckout: 'Оформить',
+        cartCheckoutDone: (n, total) => `Куплено ${n} ${n === 1 ? 'предмет' : n < 5 ? 'предмета' : 'предметов'} за 🍃 ${total}`,
+        cartOpen: 'Открыть корзину',
+
         // Default statuses
         defaultStatusInProgress: 'В процессе',
         defaultStatusDone: 'Выполнено',
@@ -385,7 +418,12 @@ export const MESSAGES = {
         // Sidebar
         home: 'Home',
         boards: 'My Boards',
+        templates: 'Templates',
+        guides: 'Guides',
         calendar: 'Calendar',
+        groupProjects: 'Group',
+        groupBoard: 'Group board',
+        groupBoardShort: 'Group',
         stats: 'Stats',
         help: 'Help',
         settings: 'Settings',
@@ -483,6 +521,13 @@ export const MESSAGES = {
         viewKanban: 'Table',
         viewList: 'List',
         viewCompact: 'Compact',
+        viewCalendar: 'Calendar',
+        projectCalendarAgenda: 'Tasks by day',
+        projectCalendarEmpty: 'No tasks this month',
+        projectCalendarNoTasks: 'No tasks',
+        projectCalendarAdd: '+ task',
+        projectCalendarToday: 'Today',
+        projectCalendarDropHere: 'Drop here',
 
         emailNotifications: 'Email notifications',
         deadlineNotifications: 'Deadline notifications',
@@ -493,7 +538,7 @@ export const MESSAGES = {
         remindBefore: 'Remind N days before deadline',
 
         // TopBar
-        searchPlaceholder: 'Search boards, projects, tasks, tags...',
+        searchPlaceholder: 'Search… @username to find a user',
         searchLoading: 'Searching...',
         searchEmpty: 'Nothing found',
         groupBoards: 'Boards',
@@ -528,6 +573,10 @@ export const MESSAGES = {
         resetFilters: 'Reset filters',
         pinFilter: 'Pin filter (saved for this project)',
         unpinFilter: 'Unpin filter',
+        pinFilterShort: 'Pin filter',
+        unpinFilterShort: 'Unpin filter',
+        pinView: 'Pin view and sorting for this project',
+        unpinView: 'Unpin project view',
         reorderOn: 'Enable reorder mode',
         reorderOff: 'Exit reorder mode',
 
@@ -760,6 +809,23 @@ export const MESSAGES = {
         weeklyGiftClaimed: 'Claimed',
         weeklyGiftLocked: 'Complete 5 tasks this week',
         weeklyGiftOwned: 'Already in your collection',
+
+        // Cart
+        cartTitle: 'Cart',
+        cartClose: 'Close cart',
+        cartEmpty: 'Empty for now',
+        cartEmptyHint: 'Press 🛒 on any item card and it will appear here. Checkout buys everything at once.',
+        cartAdd: 'Add to cart',
+        cartInCart: 'In cart',
+        cartRemove: 'Remove from cart',
+        cartTotal: 'Total',
+        cartBalance: 'Balance',
+        cartAfter: 'left after',
+        cartNotEnough: 'Not enough leaves for the whole cart',
+        cartClear: 'Clear',
+        cartCheckout: 'Checkout',
+        cartCheckoutDone: (n, total) => `Bought ${n} ${n === 1 ? 'item' : 'items'} for 🍃 ${total}`,
+        cartOpen: 'Open cart',
     },
 }
 

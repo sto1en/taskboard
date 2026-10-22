@@ -21,6 +21,7 @@ import coursework.taskboard.repository.project.ProjectSettingsRepository;
 import coursework.taskboard.repository.stage.StageRepository;
 import coursework.taskboard.repository.task.TaskRepository;
 import coursework.taskboard.service.achievement.AchievementService;
+import coursework.taskboard.service.access.ProjectAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,7 @@ public class ProjectService {
 
     private final ProjectMapper projectMapper;
     private final AchievementService achievementService;
+    private final ProjectAccessService accessService;
 
     @Value("${app.upload.base-url}")
     private String uploadBaseUrl;
@@ -137,7 +139,7 @@ public class ProjectService {
                 .orElseThrow(() -> new IllegalStateException("No default project status"));
 
         ProjectSettings settings = projectMapper.toProjectSettings(
-                project, defaultStatus, request.getAccentCode());
+                project, defaultStatus, request.getAccentCode(), request.getIsCoop());
         projectSettingsRepository.save(settings);
 
         long totalProjects = user.getBoards().stream()
@@ -166,6 +168,7 @@ public class ProjectService {
 
         if (request.getAccentCode() != null) settings.setAccentCode(request.getAccentCode());
         if (request.getIsTemplate() != null) settings.setIsTemplate(request.getIsTemplate());
+        if (request.getIsCoop() != null) settings.setIsCoop(request.getIsCoop());
 
         if (request.getIsPinned() != null) {
             settings.setIsPinned(request.getIsPinned());
@@ -245,14 +248,6 @@ public class ProjectService {
     }
 
     private Project getProjectWithAccess(Long projectId, User user) {
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
-
-        if (!boardMemberRepository.existsByBoardIdAndUserId(
-                project.getBoard().getId(), user.getId())) {
-            throw new IllegalArgumentException("No access to project");
-        }
-
-        return project;
+        return accessService.requireProject(projectId, user);
     }
 }

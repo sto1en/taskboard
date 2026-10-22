@@ -37,6 +37,15 @@ public class Board {
     @Builder.Default
     private Integer position = 0;
 
+    /**
+     * Доска-носитель групповых проектов: в списке «Мои доски» не показывается,
+     * доступ к ней есть только у владельца. Сами групповые проекты открываются
+     * через project_members.
+     */
+    @Column(name = "is_group", nullable = false)
+    @Builder.Default
+    private Boolean isGroup = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

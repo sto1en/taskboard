@@ -19,6 +19,7 @@ public class UpdateProjectRequest {
     private Long statusId;
     private Boolean isPinned;
     private Boolean isTemplate;
+    private Boolean isCoop;
 
     private Integer position;
 }

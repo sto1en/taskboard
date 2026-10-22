@@ -64,18 +64,18 @@ api.interceptors.response.use(
     },
     (error) => {
         const status = error.response?.status
-        // 401 — токен отсутствует/протух. 403 backend тоже отдаёт при
-        // неавторизованном запросе (настроено в SecurityConfig), поэтому
-        // трактуем его так же: чистим токен и уходим на логин. Раньше
-        // обрабатывался только 401, и протухший токен приводил к бесконечным
-        // повторным запросам, каждый из которых получал 403.
-        if (status === 401 || status === 403) {
+        // Только 401 означает «сессии нет / токен протух». 403 — это запрет
+        // доступа (чужая доска, админская ручка и т.п.), и разлогинивать из-за
+        // него нельзя: иначе любой фоновый запрос или переход «Назад» на
+        // страницу без прав выбрасывал пользователя из аккаунта.
+        if (status === 401) {
             localStorage.removeItem('token')
             // Мост axios -> Redux: authSlice сбрасывает состояние по этому событию
             // (см. context/AuthContext.jsx). api.js намеренно не импортирует store,
             // чтобы не создать циклическую зависимость store <-> api.
+            // Переход на /login делает ProtectedRoute по пустому токену —
+            // без full-reload, чтобы не ломать историю браузера.
             window.dispatchEvent(new Event('auth:unauthorized'))
-            if (window.location.pathname !== '/login') window.location.href = '/login'
         }
         return Promise.reject(error)
     }
@@ -232,6 +232,62 @@ export const searchApi = {
 }
 
 // ============================================================
+// Leaderboard
+// ============================================================
+export const leaderboardApi = {
+    get: () => api.get('/leaderboard'),
+}
+
+// ============================================================
+// Пользовательские группы (списки людей для кооп-приглашений)
+// ============================================================
+export const userGroupsApi = {
+    list: () => api.get('/user-groups'),
+    create: (name) => api.post('/user-groups', { name }),
+    rename: (id, name) => api.patch(`/user-groups/${id}`, { name }),
+    remove: (id) => api.delete(`/user-groups/${id}`),
+    addMember: (id, userId) => api.post(`/user-groups/${id}/members`, { userId }),
+    removeMember: (id, userId) => api.delete(`/user-groups/${id}/members/${userId}`),
+
+    invitations: () => api.get('/user-groups/invitations'),
+    acceptInvite: (id) => api.post(`/user-groups/invitations/${id}/accept`),
+    declineInvite: (id) => api.post(`/user-groups/invitations/${id}/decline`),
+
+    inviteToProject: (id, projectId) =>
+        api.post(`/user-groups/${id}/projects/${projectId}/invite`),
+    projectInvitations: () => api.get('/user-groups/project-invitations'),
+    declineProjectInvite: (token) =>
+        api.delete(`/user-groups/project-invitations/${token}`),
+}
+
+// ============================================================
+// Task templates
+// ============================================================
+export const taskTemplatesApi = {
+    list: () => api.get('/task-templates'),
+    get: (id) => api.get(`/task-templates/${id}`),
+    create: (data) => api.post('/task-templates', data),
+    update: (id, data) => api.put(`/task-templates/${id}`, data),
+    remove: (id) => api.delete(`/task-templates/${id}`),
+    apply: (id, data) => api.post(`/task-templates/${id}/apply`, data),
+}
+
+// ============================================================
+// Guides (week / month scenarios)
+// ============================================================
+export const guidesApi = {
+    list: () => api.get('/guides'),
+    get: (id) => api.get(`/guides/${id}`),
+    create: (data) => api.post('/guides', data),
+    update: (id, data) => api.put(`/guides/${id}`, data),
+    remove: (id) => api.delete(`/guides/${id}`),
+    duplicate: (id) => api.post(`/guides/${id}/duplicate`),
+    apply: (id, data) => api.post(`/guides/${id}/apply`, data),
+    showcase: () => api.get('/guides/showcase'),
+    saveShowcase: (guideIds) => api.put('/guides/showcase', { guideIds }),
+}
+
+// ============================================================
 // Stats
 // ============================================================
 export const statsApi = {
@@ -249,7 +305,10 @@ export const statsApi = {
 // Calendar
 // ============================================================
 export const calendarApi = {
-    get: (from, to) => api.get('/calendar', { params: { from, to } }),
+    get: (from, to, projectId) =>
+        api.get('/calendar', {
+            params: { from, to, ...(projectId == null ? {} : { projectId }) },
+        }),
 }
 
 // ============================================================
@@ -257,6 +316,25 @@ export const calendarApi = {
 // ============================================================
 export const achievementsApi = {
     list: () => api.get('/achievements'),
+}
+
+// ============================================================
+// Social profile (Steam-style wall)
+// ============================================================
+export const socialApi = {
+    profile: (id) => api.get(`/social/profiles/${id}`),
+    updateBackground: (backgroundCode) =>
+        api.put('/social/me/background', { backgroundCode }),
+    updateShowcase: (achievementCodes) =>
+        api.put('/social/me/showcase', { achievementCodes }),
+    friends: () => api.get('/social/friends'),
+    addFriend: (id) => api.post(`/social/friends/${id}`),
+    acceptFriend: (id) => api.post(`/social/friends/${id}/accept`),
+    removeFriend: (id) => api.delete(`/social/friends/${id}`),
+    wall: (id) => api.get(`/social/profiles/${id}/wall`),
+    addWallPost: (id, body) => api.post(`/social/profiles/${id}/wall`, { body }),
+    deleteWallPost: (id, postId) =>
+        api.delete(`/social/profiles/${id}/wall/${postId}`),
 }
 
 // ============================================================
@@ -281,6 +359,9 @@ export const shopApi = {
     buyAccent: (id) => api.post(`/shop/accents/${id}/buy`),
     equipAccent: (id) => api.post(`/shop/accents/${id}/equip`),
     unequipAccent: () => api.post('/shop/accents/unequip'),
+    // Фоны профиля
+    buyBackground: (id) => api.post(`/shop/backgrounds/${id}/buy`),
+    equipBackground: (id) => api.post(`/shop/backgrounds/${id}/equip`),
     // Сундуки
     chests: () => api.get('/shop/chests'),
     openChest: (code) => api.post(`/shop/chests/${code}/open`),
@@ -288,6 +369,8 @@ export const shopApi = {
     // Подарок недели
     weeklyGift: () => api.get('/shop/weekly-gift'),
     claimWeeklyGift: () => api.post('/shop/weekly-gift/claim'),
+    // Корзина: одна транзакция на сервере (всё или ничего)
+    checkoutCart: (items) => api.post('/shop/cart/checkout', { items }),
 }
 
 // ============================================================
@@ -348,10 +431,52 @@ export const adminApi = {
         }),
     deleteAccent: (id) => api.delete(`/admin/shop/accents/${id}`),
 
+    // Фоны профиля
+    listBackgrounds: () => api.get('/admin/shop/backgrounds'),
+    createBackground: (formData) =>
+        api.post('/admin/shop/backgrounds', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    updateBackground: (id, formData) =>
+        api.patch(`/admin/shop/backgrounds/${id}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    deleteBackground: (id) => api.delete(`/admin/shop/backgrounds/${id}`),
+
+    // Деревья — категории
+    listTreeCategories: () => api.get('/admin/shop/tree-categories'),
+    createTreeCategory: (data) => api.post('/admin/shop/tree-categories', data),
+    updateTreeCategory: (id, data) => api.patch(`/admin/shop/tree-categories/${id}`, data),
+    deleteTreeCategory: (id) => api.delete(`/admin/shop/tree-categories/${id}`),
+
+    // Деревья — элементы
+    listTrees: () => api.get('/admin/shop/trees'),
+    createTree: (data) => api.post('/admin/shop/trees', data),
+    updateTree: (id, data) => api.patch(`/admin/shop/trees/${id}`, data),
+    deleteTree: (id) => api.delete(`/admin/shop/trees/${id}`),
+
     // Подарок недели
     listWeeklyRewards: () => api.get('/admin/shop/weekly-rewards'),
     saveWeeklyReward: (data) => api.post('/admin/shop/weekly-rewards', data),
     deleteWeeklyReward: (id) => api.delete(`/admin/shop/weekly-rewards/${id}`),
+}
+
+// ============================================================
+// Групповые проекты
+// ============================================================
+export const groupApi = {
+    list: () => api.get('/group/projects'),
+    create: (data) => api.post('/group/projects', data),
+    get: (id) => api.get(`/group/projects/${id}`),
+    update: (id, data) => api.patch(`/group/projects/${id}`, data),
+    remove: (id) => api.delete(`/group/projects/${id}`),
+
+    members: (id) => api.get(`/group/projects/${id}/members`),
+    invite: (id) => api.post(`/group/projects/${id}/invite`),
+    removeMember: (id, userId) => api.delete(`/group/projects/${id}/members/${userId}`),
+
+    previewInvite: (token) => api.get(`/group/invites/${token}`),
+    join: (token) => api.post(`/group/join/${token}`),
 }
 
 export default api

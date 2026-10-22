@@ -56,6 +56,39 @@ const TREES = {
 // только MatureSVG, без всей логики роста/тултипов TreeAvatar.
 export const TREE_COMPONENTS = TREES
 
+/**
+ * Человеческие названия визуальных видов деревьев.
+ * Используются в админке: code скина = вид SVG-дерева, а title можно
+ * переименовать под конкретный товар.
+ */
+export const TREE_KIND_LABELS = {
+    sakura:     'Сакура',
+    birch:      'Берёза',
+    palm:       'Пальма',
+    apple:      'Яблоня',
+    oak:        'Дуб',
+    cherry:     'Вишня',
+    xmas:       'Ёлка',
+    neon:       'Неон',
+    crystal:    'Кристалл',
+    maple:      'Клён',
+    willow:     'Ива',
+    coconut:    'Кокос',
+    mango:      'Манго',
+    orange:     'Апельсин',
+    lemon:      'Лимон',
+    cypress:    'Кипарис',
+    banyan:     'Баньян',
+    jacaranda:  'Жакаранда',
+    fir:        'Пихта',
+    eucalyptus: 'Эвкалипт',
+}
+
+export const TREE_KIND_OPTIONS = Object.keys(TREES).map((code) => ({
+    code,
+    title: TREE_KIND_LABELS[code] || code,
+}))
+
 const LEAVES_BY_KIND = {
     sakura: {
         sprout: ['🌱', '🍃'],

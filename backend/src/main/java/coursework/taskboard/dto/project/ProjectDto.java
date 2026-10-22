@@ -29,6 +29,7 @@ public class ProjectDto {
     private Boolean isPinned;
     private Boolean isTemplate;
     private Boolean isManualPosition;
+    private Boolean isCoop;
 
     private long taskTotal;
     private long taskDone;

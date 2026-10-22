@@ -1,0 +1,21 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 032 — время начала задачи шаблона
+  # Необязательное поле: используется для порядка задач внутри дня.
+  # ============================================================
+
+  - changeSet:
+      id: 032-01-template-item-start-time
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists: { tableName: task_template_items, columnName: start_time }
+      changes:
+        - addColumn:
+            tableName: task_template_items
+            columns:
+              - column:
+                  name: start_time
+                  type: TIME

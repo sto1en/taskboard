@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useDispatch } from 'react-redux'
 import { invalidateTasks } from '../../store/slices/tasksSlice'
-import { tasksApi, tagsApi, attachmentsApi, projectsApi, recurrenceApi, boardMembersApi } from '../../api/api'
+import { tasksApi, tagsApi, attachmentsApi, projectsApi, recurrenceApi } from '../../api/api'
 import Modal from '../modal/Modal'
 import ConfirmModal from '../common/ConfirmModal'
 import AttachmentPreview from './AttachmentPreview'
@@ -150,15 +150,21 @@ export default function TaskDetailModal({
             let bid = boardIdProp
             let cols = columnsProp || []
 
-            if (!bid && taskData.projectId) {
+            // Коопность проекта задаётся флагом isCoop в настройках.
+            // В личном проекте авторы/редакторы — шум, показываем только дату.
+            if (taskData.projectId) {
                 try {
                     const { data: project } = await projectsApi.get(taskData.projectId)
-                    bid = project.boardId
-                    setBoardId(bid)
-                } catch {}
-            } else if (bid) {
-                setBoardId(bid)
+                    setIsGroupProject(project?.isCoop === true)
+                    if (!bid) {
+                        bid = project.boardId
+                        setBoardId(bid)
+                    }
+                } catch {
+                    setIsGroupProject(false)
+                }
             }
+            if (bid) setBoardId(bid)
 
             if ((!cols || cols.length === 0) && taskData.projectId) {
                 try {
@@ -176,14 +182,6 @@ export default function TaskDetailModal({
                     setTags(tagsData)
                 } catch {
                     setTags([])
-                }
-                // Групповой проект = в доске больше одного участника.
-                // В соло-доске авторы/редакторы — шум, показываем только дату.
-                try {
-                    const { data: members } = await boardMembersApi.list(bid)
-                    setIsGroupProject((members?.length || 0) > 1)
-                } catch {
-                    setIsGroupProject(false)
                 }
             }
 

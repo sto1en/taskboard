@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import { boardsApi, projectsApi } from '../../api/api'
+import { boardsApi, groupApi, projectsApi } from '../../api/api'
 import { logout as authLogout } from './authSlice'
 
 /**
@@ -76,6 +76,32 @@ export const fetchPinned = createAsyncThunk(
 )
 
 // ---------------------------------------------------------------
+// Thunk: групповые проекты (виртуальная доска «Групповая»)
+// ---------------------------------------------------------------
+
+/**
+ * Групповые проекты — это проекты, к которым пользователь получил доступ
+ * напрямую (project_members), без членства в доске. Они не приходят из
+ * /boards и /boards/{id}/projects, поэтому для боковой панели их нужно
+ * тянуть отдельно: они показываются как проекты виртуальной доски
+ * «Групповая» и открываются по /group/{id}.
+ */
+export const fetchGroupProjects = createAsyncThunk(
+    'sidebar/fetchGroupProjects',
+    async (_, { rejectWithValue }) => {
+        try {
+            const { data } = await groupApi.list()
+            return data || []
+        } catch (err) {
+            return rejectWithValue(err.response?.status ?? null)
+        }
+    },
+    {
+        condition: (_, { getState }) => !getState().sidebar.groupLoading,
+    },
+)
+
+// ---------------------------------------------------------------
 // Slice
 // ---------------------------------------------------------------
 
@@ -84,6 +110,10 @@ const initialState = {
     boards: [],
     /** { [boardId]: пиннутые проекты этой доски } */
     projectsByBoard: {},
+    /** проекты виртуальной доски «Групповая» */
+    groupProjects: [],
+    groupLoading: false,
+    groupError: null,
     loading: false,
     error: null,
 }
@@ -108,6 +138,7 @@ const sidebarSlice = createSlice({
         invalidate(state) {
             state.boards = []
             state.projectsByBoard = {}
+            state.groupProjects = []
             state.error = null
         },
     },
@@ -124,11 +155,26 @@ const sidebarSlice = createSlice({
                 state.loading = false
                 state.error = action.payload
             })
+            .addCase(fetchGroupProjects.pending, (state) => {
+                state.groupLoading = true
+                state.groupError = null
+            })
+            .addCase(fetchGroupProjects.fulfilled, (state, action) => {
+                state.groupProjects = action.payload ?? []
+                state.groupLoading = false
+                state.groupError = null
+            })
+            .addCase(fetchGroupProjects.rejected, (state, action) => {
+                state.groupLoading = false
+                state.groupError = action.payload
+            })
             // При выходе пины предыдущего пользователя не должны «протекать»
             // в сессию следующего — чистим проекцию.
             .addCase(authLogout, (state) => {
                 state.boards = []
                 state.projectsByBoard = {}
+                state.groupProjects = []
+                state.groupError = null
                 state.error = null
             })
     },
@@ -142,6 +188,8 @@ export const { invalidate } = sidebarSlice.actions
 
 export const selectPinnedBoards = (state) => state.sidebar.boards
 export const selectPinnedProjectsByBoard = (state) => state.sidebar.projectsByBoard
+export const selectGroupProjects = (state) => state.sidebar.groupProjects
+export const selectGroupProjectsLoading = (state) => state.sidebar.groupLoading
 export const selectSidebarLoading = (state) => state.sidebar.loading
 export const selectSidebarError = (state) => state.sidebar.error
 

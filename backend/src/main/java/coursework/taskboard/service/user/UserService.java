@@ -67,7 +67,7 @@ public class UserService {
     }
 
     // ============================================================
-    // Поиск пользователей по displayName (для приглашения в доску)
+    // Поиск пользователей по нику и displayName
     // ============================================================
     @Transactional(readOnly = true)
     public List<UserSearchDto> searchUsers(String query, User requester) {
@@ -75,32 +75,68 @@ public class UserService {
             return List.of();
         }
         String q = query.trim();
-        List<UserProfile> profiles = userProfileRepository.searchByDisplayName(q);
+
+        // Ники ищутся в users (их нет в user_profiles), отображаемые имена —
+        // в user_profiles. Склеиваем оба источника без дублей.
+        List<User> users = new ArrayList<>(userRepository
+                .findTop20ByUsernameContainingIgnoreCaseOrderByUsernameAsc(q));
+        for (UserProfile p : userProfileRepository.searchByDisplayName(q)) {
+            if (p.getUser() != null) users.add(p.getUser());
+        }
 
         List<UserSearchDto> result = new ArrayList<>();
-        for (UserProfile p : profiles) {
-            if (p.getUser() == null) continue;
-            if (p.getUser().getId().equals(requester.getId())) continue;
-
-            String avatarUrl = null;
-            if (p.getAvatar() != null) {
-                AttachmentMeta meta = attachmentMetaRepository
-                        .findById(p.getAvatar().getId()).orElse(null);
-                if (meta != null) {
-                    avatarUrl = uploadBaseUrl + "/" + meta.getUrl();
-                }
-            }
-
-            result.add(UserSearchDto.builder()
-                    .userId(p.getUser().getId())
-                    .username(p.getUser().getUsername())
-                    .displayName(p.getDisplayName())
-                    .avatarUrl(avatarUrl)
-                    .build());
-
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        for (User u : users) {
+            if (u == null || u.getId() == null) continue;
+            if (u.getId().equals(requester.getId())) continue;
+            if (!seen.add(u.getId())) continue;
+            result.add(toSearchDto(u));
             if (result.size() >= 20) break;
         }
         return result;
+    }
+
+    /**
+     * Поиск по нику. Точное совпадение поднимается первым — так @username
+     * в глобальном поиске сразу показывает нужного человека.
+     */
+    @Transactional(readOnly = true)
+    public List<UserSearchDto> searchUsersByUsername(String query, User requester) {
+        if (query == null || query.trim().length() < 1) return List.of();
+        String q = query.trim();
+
+        List<UserSearchDto> result = new ArrayList<>();
+        userRepository.findByUsernameIgnoreCase(q)
+                .filter(u -> !u.getId().equals(requester.getId()))
+                .ifPresent(u -> result.add(toSearchDto(u)));
+
+        for (User u : userRepository
+                .findTop20ByUsernameContainingIgnoreCaseOrderByUsernameAsc(q)) {
+            if (u.getId().equals(requester.getId())) continue;
+            if (result.stream().anyMatch(dto -> dto.getUserId().equals(u.getId()))) continue;
+            result.add(toSearchDto(u));
+            if (result.size() >= 20) break;
+        }
+        return result;
+    }
+
+    private UserSearchDto toSearchDto(User u) {
+        UserProfile profile = userProfileRepository.findById(u.getId()).orElse(null);
+        String avatarUrl = null;
+        if (profile != null && profile.getAvatar() != null) {
+            AttachmentMeta meta = attachmentMetaRepository
+                    .findById(profile.getAvatar().getId()).orElse(null);
+            if (meta != null) {
+                avatarUrl = uploadBaseUrl + "/" + meta.getUrl();
+            }
+        }
+        return UserSearchDto.builder()
+                .userId(u.getId())
+                .username(u.getUsername())
+                .displayName(profile != null && profile.getDisplayName() != null
+                        ? profile.getDisplayName() : u.getUsername())
+                .avatarUrl(avatarUrl)
+                .build();
     }
 
     // ============================================================

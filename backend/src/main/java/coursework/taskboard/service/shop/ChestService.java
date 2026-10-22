@@ -185,7 +185,18 @@ public class ChestService {
         result.setChestCode(chestCode);
         result.setKeys(keyService.getKeys(user));
         result.setLeavesBalance(getLeaves(user));
+        incrementChestsOpened(user);
         return result;
+    }
+
+    private void incrementChestsOpened(User user) {
+        UserCurrency cur = userCurrencyRepository.findById(user.getId())
+                .orElseGet(() -> UserCurrency.builder()
+                        .userId(user.getId())
+                        .leaves(0)
+                        .build());
+        cur.setChestsOpened((cur.getChestsOpened() == null ? 0 : cur.getChestsOpened()) + 1);
+        userCurrencyRepository.save(cur);
     }
 
     // ============================================================

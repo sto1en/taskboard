@@ -16,4 +16,5 @@ public class UserShopDto {
     private List<ShopItemDto> frames;
     private List<ShopItemDto> treeSkins;
     private List<ShopItemDto> accents;
+    private List<ShopItemDto> backgrounds;
 }

@@ -9,6 +9,7 @@ export default function CreateProjectModal({ open, onClose, onCreated, boardId }
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
     const [accent, setAccent] = useState('blue')
+    const [isCoop, setIsCoop] = useState(false)
     const [coverId, setCoverId] = useState(null)
     const [coverPreview, setCoverPreview] = useState(null)
     const [uploading, setUploading] = useState(false)
@@ -21,6 +22,7 @@ export default function CreateProjectModal({ open, onClose, onCreated, boardId }
             setTitle('')
             setDescription('')
             setAccent('blue')
+            setIsCoop(false)
             setCoverId(null)
             setCoverPreview(null)
             setError(null)
@@ -55,6 +57,7 @@ export default function CreateProjectModal({ open, onClose, onCreated, boardId }
                 title: title.trim(),
                 description: description.trim(),
                 accentCode: accent,
+                isCoop,
             })
 
             if (coverId) {
@@ -168,6 +171,23 @@ export default function CreateProjectModal({ open, onClose, onCreated, boardId }
                             />
                         ))}
                     </div>
+                </div>
+
+                <div className="modal__field">
+                    <label className="modal__check">
+                        <input
+                            type="checkbox"
+                            checked={isCoop}
+                            onChange={(e) => setIsCoop(e.target.checked)}
+                        />
+                        <span>
+                            <b>Групповой проект</b>
+                            <span className="modal__check-hint">
+                                В задачах будет виден последний редактор — для проектов,
+                                над которыми работают несколько человек.
+                            </span>
+                        </span>
+                    </label>
                 </div>
 
                 {error && <div className="modal__error">{error}</div>}

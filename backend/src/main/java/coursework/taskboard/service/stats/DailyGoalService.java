@@ -21,9 +21,9 @@ import java.time.ZoneId;
  * Ежедневная цель: 10 закрытых задач = полноценный день.
  *
  * Награда привязана к статусу дня, а не к числу кликов по дереву:
- *   good (3+)        — 25 листьев
- *   excellent (6+)   — 50 листьев
- *   legendary (10+)  — 100 листьев
+ *   good (3+)        — 40 листьев
+ *   excellent (6+)   — 70 листьев
+ *   legendary (10+)  — 120 листьев
  *
  * Награду можно забрать один раз за локальную дату пользователя. Строка
  * user_daily_rewards + synchronized-claim делают повторный клик безопасным.
@@ -37,9 +37,9 @@ public class DailyGoalService {
     public static final int EXCELLENT_AT = 6;
     public static final int LEGENDARY_AT = 10;
 
-    public static final int GOOD_REWARD = 25;
-    public static final int EXCELLENT_REWARD = 50;
-    public static final int LEGENDARY_REWARD = 100;
+    public static final int GOOD_REWARD = 40;
+    public static final int EXCELLENT_REWARD = 70;
+    public static final int LEGENDARY_REWARD = 120;
 
     private static final String TIER_NONE = "none";
     private static final String TIER_GOOD = "good";

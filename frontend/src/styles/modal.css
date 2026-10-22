@@ -90,6 +90,49 @@
     gap: 8px;
 }
 
+.modal__check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text);
+}
+
+.modal__check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    accent-color: var(--primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.modal__check b {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.modal__check-hint {
+    display: block;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .profile-wall,
+    .profile-wall * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+
 .modal__row {
     display: grid;
     grid-template-columns: 1fr 1fr;

@@ -1,0 +1,113 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 027 — Групповые проекты
+  #
+  # Одна скрытая доска «Групповая» на пользователя (boards.is_group)
+  # служит контейнером для его групповых проектов. Доступ к такому
+  # проекту даёт project_members, а не членство в доске, поэтому
+  # участники не видят саму доску и остальные её проекты.
+  #   • boards.is_group      — доска-носитель, скрыта из списка досок;
+  #   • project_settings.is_coop — проект с доступом по project_members;
+  #   • project_members   — кто и с какой ролью работает в проекте;
+  #   • project_invites   — одноразовые ссылки-приглашения.
+  # ============================================================
+
+  - changeSet:
+      id: 027-01-boards-is-group
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists: { tableName: boards, columnName: is_group }
+      changes:
+        - addColumn:
+            tableName: boards
+            columns:
+              - column:
+                  name: is_group
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+
+  # Флаг группового проекта уже есть: project_settings.is_coop (027-05).
+  - changeSet:
+      id: 027-03-project-members
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: project_members }
+      changes:
+        - createTable:
+            tableName: project_members
+            columns:
+              - column:
+                  name: project_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: projects(id)
+                    foreignKeyName: fk_project_members_project
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_project_members_user
+              - column:
+                  name: role
+                  type: VARCHAR(20)
+                  defaultValue: editor
+                  constraints: { nullable: false }
+              - column: { name: added_at, type: TIMESTAMP, constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: project_members
+            columnNames: project_id, user_id
+            constraintName: pk_project_members
+        - createIndex:
+            tableName: project_members
+            indexName: idx_project_members_user
+            columns:
+              - column: { name: user_id }
+
+  - changeSet:
+      id: 027-04-project-invites
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists: { tableName: project_invites }
+      changes:
+        - createTable:
+            tableName: project_invites
+            columns:
+              - column:
+                  name: token
+                  type: VARCHAR(64)
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: project_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: projects(id)
+                    foreignKeyName: fk_project_invites_project
+              - column:
+                  name: created_by
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    references: users(id)
+                    foreignKeyName: fk_project_invites_user
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: expires_at, type: TIMESTAMP }
+        - createIndex:
+            tableName: project_invites
+            indexName: idx_project_invites_project
+            columns:
+              - column: { name: project_id }
+
+  # У существующих пользователей доски «Групповая» ещё нет: она будет
+  # создана лениво при первом групповом проекте (GroupService).

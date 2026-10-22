@@ -29,6 +29,10 @@ import './styles/dashboard.css'
 import './styles/recurrence.css'
 import './styles/create-task.css'
 import './styles/admin.css'
+import './styles/group.css'
+import './styles/leaderboard.css'
+import './styles/user-groups.css'
+import './styles/templates.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>

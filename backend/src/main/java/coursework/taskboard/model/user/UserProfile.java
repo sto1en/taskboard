@@ -31,4 +31,9 @@ public class UserProfile {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "avatar_attachment_id")
     private Attachment avatar;
+
+    /** Background decoration code for the profile wall. */
+    @Column(name = "background_code", length = 64)
+    @Builder.Default
+    private String backgroundCode = "aurora";
 }

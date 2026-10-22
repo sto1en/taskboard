@@ -53,8 +53,19 @@ public class BoardService {
 
     @Transactional
     public BoardDto createBoard(User user, CreateBoardRequest request) {
+        return createBoard(user, request, false);
+    }
+
+    /**
+     * @param group true — создаётся скрытая доска-носитель «Групповая»:
+     *              она не попадает в список досок и не участвует в ачивках
+     *              за количество досок.
+     */
+    @Transactional
+    public BoardDto createBoard(User user, CreateBoardRequest request, boolean group) {
         int boardPosition = (int) boardRepository.countByOwnerId(user.getId());
         Board board = boardMapper.toBoard(user, request, boardPosition);
+        board.setIsGroup(group);
         boardRepository.save(board);
 
         BoardAppearance appearance = boardMapper.toBoardAppearance(board, request.getAccentCode());
@@ -82,19 +93,22 @@ public class BoardService {
         projectSettingsRepository.save(projectSettings);
 
         userWorkspaceRepository.findById(user.getId()).ifPresent(ws -> {
-            if (ws.getDefaultBoard() == null) {
+            if (!group && ws.getDefaultBoard() == null) {
                 ws.setDefaultBoard(board);
                 userWorkspaceRepository.save(ws);
             }
         });
 
-        long boardsCount = boardRepository.countByOwnerId(user.getId());
-        List<AchievementDto> newAch = achievementService.checkBoards(user, boardsCount);
-
         long projectCount = projectRepository.countByBoardId(board.getId());
         BoardDto dto = boardMapper.toBoardDto(board, appearance, settings, member,
                 mainProject, projectCount, 0L, null);
-        dto.setNewlyUnlockedAchievements(newAch);
+
+        if (!group) {
+            long boardsCount = boardRepository.countByOwnerId(user.getId());
+            dto.setNewlyUnlockedAchievements(
+                    achievementService.checkBoards(user, boardsCount));
+        }
+
         return dto;
     }
 
@@ -106,6 +120,9 @@ public class BoardService {
 
         for (BoardMember m : memberships) {
             Board board = m.getBoard();
+
+            // Доска-носитель групповых проектов живёт отдельно от «Моих досок».
+            if (Boolean.TRUE.equals(board.getIsGroup())) continue;
 
             BoardAppearance appearance = boardAppearanceRepository
                     .findById(board.getId()).orElse(null);

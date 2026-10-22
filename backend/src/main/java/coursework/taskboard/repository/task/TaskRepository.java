@@ -121,6 +121,31 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                                 @Param("from") LocalDateTime from,
                                 @Param("categoryCode") String categoryCode);
 
+    /** Всего закрытых задач пользователя (за всё время) — для профиля. */
+    @Query("""
+        SELECT count(t) FROM Task t
+        JOIN t.settings s
+        JOIN s.status st
+        JOIN t.project p
+        JOIN p.board b
+        WHERE b.owner.id = :userId
+          AND st.categoryCode = 'DONE'
+    """)
+    long countDoneByOwner(@Param("userId") Long userId);
+
+    /** Даты, когда у пользователя были закрытые задачи (для стрика профиля). */
+    @Query(value = """
+        SELECT DISTINCT CAST(sch.completed_at AS DATE) AS d
+        FROM task_schedule sch
+        JOIN tasks t ON t.id = sch.task_id
+        JOIN projects p ON p.id = t.project_id
+        JOIN boards b ON b.id = p.board_id
+        WHERE b.owner_id = :userId
+          AND sch.completed_at IS NOT NULL
+        ORDER BY d DESC
+    """, nativeQuery = true)
+    List<java.sql.Date> findCompletedDatesByOwner(@Param("userId") Long userId);
+
     /**
      * Сколько задач пользователь закрыл в диапазоне [from, to).
      * Используется ежедневной целью: диапазон — начало локальной даты
