@@ -7,6 +7,7 @@ import store from './store/store'
 import { StoreProvider } from './store/StoreContext'
 import { useUiStore } from './store/useUiStore'
 import MobileTopBar from './components/layout/MobileTopBar'
+import MobileDrawer from './components/layout/MobileDrawer'
 import MobileNav from './components/layout/MobileNav'
 import TaskCard from './components/task/TaskCard'
 
@@ -18,8 +19,8 @@ import TaskCard from './components/task/TaskCard'
 //   ?screen=boards   — сетка досок (BoardsPage — cards вручную)
 //   ?screen=kanban   — канбан-колонки с TaskCard (главный сценарий)
 //   ?screen=modal    — карточка задачи как нижняя шторка
-//   ?screen=menu     — мобильное меню поверх канбана
-//   ?screen=dashboard — дашборд (hero + виджеты)
+//   ?screen=menu     — нижний лист «ещё» (настройки, помощь, выход)
+//   ?screen=drawer   — выезжающий сайдбар слева//   ?screen=dashboard — дашборд (hero + виджеты)
 //   ?screen=login    — экран входа
 //
 // Смысл не в пиксель-в-пиксель копии страниц, а в проверке каркаса
@@ -285,10 +286,11 @@ function LoginScreen() {
 const Shell = observer(function Shell() {
     const ui = useUiStore()
 
-    // Дровер Open по умолчанию для screen=menu — иначе его пришлось бы
-    // «нажимать» в headless-браузере.
+    // Панель открыта по умолчанию для screen=drawer (сайдбар) и
+    // screen=menu (нижний лист «ещё») — иначе пришлось бы «нажимать» её
+    // в headless-браузере.
     useEffect(() => {
-        if (SCREEN === 'menu') ui.openMobileMenu()
+        if (SCREEN === 'menu' || SCREEN === 'drawer') ui.openMobileMenu()
         return () => ui.closeMobileMenu()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -297,14 +299,26 @@ const Shell = observer(function Shell() {
     if (SCREEN === 'boards') body = <BoardsScreen />
     else if (SCREEN === 'dashboard') body = <DashboardScreen />
     else if (SCREEN === 'modal') body = <ModalScreen />
-    else if (SCREEN === 'menu') body = <KanbanScreen />
+    else if (SCREEN === 'menu' || SCREEN === 'drawer') body = <KanbanScreen />
     else if (SCREEN === 'login') return <LoginScreen />
     else body = <KanbanScreen />
 
+    // В песочнице нет десктопного Sidebar (он тянет закрепы и дерево из
+    // API). На широком экране показываем его заглушку — чтобы можно было
+    // убедиться, что мобильная панель на десктопе не появляется.
     return (
         <div className="layout">
+            <aside className="sidebar" aria-hidden="true">
+                <div className="sidebar__user">
+                    <div className="sidebar__user-avatar" />
+                    <div className="sidebar__user-meta">
+                        <div className="sidebar__name">andrew</div>
+                    </div>
+                </div>
+            </aside>
             <div className="layout__main">
                 <MobileTopBar />
+                <MobileDrawer />
                 <div className="layout__content">{body}</div>
             </div>
             <MobileNav />

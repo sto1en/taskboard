@@ -11,24 +11,20 @@ import ConfirmModal from '../common/ConfirmModal'
  * Мобильный TopBar + выдвижное меню.
  *
  * Задач у шапки на телефоне три:
- *   1) сказать, где пользователь (заголовок и «назад»),
- *   2) дать быстрый поиск в один тап (поле разворачивается на всю ширину),
- *   3) открыть то, что не влезло в нижний таб-бар — шаблоны, гайды,
- *      статистику, лидерборд, группы, настройки, помощь и выход.
+ *   1) открыть сайдбар (☰ слева) — весь состав десктопного Sidebar;
+ *   2) сказать, где пользователь (заголовок и «назад»);
+ *   3) дать быстрый поиск в один тап (поле разворачивается на всю ширину).
  *
- * Здесь же живёт гамбургер: десктопный Sidebar на телефоне скрыт
- * (mobile.css), а кнопки «свернуть/развернуть» там нет.
+ * Гамбургер стоит слева, как в нативных приложениях: панель выезжает
+ * именно с этой стороны. Сам сайдбар — MobileDrawer, здесь только кнопка
+ * и нижний лист «ещё» (настройки, помощь, выход).
  */
 
 const MENU_LINKS = {
-    // Группы — только пункт меню, в таб-баре их нет: это редкий сценарий.
-    extra: [
-        { to: '/stats', icon: '📊', labelKey: 'stats' },
-        { to: '/leaderboard', icon: '🏆', label: 'Лидерборд' },
-        { to: '/templates', icon: '🧩', labelKey: 'templates' },
-        { to: '/guides', icon: '🗺️', label: 'Гайды' },
-        { to: '/group', icon: '👥', label: 'Группы' },
-    ],
+    // Основные разделы (доски, календарь, магазин, профиль и т. д.) живут
+    // в выезжающем сайдбаре (MobileDrawer, кнопка ☰). В нижнем листе —
+    // только служебное, чтобы не дублировать сайдбар.
+    extra: [],
     bottom: [
         { to: '/settings', icon: '⚙', labelKey: 'settings' },
         { to: '/help', icon: '❓', labelKey: 'help' },
@@ -126,7 +122,12 @@ export default observer(function MobileTopBar() {
     }
 
     const openMenu = () => {
-        closeSearch()
+        // Поиск в шапке — временное состояние: при открытии сайдбара его
+        // закрываем, иначе он «останется» в шапке под затемнением.
+        if (searchOpen) {
+            setSearchOpen(false)
+            setQuery('')
+        }
         ui.openMobileMenu()
     }
 
@@ -170,6 +171,17 @@ export default observer(function MobileTopBar() {
                     </form>
                 ) : (
                     <>
+                        <button
+                            type="button"
+                            className="mobile-icon-btn mobile-topbar__menu"
+                            onClick={openMenu}
+                            aria-label="Меню"
+                            aria-expanded={menuOpen}
+                        >
+                            ☰
+                        </button>
+                        {/* «Назад» — только когда он есть: на корневых экранах
+                            идёт таб-бар, и кнопка в никуда только путает. */}
                         {!isRoot && (
                             <button
                                 type="button"
@@ -190,23 +202,14 @@ export default observer(function MobileTopBar() {
                         >
                             🔍
                         </button>
-                        <button
-                            type="button"
-                            className="mobile-icon-btn"
-                            onClick={openMenu}
-                            aria-label="Меню"
-                            aria-expanded={menuOpen}
-                        >
-                            ☰
-                        </button>
                     </>
                 )}
             </header>
 
-            {/* Дровер-меню: снизу вверх, как в нативных приложениях.
-                Оверлей отдельным слоем, чтобы тап по фону закрывал меню. */}
+            {/* Нижний лист «ещё»: только служебные пункты. Всё основное —
+                в выезжающем сайдбаре слева (MobileDrawer). */}
             {menuOpen && (
-                <div className="mobile-menu" role="dialog" aria-modal="true" aria-label="Меню">
+                <div className="mobile-menu" role="dialog" aria-modal="true" aria-label="Ещё">
                     <button
                         type="button"
                         className="mobile-menu__scrim"

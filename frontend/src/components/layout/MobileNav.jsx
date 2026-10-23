@@ -5,16 +5,15 @@ import { useAuth } from '../../context/AuthContext'
 import { useUiStore } from '../../store/useUiStore'
 import { selectActiveAvatar, selectActiveFrame } from '../../store/slices/shopSlice'
 import useT from '../../hooks/useT'
-import useIsMobile from '../../hooks/useMediaQuery'
+import { useIsMobile } from '../../hooks/useMediaQuery'
 import AvatarWithFrame from './AvatarWithFrame'
 
 /**
  * Нижняя навигация на телефоне.
  *
- * Заменяет десктопный сайдбар только на узких экранах (mobile.css прячет
- * .sidebar). Пять пунктов — самое частое: главная, доски, календарь,
- * магазин, профиль. Всё остальное (шаблоны, гайды, статистика, настройки,
- * группы, выход) живёт в «Меню» на TopBar, чтобы не плодить шестой пункт.
+ * Дополняет выезжающий сайдбар (MobileDrawer): четыре самых частых экрана —
+ * главная, доски, магазин, профиль. Всё остальное (календарь, шаблоны,
+ * гайды, статистика, группы, настройки, выход) — в сайдбаре по кнопке ☰.
  *
  * Почему отдельный компонент, а не переиспользование Sidebar: Sidebar
  * держит дерево, ежедневную цель, закрепы и кнопку свёртывания — на
@@ -35,15 +34,15 @@ export default observer(function MobileNav() {
     // проект живёт внутри досок, лидерборд — внутри статистики и т. д.
     const path = location.pathname
     const inBoards = /^\/boards(\/|$)/.test(path) || /^\/group(\/|$)/.test(path)
-    const inCalendar = path.startsWith('/calendar')
     const inShop = path.startsWith('/shop')
     const inProfile = path.startsWith('/profile') || /^\/users\//.test(path)
     const inHome = path === '/' || path.startsWith('/stats') || path.startsWith('/leaderboard')
 
+    // Состав таб-бара: «Профиль» и «Доски» — основные экраны, которые
+    // пользователь открывает чаще всего; календарь живёт в сайдбаре.
     const items = [
         { code: 'home', to: '/', icon: '🏠', label: t.home || 'Главная', active: inHome },
         { code: 'boards', to: '/boards', icon: '📋', label: t.boards || 'Доски', active: inBoards },
-        { code: 'calendar', to: '/calendar', icon: '📅', label: t.calendar || 'Календарь', active: inCalendar },
         { code: 'shop', to: '/shop', icon: '🛒', label: 'Магазин', active: inShop },
         { code: 'profile', to: '/profile', icon: '👤', label: 'Профиль', active: inProfile },
     ]

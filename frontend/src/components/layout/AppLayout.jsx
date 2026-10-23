@@ -10,6 +10,7 @@ import { useUiStore } from '../../store/useUiStore'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
 import MobileTopBar from './MobileTopBar'
+import MobileDrawer from './MobileDrawer'
 import MobileNav from './MobileNav'
 import RescheduleBanner from '../task/RescheduleBanner'
 
@@ -67,8 +68,8 @@ export default observer(function AppLayout() {
         const attachmentsModal = document.querySelector('.attachments-modal-overlay')
         const inlinePreview = document.querySelector('.attachments-modal__preview')
 
-        // Мобильное меню — верхний слой: Escape должен закрыть именно его,
-        // а не уводить пользователя со страницы.
+        // Мобильное меню (сайдбар/лист) — верхний слой: Escape должен
+        // закрыть именно его, а не уводить пользователя со страницы.
         if (ui.mobileMenuOpen) {
             ui.closeMobileMenu()
             return false
@@ -203,6 +204,9 @@ export default observer(function AppLayout() {
                     при повороте экрана. */}
                 <TopBar />
                 <MobileTopBar />
+                {/* Сайдбар на телефоне: выезжает слева по кнопке ☰.
+                    На десктопе компонент возвращает null — там свой Sidebar. */}
+                <MobileDrawer />
                 <div className="layout__content">
                     {/* Свой Suspense: при ленивой загрузке страницы остаётся
                         видимым сайдбар, а не только полноэкранный спиннер. */}

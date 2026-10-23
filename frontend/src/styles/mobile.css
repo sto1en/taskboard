@@ -24,6 +24,8 @@
 
 /* ---------- базовый слой: за пределами телефона всё скрыто ---------- */
 
+/* .mobile-drawer здесь только «выключен» на десктопе: в компоненте он и
+   так не рендерится (useIsMobile), но страховка дешёвая. */
 .mobile-topbar,
 .mobile-nav,
 .mobile-menu {
@@ -305,6 +307,360 @@
         outline: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
         outline-offset: 2px;
         border-radius: 50%;
+    }
+
+    /* ---------- выезжающий сайдбар ---------- */
+
+    /* Приём «2D-трансформ вместо left-анимации»: панель выезжает за счёт
+       translate, а браузеру не приходится пересчитывать раскладку каждый
+       кадр. Закрытая панель остаётся в DOM (там дерево и списки — их не
+       выгодно пересоздавать на каждое открытие), но не ловит тапы:
+       visibility: hidden + inert в компоненте. */
+    .mobile-drawer {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 110;
+        visibility: hidden;
+        transition: visibility 0s linear .26s;
+    }
+
+    .mobile-drawer--open {
+        visibility: visible;
+        transition-delay: 0s;
+    }
+
+    .mobile-drawer__scrim {
+        position: absolute;
+        inset: 0;
+        border: none;
+        padding: 0;
+        background: rgba(9, 30, 66, 0.5);
+        opacity: 0;
+        transition: opacity .22s ease-out;
+        cursor: default;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-drawer--open .mobile-drawer__scrim {
+        opacity: 1;
+    }
+
+    .mobile-drawer__panel {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: min(86vw, 320px);
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+        border-radius: 0 18px 18px 0;
+        box-shadow: 12px 0 40px rgba(9, 30, 66, 0.28);
+        /* Безопасные зоны: контент не залезает под «чёлку» и под
+           жестовую полоску внизу. */
+        padding: var(--mobile-safe-top) 0 var(--mobile-safe-bottom);
+        transform: translateX(-100%);
+        transition: transform .26s cubic-bezier(.2, .9, .3, 1);
+        overflow: hidden;
+    }
+
+    .mobile-drawer--open .mobile-drawer__panel {
+        transform: translateX(0);
+    }
+
+    .mobile-drawer__user {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 10px 12px 14px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+    }
+
+    .mobile-drawer__avatar {
+        display: inline-flex;
+        flex-shrink: 0;
+        border-radius: 50%;
+    }
+
+    .mobile-drawer__meta {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .mobile-drawer__name {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mobile-drawer__profile-link {
+        display: inline-block;
+        margin-top: 2px;
+        font-size: 12.5px;
+        color: var(--text-muted);
+        text-decoration: none;
+    }
+
+    .mobile-drawer__nav {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        padding: 6px 8px;
+    }
+
+    .mobile-drawer__link {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 44px;
+        padding: 0 10px;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text);
+        font-size: 15px;
+        font-weight: 500;
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-drawer__link:active {
+        background: rgba(9, 30, 66, 0.07);
+    }
+
+    html[data-theme="dark"] .mobile-drawer__link:active {
+        background: rgba(255, 255, 255, 0.09);
+    }
+
+    .mobile-drawer__link.active {
+        color: var(--primary);
+        background: color-mix(in srgb, var(--primary) 10%, transparent);
+        font-weight: 600;
+    }
+
+    .mobile-drawer__link--danger {
+        color: var(--danger);
+    }
+
+    .mobile-drawer__icon {
+        width: 24px;
+        flex-shrink: 0;
+        text-align: center;
+        font-size: 17px;
+        line-height: 1;
+    }
+
+    .mobile-drawer__group-row {
+        display: flex;
+        align-items: center;
+    }
+
+    .mobile-drawer__group-row .mobile-drawer__link {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .mobile-drawer__toggle,
+    .mobile-drawer__unpin {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-drawer__unpin {
+        width: 34px;
+        height: 34px;
+        font-size: 13px;
+    }
+
+    .mobile-drawer__caret {
+        display: inline-block;
+        font-size: 12px;
+        transition: transform .18s;
+    }
+
+    .mobile-drawer__caret--open {
+        transform: rotate(90deg);
+    }
+
+    .mobile-drawer__subnav {
+        padding: 0 4px 4px 34px;
+    }
+
+    .mobile-drawer__sublink-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .mobile-drawer__sublink {
+        flex: 1;
+        min-width: 0;
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        margin: 2px 0;
+        padding: 0 10px;
+        border-radius: 9px;
+        color: var(--text-muted);
+        font-size: 14px;
+        text-decoration: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-drawer__sublink--project {
+        font-size: 13.5px;
+        padding-left: 16px;
+    }
+
+    .mobile-drawer__sublink--project::before {
+        content: '·';
+        margin-right: 8px;
+        color: var(--border);
+    }
+
+    .mobile-drawer__sublink:active {
+        background: rgba(9, 30, 66, 0.07);
+    }
+
+    html[data-theme="dark"] .mobile-drawer__sublink:active {
+        background: rgba(255, 255, 255, 0.09);
+    }
+
+    .mobile-drawer__sublink.active {
+        color: var(--primary);
+        font-weight: 600;
+    }
+
+    .mobile-drawer__pinned-projects {
+        padding-left: 8px;
+    }
+
+    .mobile-drawer__hint {
+        padding: 2px 12px 8px 34px;
+        font-size: 12.5px;
+        color: var(--text-muted);
+    }
+
+    .mobile-drawer__divider {
+        height: 1px;
+        margin: 6px 10px;
+        background: var(--border);
+    }
+
+    /* Дерево — неотъемлемая часть мотивации, но на телефоне оно не должно
+       утягивать панель в бесконечный скролл: ограничиваем высоту картинки. */
+    .mobile-drawer__tree {
+        flex-shrink: 0;
+        max-height: 46dvh;
+        overflow-y: auto;
+        padding: 4px 12px 8px;
+        border-top: 1px solid var(--border);
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .mobile-drawer__tree-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        min-height: 40px;
+        padding: 0 6px;
+        border: none;
+        background: transparent;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .mobile-drawer__tree-caret {
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .mobile-drawer__tree svg {
+        max-height: 26dvh;
+    }
+
+    .mobile-drawer__daily-status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 6px 0;
+        font-size: 12.5px;
+        color: var(--text-muted);
+    }
+
+    .mobile-drawer__daily-status b {
+        color: var(--text);
+    }
+
+    .mobile-drawer__daily-progress {
+        display: flex;
+        gap: 3px;
+        padding: 6px 6px 0;
+    }
+
+    .mobile-drawer__daily-segment {
+        flex: 1;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--border);
+    }
+
+    .mobile-drawer__daily-segment--filled {
+        background: var(--primary);
+    }
+
+    .mobile-drawer__tree-hint {
+        padding: 6px 6px 0;
+        font-size: 12px;
+        line-height: 1.35;
+        color: var(--text-muted);
+    }
+
+    .mobile-drawer__bottom {
+        flex-shrink: 0;
+        padding: 6px 8px 10px;
+        border-top: 1px solid var(--border);
+        max-height: 44dvh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Шапка: гамбургер — слева, как и выезжающая панель. */
+    .mobile-topbar__menu {
+        font-size: 20px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .mobile-drawer__panel,
+        .mobile-drawer__scrim {
+            transition: none;
+        }
     }
 
     /* ---------- дровер-меню ---------- */
