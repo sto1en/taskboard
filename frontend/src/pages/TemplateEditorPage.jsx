@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { taskTemplatesApi, guidesApi } from '../api/api'
-import TemplatePlanner, { DAY_HOURS } from '../components/templates/TemplatePlanner'
+import TemplatePlanner, { DAY_HOURS, QUICK_HOURS } from '../components/templates/TemplatePlanner'
 import { PriorityPicker } from '../components/task/PriorityStars'
 import ConfirmModal from '../components/common/ConfirmModal'
 
@@ -211,6 +211,48 @@ function buildSideRows(items, viewState) {
     return rows
 }
 
+/**
+ * Необязательный блокировщик для data-router (createBrowserRouter).
+ *
+ * useBlocker в приложении на BrowserRouter бросает исключение при рендере,
+ * поэтому хук нельзя вызывать «всегда». Хуки условно вызывать тем более
+ * нельзя, так что выносим его в отдельный компонент: если дерево уже падает
+ * без data-router, этот элемент просто не отрендерится, а страница жива.
+ * Внутри ErrorBoundary поддерева ошибка не нужна — поэтому компонент
+ * монтируется только под собственным границей.
+ */
+function LeaveBlocker({ shouldBlock, onBlocked }) {
+    const blocker = useBlocker(shouldBlock)
+
+    useEffect(() => {
+        if (blocker.state === 'blocked') onBlocked(blocker)
+        // blocker пересоздаётся на каждый рендер — следим только за состоянием.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [blocker.state])
+
+    return null
+}
+
+/** Граница для LeaveBlocker: в BrowserRouter хук бросает — гасим молча. */
+class BlockerBoundary extends Component {
+    constructor(props) {
+        super(props)
+        this.state = { failed: false }
+    }
+
+    static getDerivedStateFromError() {
+        return { failed: true }
+    }
+
+    componentDidCatch() {
+        // Ожидаемо для BrowserRouter: useBlocker требует data-router.
+    }
+
+    render() {
+        return this.state.failed ? null : this.props.children
+    }
+}
+
 export default function TemplateEditorPage() {
     const { id } = useParams()
     const nav = useNavigate()
@@ -368,13 +410,54 @@ export default function TemplateEditorPage() {
             nav(to)
             return
         }
-        setLeaveTarget(to)
+        setLeaveTarget({ navigate: (target) => nav(target), to })
     }
 
-    const confirmLeave = () => {
-        const to = leaveTarget || '/templates'
+    // Всё, что ведёт прочь со страницы (меню, ссылки, история браузера),
+    // перехватывается тем же предупреждением, что и «Отмена».
+    //
+    // useBlocker есть только в data-router (createBrowserRouter), а приложение
+    // на BrowserRouter: там хук бросает «must be used within a data router»
+    // прямо в рендере, и страница падает в ErrorBoundary. Поэтому основная
+    // защита — свой обработчик кликов (`leaveGuardProps`) и beforeunload
+    // ниже; на data-router дополнительно включается useBlocker в отдельном
+    // компоненте-стороже (см. LeaveBlocker).
+    const dirtyRef = useRef(dirty)
+    useEffect(() => { dirtyRef.current = dirty }, [dirty])
+
+    // «Остаться»/Esc — закрыть модалку.
+    const cancelLeave = () => {
         setLeaveTarget(null)
-        nav(to)
+    }
+
+    // «Выйти без сохранения» — ведём по адресу из модалки, либо на каталог.
+    const confirmLeave = () => {
+        const target = leaveTarget
+        setLeaveTarget(null)
+        if (!target) return
+        nav(target.to || '/templates')
+    }
+
+    /**
+     * Перехват кликов по ссылкам внутри страницы (меню, «← Все шаблоны»):
+     * без него с несохранёнными изменениями можно молча уйти с формы.
+     * Ctrl/Cmd/Shift + клик и средняя кнопка не трогаем — это новые вкладки.
+     */
+    const leaveGuardProps = {
+        onClickCapture: (e) => {
+            if (!dirtyRef.current) return
+            if (e.defaultPrevented || e.button !== 0) return
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+            const anchor = e.target instanceof Element ? e.target.closest('a[href]') : null
+            if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return
+            const href = anchor.getAttribute('href')
+            if (!href || href.startsWith('#')) return
+            const url = new URL(anchor.href, window.location.href)
+            if (url.origin !== window.location.origin) return
+            e.preventDefault()
+            e.stopPropagation()
+            requestLeave(url.pathname + url.search + url.hash)
+        },
     }
 
     // Перезагрузка/закрытие вкладки — нативное предупреждение браузера.
@@ -388,6 +471,20 @@ export default function TemplateEditorPage() {
         window.addEventListener('beforeunload', onBeforeUnload)
         return () => window.removeEventListener('beforeunload', onBeforeUnload)
     }, [dirty])
+
+    // Сторож для data-router: ловит переходы браузерными «назад/вперёд».
+    // На BrowserRouter он отвалится внутри BlockerBoundary — это нормально.
+    const blockerShouldBlock = useCallback(
+        ({ currentLocation, nextLocation }) => dirtyRef.current
+            && currentLocation.pathname !== nextLocation.pathname,
+        [],
+    )
+    const handleBlocked = useCallback((blocker) => {
+        setLeaveTarget({
+            to: blocker.location?.pathname || '/templates',
+            navigate: (to) => blocker.proceed(to),
+        })
+    }, [])
 
     const sideRows = useMemo(
         () => buildSideRows(items, plannerState),
@@ -471,7 +568,9 @@ export default function TemplateEditorPage() {
 
     const toggleTime = (key) => {
         const item = items.find((it) => it.key === key)
-        patchItem(key, 'startTime', item?.startTime ? null : DAY_HOURS[0])
+        // Включаем время — сразу типичный рабочий час; нужный ставится
+        // кликом по сетке всех 24 часов.
+        patchItem(key, 'startTime', item?.startTime ? null : QUICK_HOURS[0])
     }
 
     const removeTask = (key) => {
@@ -507,9 +606,61 @@ export default function TemplateEditorPage() {
         onDrop,
     })
 
+    /**
+     * Причины, по которым шаблон не сохранится. Повторяют ограничения
+     * бэкенда (SaveTaskTemplateRequest): @Size и типы колонок. Раньше
+     * превышение давало 500 «Внутренняя ошибка сервера» — непонятно,
+     * что чинить.
+     */
+    const saveBlockers = () => {
+        const list = []
+        const t = title.trim()
+
+        if (!t) list.push('Укажите название шаблона')
+        else if (t.length > 120) list.push(`Название шаблона длиннее 120 символов (${t.length})`)
+        if ((description || '').length > 2000) list.push('Описание шаблона длиннее 2000 символов')
+        if ((icon || '').length > 16) list.push('Иконка длиннее 16 символов')
+
+        const named = items.filter((item) => item.title.trim())
+        if (named.length === 0) list.push('Добавьте хотя бы одну задачу с названием')
+
+        // Пустые карточки на календаре: без названия бэкенд отклонит весь шаблон.
+        const blank = items.filter((item) => !item.title.trim())
+        if (blank.length > 0) {
+            list.push(`Задач без названия: ${blank.length} — впишите или удалите их`)
+        }
+
+        const longTitles = items.filter((item) => item.title.trim().length > 255)
+        if (longTitles.length > 0) list.push(`Название задачи длиннее 255 символов (${longTitles.length})`)
+
+        // SMALLINT в базе: priority — 16-битное число.
+        const badPriority = items.filter((item) => {
+            const p = Number(item.priority) || 0
+            return p < -32768 || p > 32767
+        })
+        if (badPriority.length > 0) list.push('Некорректный приоритет у задачи')
+
+        const badEstimate = items.filter((item) => {
+            if (item.estimatedMinutes === '' || item.estimatedMinutes == null) return false
+            const n = Number(item.estimatedMinutes)
+            return !Number.isFinite(n) || n < 0 || !Number.isInteger(n)
+        })
+        if (badEstimate.length > 0) list.push('Оценка времени должна быть целым числом ≥ 0')
+
+        // Старые шаблоны могли хранить «24:00» — бэкенд принимает только 00–23.
+        const badTime = items.filter((item) => item.startTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(item.startTime))
+        if (badTime.length > 0) list.push('Время начала должно быть в формате ЧЧ:ММ (00:00–23:59)')
+
+        const draft = items.filter((item) => (item.subtaskDraft || '').trim())
+        if (draft.length > 0) list.push('Есть недобавленные подзадачи — нажмите «Добавить»')
+
+        return list
+    }
+
     const save = async () => {
-        if (!title.trim()) {
-            setError('Укажите название шаблона')
+        const blockers = saveBlockers()
+        if (blockers.length > 0) {
+            setError(blockers[0])
             return
         }
 
@@ -528,11 +679,6 @@ export default function TemplateEditorPage() {
                 subtasks: item.subtasks,
             }))
 
-        if (payloadItems.length === 0) {
-            setError('Добавьте хотя бы одну задачу с названием')
-            return
-        }
-
         setSaving(true)
         setError('')
         try {
@@ -549,7 +695,9 @@ export default function TemplateEditorPage() {
             } else {
                 await taskTemplatesApi.create(payload)
             }
-            // Сохранено — выходим без предупреждения.
+            // Сохранено — шаблон на сервере такой же, как на экране, поэтому
+            // сдвигаем базовый снимок и выходим без перехвата useBlocker.
+            setBaseline(currentSnapshot)
             nav('/templates')
         } catch (err) {
             setError(err.response?.data?.message || 'Не удалось сохранить шаблон')
@@ -561,7 +709,6 @@ export default function TemplateEditorPage() {
     if (loading) {
         return <div className="loading">Загружаем шаблон…</div>
     }
-
     if (loadError) {
         return (
             <div className="tplan-page">
@@ -571,8 +718,15 @@ export default function TemplateEditorPage() {
         )
     }
 
+    // Причины, по которым «Сохранить» недоступна; пересчитываются на каждом
+    // рендере, поэтому подсказка и кнопка не разъезжаются.
+    const blockers = saveBlockers()
+
     return (
-        <div className="tplan-page">
+        <div className="tplan-page" {...leaveGuardProps}>
+            <BlockerBoundary>
+                <LeaveBlocker shouldBlock={blockerShouldBlock} onBlocked={handleBlocked} />
+            </BlockerBoundary>
             <header className="tplan-head">
                 <div className="tplan-head__top">
                     <button
@@ -580,21 +734,6 @@ export default function TemplateEditorPage() {
                         className="tplan-back tplan-back--button"
                         onClick={() => requestLeave('/templates')}
                     >← Все шаблоны</button>
-                    <div className="tplan-head__actions">
-                        {dirty && <span className="tplan-dirty" title="Есть несохранённые изменения">• не сохранено</span>}
-                        <button
-                            type="button"
-                            className="btn btn-ghost"
-                            onClick={() => requestLeave('/templates')}
-                            disabled={saving}
-                        >Отмена</button>
-                        <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={save}
-                            disabled={saving}
-                        >{saving ? 'Сохраняем…' : 'Сохранить шаблон'}</button>
-                    </div>
                 </div>
 
                 <div className="tplan-head__main">
@@ -614,6 +753,7 @@ export default function TemplateEditorPage() {
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="Название шаблона"
                             aria-label="Название шаблона"
+                            maxLength={120}
                             autoFocus
                         />
                         <input
@@ -622,6 +762,7 @@ export default function TemplateEditorPage() {
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="Короткое описание: для каких случаев подходит шаблон"
                             aria-label="Описание шаблона"
+                            maxLength={2000}
                         />
                     </div>
 
@@ -842,22 +983,30 @@ export default function TemplateEditorPage() {
                                             {item.startTime && (
                                                 <div className="modal__field">
                                                     <label className="modal__label">Время начала</label>
-                                                    <div className="tplan-hours">
+                                                    {/* Все 24 часа сеткой 6×4 — компактно, без
+                                                        длинной прокрутки и без «только базовых». */}
+                                                    <div className="tplan-hours" role="group" aria-label="Время начала">
                                                         {DAY_HOURS.map((hour) => (
                                                             <button
                                                                 key={hour}
                                                                 type="button"
                                                                 className={item.startTime === hour ? 'is-active' : ''}
                                                                 onClick={() => patchItem(item.key, 'startTime', hour)}
+                                                                title={hour === '00:00' ? '00:00 — полночь' : hour}
                                                             >
-                                                                {hour === '24:00' ? '00:00' : hour}
+                                                                {hour}
                                                             </button>
                                                         ))}
                                                     </div>
                                                     <div className="create-task__hint-inline">
-                                                        Базовые часы дня: 9, 12, 15, 18, 21, 24 (00:00).
-                                                        24:00 — полночь.
+                                                        Любой час суток. Кнопка ниже — вернуть задачу в «без
+                                                        времени».
                                                     </div>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-ghost btn-sm"
+                                                        onClick={() => patchItem(item.key, 'startTime', null)}
+                                                    >Без времени</button>
                                                 </div>
                                             )}
 
@@ -961,6 +1110,39 @@ export default function TemplateEditorPage() {
 
             {error && <div className="tplan-error">{error}</div>}
 
+            {/* Действия под самим шаблоном: список задач — рабочая область
+                страницы, поэтому «Сохранить»/«Отмена» стоят после неё,
+                а не в шапке. */}
+            <footer className="tplan-actions">
+                {blockers.length > 0
+                    ? <span className="tplan-actions__hint tplan-actions__hint--error" role="alert">
+                        ⚠ {blockers[0]}
+                        {blockers.length > 1 && <span className="tplan-actions__more"> и ещё {blockers.length - 1}</span>}
+                    </span>
+                    : dirty
+                        ? <span className="tplan-actions__hint" title="Есть несохранённые изменения">
+                            • не сохранено
+                        </span>
+                        : <span className="tplan-actions__hint tplan-actions__hint--clean">
+                            {isEdit ? 'Все изменения сохранены' : 'Черновик нового шаблона'}
+                        </span>}
+                <div className="tplan-actions__buttons">
+                    <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={save}
+                        disabled={saving || blockers.length > 0}
+                        title={blockers.length ? blockers.join('\n') : undefined}
+                    >{saving ? 'Сохраняем…' : 'Сохранить шаблон'}</button>
+                    <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => requestLeave('/templates')}
+                        disabled={saving}
+                    >Отмена</button>
+                </div>
+            </footer>
+
             <ConfirmModal
                 open={Boolean(leaveTarget)}
                 title="Выйти без сохранения?"
@@ -973,7 +1155,7 @@ export default function TemplateEditorPage() {
                 cancelLabel="Остаться"
                 danger
                 onConfirm={confirmLeave}
-                onClose={() => setLeaveTarget(null)}
+                onClose={cancelLeave}
             />
         </div>
     )

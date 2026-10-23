@@ -169,9 +169,44 @@
     background: var(--surface);
 }
 
-/* Растяжка между левой (мусорка) и правой (Закрыть / Сохранить) группами */
+/* Растяжка между левой (мусорка) и правой (Сохранить / Отмена) группами */
 .modal__foot-spacer {
     flex: 1;
+}
+
+/* Подпись слева от «Сохранить»: почему сохранить нельзя (ошибки) или
+   что сохранение затронет (предупреждения). Не сжимается ниже кнопок —
+   длинный текст обрезается многоточием, полный — в title. */
+.modal__foot-hint {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: min(52ch, 50%);
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: right;
+    color: var(--text-muted);
+    background: var(--surface-2, rgba(127, 127, 127, 0.08));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.modal__foot-hint--error {
+    background: rgba(255, 86, 48, 0.08);
+    color: var(--danger);
+}
+
+@media (max-width: 720px) {
+    /* На узком экране подпись уходит на строку над кнопками */
+    .modal__foot-hint {
+        order: -1;
+        flex: 1 0 100%;
+        max-width: none;
+        text-align: left;
+        white-space: normal;
+    }
 }
 
 /* ============================================================

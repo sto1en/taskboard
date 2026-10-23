@@ -39,6 +39,27 @@ export function buildDeadline(date, time, hasTime) {
     return `${date}T00:00:00`
 }
 
+/**
+ * Локальная дата в формате YYYY-MM-DD.
+ * Нельзя использовать toISOString(): он переводит в UTC, и для Москвы
+ * (UTC+3) в 00:00–02:59 вернул бы вчерашний день.
+ */
+export function todayIsoDate(now = new Date()) {
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    return local.toISOString().slice(0, 10)
+}
+
+/**
+ * Дедлайн из формы уходит на бэкенд как LocalDateTime без часового пояса,
+ * поэтому сравнивать его с «сегодня» нужно в тех же локальных строках,
+ * а не через Date/toLocaleDateString — символ за символом YYYY-MM-DD.
+ * Возвращает true, если дата строго раньше сегодняшнего дня.
+ */
+export function isDateInPast(isoDate, now = new Date()) {
+    if (!isoDate) return false
+    return isoDate < todayIsoDate(now)
+}
+
 // Цена в листьях: целое число с разделителем тысяч (2500 → «2 500»).
 export function formatPrice(value) {
     if (value == null) return '0'

@@ -642,6 +642,47 @@
     font-size: 13px;
 }
 
+/* ---------- Действия под шаблоном: Сохранить / Отмена ---------- */
+
+.tplan-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    bottom: 12px;
+    z-index: 2;
+}
+.tplan-actions__hint {
+    color: var(--warning, #c98a00);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.tplan-actions__hint--clean {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.tplan-actions__hint--error {
+    color: var(--danger, #d64545);
+    white-space: normal;
+}
+.tplan-actions__more {
+    opacity: .8;
+    font-weight: 500;
+}
+.tplan-actions__buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 /* ---------- Рабочая область ---------- */
 
 .tplan-workspace {
@@ -2456,6 +2497,16 @@
         margin-left: 0;
         width: 100%;
     }
+    .tplan-actions {
+        gap: 10px;
+        position: static;
+    }
+    .tplan-actions__buttons {
+        width: 100%;
+    }
+    .tplan-actions__buttons .btn {
+        flex: 1;
+    }
 }
 
 @media (max-width: 900px) {
@@ -2849,18 +2900,17 @@ html[data-theme="dark"] .templates-nav__sub-btn:hover {
     font-weight: 700;
 }
 
-/* ---------- Часы (базовые слоты дня) ---------- */
+/* ---------- Часы (все 24 часа суток) ---------- */
 
 .tplan-hours {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
     gap: 6px;
-    flex-wrap: wrap;
     margin: 6px 0 4px;
 }
 
 .tplan-hours button {
-    min-width: 52px;
-    padding: 6px 10px;
+    padding: 6px 4px;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--surface);
@@ -2868,8 +2918,29 @@ html[data-theme="dark"] .templates-nav__sub-btn:hover {
     font-family: inherit;
     font-size: 12px;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
     cursor: pointer;
     transition: border-color .15s, color .15s, background .15s;
+}
+
+/* Свёрнутый «перерыв» между задачами в дневной ленте: одна строка вместо
+   десятка пустых часов. */
+.tplan-hour-gap {
+    align-self: stretch;
+    padding: 4px 12px;
+    border: none;
+    border-left: 3px solid var(--border);
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 11.5px;
+    font-style: italic;
+    text-align: left;
+    cursor: pointer;
+}
+.tplan-hour-gap:hover {
+    color: var(--primary);
+    border-left-color: var(--primary);
 }
 
 .tplan-hours button:hover {
@@ -2889,6 +2960,21 @@ html[data-theme="dark"] .templates-nav__sub-btn:hover {
     font-size: 12px;
     color: var(--text-muted);
     margin-top: 2px;
+}
+
+/* «Показать все часы» / «Скрыть пустые часы» в шапке дня. */
+.tplan-dayview__link {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--primary);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.tplan-dayview__link:hover {
+    text-decoration: underline;
 }
 
 .tplan-dayview__hours {

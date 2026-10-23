@@ -14,6 +14,8 @@ import {
     formatDeadline,
     splitDeadline,
     buildDeadline,
+    isDateInPast,
+    todayIsoDate,
     resolveUrl,
 } from '../../utils/format'
 import useT from '../../hooks/useT'
@@ -26,20 +28,25 @@ const TAG_ICONS = [
     '🏷️', '🎨', '🚀', '🐛', '📝', '💼', '🎓', '❤️', '⚡', '🔔',
 ]
 
-function describeRecurrence(rec) {
+function describeRecurrence(rec, t) {
     const rule = rec?.rule || ''
-    if (rule === 'daily') return 'Повторяется каждый день.'
-    if (rule === 'weekly') return 'Повторяется каждую неделю.'
-    if (rule === 'monthly') return 'Повторяется каждый месяц.'
-    if (rule === 'yearly') return 'Повторяется каждый год.'
+    if (rule === 'daily') return t.repeatDaily
+    if (rule === 'weekly') return t.repeatWeekly
+    if (rule === 'monthly') return t.repeatMonthly
+    if (rule === 'yearly') return t.repeatYearly
     if (rule.startsWith('every:')) {
         const arg = rule.slice(6)
         const unit = arg.slice(-1)
         const n = parseInt(arg.slice(0, -1), 10) || 1
-        const unitLabel = { d: 'дн.', w: 'нед.', M: 'мес.', y: 'г.' }[unit] || ''
-        return `Повторяется каждые ${n} ${unitLabel}.`
+        const unitLabel = {
+            d: t.repeatUnitD,
+            w: t.repeatUnitW,
+            M: t.repeatUnitM,
+            y: t.repeatUnitY,
+        }[unit] || ''
+        return t.repeatEvery(n, unitLabel)
     }
-    return 'Повторяющаяся задача.'
+    return t.repeatGeneric
 }
 
 const RECURRENCE_FIELDS = ['rule', 'startAt', 'endMode', 'endUntil', 'endCount', 'timeOfDay']
@@ -79,6 +86,8 @@ export default function TaskDetailModal({
     const [boardId, setBoardId] = useState(boardIdProp || null)
     const [columns, setColumns] = useState(columnsProp || [])
     const [isGroupProject, setIsGroupProject] = useState(false)
+    // Право на правку задачи (ProjectDto.canEdit). null — неизвестно, не блокируем.
+    const [canEditTask, setCanEditTask] = useState(null)
 
     const [form, setForm] = useState({
         title: '',
@@ -150,18 +159,26 @@ export default function TaskDetailModal({
             let bid = boardIdProp
             let cols = columnsProp || []
 
-            // Коопность проекта задаётся флагом isCoop в настройках.
-            // В личном проекте авторы/редакторы — шум, показываем только дату.
+            // Побочные справочники грузятся независимо от задачи: если что-то
+            // из них упало, задача всё равно открывается, но пользователь
+            // видит, что именно недоступно, вместо пустого списка без причины.
+            const loadErrors = []
+
+            // Проект нужен ради boardId и флага isCoop (авторы показываются
+            // только в коопных проектах). Без него доска остаётся неизвестной,
+            // поэтому это не «шум», а причина пустых тегов и статусов — сообщаем.
             if (taskData.projectId) {
                 try {
                     const { data: project } = await projectsApi.get(taskData.projectId)
                     setIsGroupProject(project?.isCoop === true)
+                    setCanEditTask(project?.canEdit !== false)
                     if (!bid) {
                         bid = project.boardId
                         setBoardId(bid)
                     }
                 } catch {
                     setIsGroupProject(false)
+                    loadErrors.push(t.errorProject)
                 }
             }
             if (bid) setBoardId(bid)
@@ -171,7 +188,9 @@ export default function TaskDetailModal({
                     const { data: kanban } = await tasksApi.kanban(taskData.projectId)
                     cols = kanban.columns || []
                     setColumns(cols)
-                } catch {}
+                } catch {
+                    loadErrors.push(t.errorStatuses)
+                }
             } else if (cols?.length) {
                 setColumns(cols)
             }
@@ -182,6 +201,7 @@ export default function TaskDetailModal({
                     setTags(tagsData)
                 } catch {
                     setTags([])
+                    loadErrors.push(t.errorTags)
                 }
             }
 
@@ -191,8 +211,11 @@ export default function TaskDetailModal({
                     setAllProjectTasks(data)
                 } catch {
                     setAllProjectTasks([])
+                    loadErrors.push(t.errorProjectTasks)
                 }
             }
+
+            if (loadErrors.length > 0) setError(loadErrors.join(' · '))
         } catch (err) {
             setError(err.response?.data?.message || 'Error')
         } finally {
@@ -251,6 +274,18 @@ export default function TaskDetailModal({
                 tagIds,
             })
 
+            // Сохранение основной формы прошло. Всё, что ниже, — отдельные
+            // запросы, которые могут упасть поодиночке. Раньше такие ошибки
+            // уходили в console.error, а окно закрывалось как при успехе:
+            // пользователь считал, что вложения/подзадачи сохранились.
+            // Теперь провалы собираются, а несохранённые черновики остаются
+            // в состоянии, чтобы повторить «Сохранить».
+            const saveErrors = []
+            // Что не удалось записать — останется кнопкой «Сохранить» на повтор
+            let failedAttachments = []
+            let failedRemovals = []
+            let failedSubtasks = []
+
             // === Привязываем новые черновики ===
             if (pendingAttachments.length > 0) {
                 for (const a of pendingAttachments) {
@@ -258,9 +293,13 @@ export default function TaskDetailModal({
                         await tasksApi.attach(taskId, a.id)
                     } catch (err) {
                         console.error('Attach error:', err)
+                        failedAttachments.push(a)
                     }
                 }
-                setPendingAttachments([])
+                if (failedAttachments.length) {
+                    saveErrors.push(t.errorAttach(failedAttachments.length))
+                }
+                setPendingAttachments(failedAttachments)
             }
 
             // === Удаляем помеченные вложения ===
@@ -270,48 +309,79 @@ export default function TaskDetailModal({
                         await tasksApi.detach(taskId, attachmentId)
                     } catch (err) {
                         console.error('Detach error:', err)
+                        failedRemovals.push(attachmentId)
                     }
                 }
-                setPendingRemovals([])
+                if (failedRemovals.length) {
+                    saveErrors.push(t.errorDetach(failedRemovals.length))
+                }
+                setPendingRemovals(failedRemovals)
             }
 
             if (recurrenceDirty) {
-                if (recurrence && recurrence.rule) {
-                    await recurrenceApi.save(taskId, recurrence)
-                } else if (!recurrence) {
-                    try { await recurrenceApi.delete(taskId) } catch {}
-                }
-            }
-
-            for (const ps of pendingSubtasks) {
                 try {
-                    await tasksApi.create(task.projectId, {
-                        title: ps.title,
-                        parentId: taskId,
-                    })
+                    if (recurrence && recurrence.rule) {
+                        await recurrenceApi.save(taskId, recurrence)
+                    } else if (!recurrence) {
+                        await recurrenceApi.delete(taskId)
+                    }
                 } catch (err) {
-                    console.error('Subtask create error:', err)
+                    console.error('Recurrence save error:', err)
+                    saveErrors.push(err.response?.data?.message || t.errorRecurrence)
                 }
             }
 
+            if (pendingSubtasks.length > 0) {
+                for (const ps of pendingSubtasks) {
+                    try {
+                        await tasksApi.create(task.projectId, {
+                            title: ps.title,
+                            parentId: taskId,
+                        })
+                    } catch (err) {
+                        console.error('Subtask create error:', err)
+                        failedSubtasks.push(ps)
+                    }
+                }
+                if (failedSubtasks.length) {
+                    saveErrors.push(t.errorSubtaskCreate(failedSubtasks.length))
+                }
+                setPendingSubtasks(failedSubtasks)
+            }
+
+            // Обновляем то, что реально записалось. Не сохранённые черновики
+            // (вложения, подзадачи) остаются в своём стейте, если их запись
+            // упала, — иначе после ошибки они потерялись бы вместе с окном.
             const { data: refreshed } = await tasksApi.get(taskId)
             setTask(refreshed)
             setExistingSubtasks(refreshed.subtasks || [])
-            setPendingSubtasks([])
+            setPendingSubtasks(failedSubtasks)
+            setPendingAttachments(failedAttachments)
+            setPendingRemovals(failedRemovals)
             setRecurrence(refreshed.recurrence || null)
-            setRecurrenceDirty(false)
+            if (saveErrors.length === 0) setRecurrenceDirty(false)
 
             const { date, time, hasTime } = splitDeadline(refreshed.deadline)
             setForm({
                 title: refreshed.title || '',
                 description: refreshed.description || '',
-                priority: refreshed.priority || 0,
+                priority: refreshed.priority ?? 0,
                 deadlineDate: date,
                 deadlineTime: time,
                 hasTime,
                 statusId: refreshed.statusId || '',
             })
             setDirty(false)
+
+            if (saveErrors.length > 0) {
+                // Форма сохранена, но часть вложений/подзадач/повторения — нет.
+                // Окно остаётся открытым, чтобы можно было нажать «Сохранить»
+                // ещё раз, не вводя всё заново.
+                setError(saveErrors.join(' · '))
+                onUpdated && onUpdated()
+                return
+            }
+
             onUpdated && onUpdated()
             onClose && onClose()
         } catch (err) {
@@ -551,6 +621,46 @@ export default function TaskDetailModal({
         onOpenTask(subtaskId)
     }
 
+    // Причины, по которым задача не сохранится. Блокирующие повторяют
+    // ограничения бэкенда (UpdateTaskRequest: title 1..255, description <=5000)
+    // и то, что раньше молча роняло сохранение.
+    const taskSaveBlockers = () => {
+        const list = []
+        const title = (form.title || '').trim()
+
+        if (canEditTask === false) list.push(t.taskNoPermission)
+        if (!title) list.push(t.taskTitleRequired)
+        if (form.title && form.title.length > 255) list.push(t.taskTitleTooLong(255))
+        if (form.description && form.description.length > 5000) {
+            list.push(t.taskDescriptionTooLong(5000))
+        }
+        if (!form.hasTime && form.deadlineTime) list.push(t.taskDeadlineNoDate)
+        // Бэкенд сравнивает LocalDate.now() со своей датой дедлайна, поэтому
+        // здесь тоже сравниваем строки YYYY-MM-DD в локальной зоне, а не
+        // toLocaleDateString: тот зависел от локали браузера ('sv-SE' мог
+        // молча не совпасть формат и проверка просто не срабатывала).
+        if (isDateInPast(form.deadlineDate)) {
+            list.push(t.taskDeadlinePast)
+        }
+        if (creatingTag && newTagTitle.length > 100) list.push(t.taskTagTooLong(100))
+        // Текст в поле подзадачи ещё не нажат «Добавить» — уйдёт вместе с формой.
+        if (subtaskInput.trim()) list.push(t.taskSubtaskPending)
+        return list
+    }
+
+    // Предупреждения: не мешают сохранить, но результат будет неполным.
+    const taskSaveWarnings = () => {
+        const list = []
+        if (pendingAttachments.length > 0) list.push(t.taskAttachPending(pendingAttachments.length))
+        if (pendingRemovals.length > 0) list.push(t.taskDetachPending(pendingRemovals.length))
+        if (pendingSubtasks.length > 0) list.push(t.taskSubtaskCreate(pendingSubtasks.length))
+        if (!dirty && !recurrenceDirty && !pendingSubtasks.length
+            && !pendingAttachments.length && !pendingRemovals.length) {
+            list.push(t.taskNoChanges)
+        }
+        return list
+    }
+
     const requestClose = () => {
         if (saving || discardAction) return
         if (dirty || recurrenceDirty) {
@@ -586,6 +696,17 @@ export default function TaskDetailModal({
     const isSubtask = !!task?.parentId
     const isRecurrenceInstance = !!task?.isRecurrenceInstance
 
+    // Ошибки, из-за которых «Сохранить» недоступна, и предупреждения, которые
+    // сохранение не блокируют. Считаются на каждый рендер — так же, как
+    // пересчитывается кнопка, поэтому кнопка и причина не разъедутся.
+    const blockers = task ? taskSaveBlockers() : [t.taskNotLoaded]
+    const warnings = task ? taskSaveWarnings() : []
+    let saveHint = saving
+        ? t.loading
+        : blockers.length
+            ? blockers.join(' · ')
+            : warnings.length ? warnings.join(' · ') : ''
+
     return (
         <>
             <Modal
@@ -599,24 +720,34 @@ export default function TaskDetailModal({
                             type="button"
                             className="btn btn-icon btn-icon--danger"
                             onClick={handleDeleteClick}
-                            title="Удалить задачу"
+                            title={t.deleteTaskTitle}
                         >
                             🗑
                         </button>
                         <div className="modal__foot-spacer" />
-                        <button type="button" className="btn btn-ghost" onClick={requestClose}>
-                            {t.close}
-                        </button>
+                        {detailTab === 'details' && saveHint && (
+                            <div
+                                className={`modal__foot-hint ${blockers.length ? 'modal__foot-hint--error' : ''}`}
+                                role={blockers.length ? 'alert' : 'status'}
+                                title={saveHint}
+                            >
+                                {blockers.length ? '⚠ ' : 'ℹ '}{saveHint}
+                            </div>
+                        )}
                         {detailTab === 'details' && (
                             <button
                                 type="button"
                                 className="btn btn-primary"
                                 onClick={save}
-                                disabled={saving}
+                                disabled={saving || blockers.length > 0}
+                                title={blockers.length ? blockers.join('\n') : undefined}
                             >
                                 {saving ? t.loading : t.save}
                             </button>
                         )}
+                        <button type="button" className="btn btn-ghost" onClick={requestClose}>
+                            {t.cancel}
+                        </button>
                     </>
                 }
             >
@@ -630,17 +761,17 @@ export default function TaskDetailModal({
                                 type="button"
                                 className={`task-detail-tab ${detailTab === 'details' ? 'task-detail-tab--active' : ''}`}
                                 onClick={() => setDetailTab('details')}
-                            >Детали</button>
+                            >{t.tabDetails}</button>
                             <button
                                 type="button"
                                 className={`task-detail-tab ${detailTab === 'history' ? 'task-detail-tab--active' : ''}`}
                                 onClick={() => setDetailTab('history')}
-                            >История</button>
+                            >{t.tabHistory}</button>
                             <button
                                 type="button"
                                 className={`task-detail-tab ${detailTab === 'chat' ? 'task-detail-tab--active' : ''}`}
                                 onClick={() => setDetailTab('chat')}
-                            >Обсуждение</button>
+                            >{t.tabChat}</button>
                         </div>
 
                         {detailTab === 'history' ? (
@@ -654,7 +785,7 @@ export default function TaskDetailModal({
                                     <div className="task-detail__authors">
                                         {task.startedBy && (
                                             <div className="task-detail__author-row">
-                                                <span className="task-detail__author-label">Начал:</span>
+                                                <span className="task-detail__author-label">{t.startedByLabel}</span>
                                                 <span className="task-detail__author-name">
                                                     {task.startedBy.displayName}
                                                 </span>
@@ -662,7 +793,7 @@ export default function TaskDetailModal({
                                         )}
                                         {task.lastEditedBy && (
                                             <div className="task-detail__author-row">
-                                                <span className="task-detail__author-label">Последний редактор:</span>
+                                                <span className="task-detail__author-label">{t.lastEditorLabel}</span>
                                                 <span className="task-detail__author-name">
                                                     {task.lastEditedBy.displayName}
                                                     {task.lastEditedAt && (
@@ -679,7 +810,7 @@ export default function TaskDetailModal({
                                 {!isGroupProject && task.lastEditedAt && (
                                     <div className="task-detail__authors task-detail__authors--solo">
                                         <div className="task-detail__author-row">
-                                            <span className="task-detail__author-label">Изменено:</span>
+                                            <span className="task-detail__author-label">{t.changedAtLabel}</span>
                                             <span className="task-detail__author-name">
                                                 {new Date(task.lastEditedAt).toLocaleString('ru-RU')}
                                             </span>
@@ -691,9 +822,9 @@ export default function TaskDetailModal({
                                     <div className="recurrence-banner recurrence-banner--root">
                                         <span className="recurrence-banner__icon">🔁</span>
                                         <div className="recurrence-banner__text">
-                                            <b>Корневая задача повторения.</b>{' '}
-                                            {describeRecurrence(task.recurrence)}
-                                            {' '}Будущие вхождения — отдельные задачи со ссылкой на эту корневую.
+                                            <b>{t.recurrenceRootTitle}</b>{' '}
+                                            {describeRecurrence(task.recurrence, t)}
+                                            {' '}{t.recurrenceRootHint}
                                         </div>
                                     </div>
                                 )}
@@ -702,9 +833,9 @@ export default function TaskDetailModal({
                                     <div className="recurrence-banner">
                                         <span className="recurrence-banner__icon">🔁</span>
                                         <div className="recurrence-banner__text">
-                                            Это повторение корневой задачи
+                                            {t.recurrenceInstanceHint}
                                             {task.occurrenceDate && (
-                                                <> на <b>{new Date(task.occurrenceDate).toLocaleDateString()}</b></>
+                                                <> <b>{new Date(task.occurrenceDate).toLocaleDateString()}</b></>
                                             )}.
                                             {task.recurrenceParentId && onOpenTask && (
                                                 <button
@@ -712,7 +843,7 @@ export default function TaskDetailModal({
                                                     className="recurrence-banner__link"
                                                     onClick={() => onOpenTask(task.recurrenceParentId)}
                                                 >
-                                                    Открыть корневую
+                                                    {t.openRootBtn}
                                                 </button>
                                             )}
                                         </div>
@@ -772,7 +903,7 @@ export default function TaskDetailModal({
                                             className="input"
                                             type="date"
                                             value={form.deadlineDate}
-                                            min={new Date().toLocaleDateString('sv-SE')}
+                                            min={todayIsoDate()}
                                             onChange={(e) => setField('deadlineDate', e.target.value)}
                                         />
                                     </div>
@@ -1000,14 +1131,14 @@ export default function TaskDetailModal({
                                                                 className="subtask-card__btn"
                                                                 onClick={(e) => { e.stopPropagation(); moveExistingSubtask(st.id, -1) }}
                                                                 disabled={existingSubtasks[0]?.id === st.id}
-                                                                title="Поднять выше"
+                                                                title={t.moveUp}
                                                             >↑</button>
                                                             <button
                                                                 type="button"
                                                                 className="subtask-card__btn"
                                                                 onClick={(e) => { e.stopPropagation(); moveExistingSubtask(st.id, 1) }}
                                                                 disabled={existingSubtasks[existingSubtasks.length - 1]?.id === st.id}
-                                                                title="Опустить ниже"
+                                                                title={t.moveDown}
                                                             >↓</button>
                                                             <button
                                                                 type="button"
@@ -1140,10 +1271,10 @@ export default function TaskDetailModal({
                                                             type="button"
                                                             className="task-detail__attachment-remove task-detail__attachment-remove--undo"
                                                             onClick={() => undoRemoveAttachment(a.id)}
-                                                            title="Отменить удаление"
+                                                            title={t.cancelRemoval}
                                                         >↺</button>
                                                         <span className="task-detail__attachment-badge task-detail__attachment-badge--removing">
-                                                            на удаление
+                                                            {t.pendingRemovalBadge}
                                                         </span>
                                                     </div>
                                                 )
@@ -1175,7 +1306,7 @@ export default function TaskDetailModal({
                                                         className="task-detail__attachment-remove"
                                                         onClick={() => detachAttachment(a.id)}
                                                     >×</button>
-                                                    <span className="task-detail__attachment-badge">черновик</span>
+                                                    <span className="task-detail__attachment-badge">{t.draftBadge}</span>
                                                 </div>
                                             )
                                         })}
@@ -1260,12 +1391,12 @@ export default function TaskDetailModal({
 
             <ConfirmModal
                 open={!!discardAction}
-                title="Закрыть без сохранения?"
+                title={t.discardTitle}
                 text={discardAction?.type === 'subtask'
-                    ? 'В задаче есть несохранённые изменения. Перейти к подзадаче и потерять их?'
-                    : 'В задаче есть несохранённые изменения. Если закрыть её сейчас, они пропадут.'}
-                confirmLabel={discardAction?.type === 'subtask' ? 'Перейти' : 'Закрыть без сохранения'}
-                cancelLabel="Продолжить редактирование"
+                    ? t.discardToSubtask
+                    : t.discardOnClose}
+                confirmLabel={discardAction?.type === 'subtask' ? t.discardGoToSubtask : t.discardClose}
+                cancelLabel={t.discardKeepEditing}
                 danger
                 onConfirm={confirmDiscard}
                 onClose={() => setDiscardAction(null)}

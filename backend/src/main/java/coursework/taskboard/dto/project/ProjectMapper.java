@@ -53,6 +53,20 @@ public class ProjectMapper {
                                    long taskTotal, long taskDone, long taskActive,
                                    String coverUrl,
                                    List<StageDto> stages) {
+        return toProjectDto(project, settings, taskTotal, taskDone, taskActive,
+                coverUrl, stages, null);
+    }
+
+    /**
+     * Тот же DTO, но с ролью текущего пользователя. Роль передаётся из
+     * ProjectService (там есть ProjectAccessService), маппер остаётся
+     * без зависимостей.
+     */
+    public ProjectDto toProjectDto(Project project, ProjectSettings settings,
+                                   long taskTotal, long taskDone, long taskActive,
+                                   String coverUrl,
+                                   List<StageDto> stages,
+                                   String role) {
         BoardStatus status = settings != null ? settings.getStatus() : null;
 
         return ProjectDto.builder()
@@ -74,6 +88,8 @@ public class ProjectMapper {
                 .isTemplate(settings != null && settings.getIsTemplate())
                 .isManualPosition(settings != null && Boolean.TRUE.equals(settings.getIsManualPosition()))
                 .isCoop(settings != null && Boolean.TRUE.equals(settings.getIsCoop()))
+                .role(role)
+                .canEdit(role != null && !"viewer".equals(role))
                 .taskTotal(taskTotal)
                 .taskDone(taskDone)
                 .taskActive(taskActive)

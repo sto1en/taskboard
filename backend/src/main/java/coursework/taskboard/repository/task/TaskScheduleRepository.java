@@ -6,9 +6,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface TaskScheduleRepository extends JpaRepository<TaskSchedule, Long> {
+
+    List<TaskSchedule> findByTaskIdIn(Collection<Long> taskIds);
 
     // ============================================================
     // Cron просрочки

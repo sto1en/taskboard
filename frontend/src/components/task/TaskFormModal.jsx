@@ -5,7 +5,7 @@ import { tasksApi, tagsApi, attachmentsApi, projectsApi, boardsApi, recurrenceAp
 import Modal from '../modal/Modal'
 import ConfirmModal from '../common/ConfirmModal'
 import useT from '../../hooks/useT'
-import { resolveUrl } from '../../utils/format'
+import { resolveUrl, todayIsoDate } from '../../utils/format'
 import { useAuth } from '../../context/AuthContext'
 import RecurrenceEditor from './RecurrenceEditor'
 import { PriorityPicker } from './PriorityStars'
@@ -512,7 +512,7 @@ export default function TaskFormModal({
                                 className="input"
                                 type="date"
                                 value={deadlineDate}
-                                min={new Date().toLocaleDateString('sv-SE')}
+                                min={todayIsoDate()}
                                 onChange={(e) => setDeadlineDate(e.target.value)}
                             />
                         </div>

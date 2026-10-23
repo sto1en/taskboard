@@ -118,8 +118,10 @@ public class ProjectService {
 
         String coverUrl = resolveCoverUrl(settings);
 
+        // Роль нужна клиенту, чтобы заблокировать сохранение у viewer'а
+        // и показать причину вместо ожидания ошибки от бэкенда.
         return projectMapper.toProjectDto(project, settings, total, done, active,
-                coverUrl, stageDtos);
+                coverUrl, stageDtos, accessService.role(project, user));
     }
 
     @Transactional

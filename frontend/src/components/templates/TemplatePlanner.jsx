@@ -12,43 +12,43 @@ const WEEKS_PER_MONTH = 4
 const TOTAL_WEEKS = 12 * WEEKS_PER_MONTH
 
 /**
- * Базовые часы дня: задача без явного времени встаёт в один из этих слотов.
- * 24 → полночь (00:00).
+ * Все часы дня: 00:00 … 23:00. Раньше здесь были только базовые слоты
+ * (9, 12, 15, 18, 21, 24) и задача «прилипала» к ближайшему из них,
+ * из-за чего нельзя было поставить 10:00 или 16:00.
  */
-export const DAY_HOURS = ['09:00', '12:00', '15:00', '18:00', '21:00', '24:00']
+export const DAY_HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`)
+
+/** Часы, которые сразу видны в шторке выбора; остальные — через «Все часы». */
+export const QUICK_HOURS = ['09:00', '12:00', '15:00', '18:00', '21:00']
 
 const clampWeek = (week) => Math.max(0, Math.min(TOTAL_WEEKS - 1, week))
 const slotOffset = (week, weekday) => week * 7 + weekday
 
-/** '24:00' — это 00:00 следующего дня, для сортировки/отображения. */
+/** '24:00' из старых шаблонов — это 00:00 текущего дня. */
 function hourKey(value) {
     if (!value) return null
     const [h, m] = String(value).split(':').map(Number)
     if (!Number.isFinite(h)) return null
-    return { h: h === 24 ? 24 : h, m: Number.isFinite(m) ? m : 0 }
+    return { h: h === 24 ? 0 : h, m: Number.isFinite(m) ? m : 0 }
 }
 
 function hourLabel(value) {
     const key = hourKey(value)
     if (!key) return ''
-    return key.h === 24 ? '00:00' : `${String(key.h).padStart(2, '0')}:${String(key.m).padStart(2, '0')}`
+    return `${String(key.h).padStart(2, '0')}:${String(key.m).padStart(2, '0')}`
 }
 
-/** Ближайший базовый час: пустая задача встаёт в первый слот (09:00). */
-function nearestHour(value) {
+/** Время задачи в 24 слотах дня. Без времени — первый слот (09:00). */
+function exactHour(value) {
     const key = hourKey(value)
-    if (!key) return DAY_HOURS[0]
-    let best = DAY_HOURS[0]
-    let bestDelta = Number.POSITIVE_INFINITY
-    for (const hour of DAY_HOURS) {
-        const candidate = hourKey(hour)
-        const delta = Math.abs(candidate.h * 60 + candidate.m - (key.h * 60 + key.m))
-        if (delta < bestDelta) {
-            best = hour
-            bestDelta = delta
-        }
-    }
-    return best
+    if (!key) return '09:00'
+    return `${String(key.h).padStart(2, '0')}:00`
+}
+
+/** Час перед указанным: '09:00' → '08:00'; для 00:00 — null. */
+function prevHour(hour) {
+    const h = Number(String(hour).slice(0, 2)) - 1
+    return h < 0 ? null : `${String(h).padStart(2, '0')}:00`
 }
 
 function monthOfWeek(week) {
@@ -78,6 +78,9 @@ export default function TemplatePlanner({
     const monthIndex = Math.floor(weekIndex / WEEKS_PER_MONTH)
     const [dragOver, setDragOver] = useState(null)
     const [draggingKey, setDraggingKey] = useState(null)
+    // «Показать все часы» в дневном виде: иначе лента показывает только часы
+    // вокруг занятых, чтобы 24 строки не занимали весь экран.
+    const [showAllHours, setShowAllHours] = useState(false)
 
     const tasksBySlot = useMemo(() => {
         const map = {}
@@ -381,8 +384,9 @@ export default function TemplatePlanner({
 
     /**
      * В дне нет выбора дня недели: день уже выбран в недельном/месячном
-     * виде. Вместо дней — базовые часы 09, 12, 15, 18, 21 и 24 (00:00),
-     * чтобы можно было раскидать задачи по времени внутри дня.
+     * виде. Вместо дней — все 24 часа суток: задача встаёт ровно в свой
+     * час (10:00, 16:00 — тоже), пустые часы схлопнуты, чтобы лента
+     * не растягивалась на целый экран.
      */
     const renderDay = () => {
         const slot = `${weekIndex}-${dayWeekday}`
@@ -391,9 +395,34 @@ export default function TemplatePlanner({
         const byHour = {}
         for (const hour of DAY_HOURS) byHour[hour] = []
         for (const item of tasks) {
-            const hour = nearestHour(item.startTime)
+            const hour = exactHour(item.startTime)
             if (!byHour[hour]) byHour[hour] = []
             byHour[hour].push(item)
+        }
+
+        const busyHours = DAY_HOURS.filter((hour) => byHour[hour].length > 0)
+        // Видимые строки: занятые часы + пустые между ними одним «перерывом»
+        // на серию; хвост дня не показываем вовсе. «Показать все часы» —
+        // разворачивает все 24 строки.
+        const visible = []
+        if (showAllHours) {
+            for (const hour of DAY_HOURS) visible.push({ type: 'hour', hour })
+        } else if (!busyHours.length) {
+            for (const hour of QUICK_HOURS) visible.push({ type: 'hour', hour })
+        } else {
+            let gapFrom = null
+            for (const hour of DAY_HOURS) {
+                if (byHour[hour].length > 0) {
+                    const prev = gapFrom ? prevHour(hour) : null
+                    if (gapFrom && prev) {
+                        visible.push({ type: 'gap', from: gapFrom, to: prev })
+                    }
+                    gapFrom = null
+                    visible.push({ type: 'hour', hour })
+                } else if (visible.length) {
+                    gapFrom = gapFrom || hour
+                }
+            }
         }
 
         const addAtHour = (hour) => {
@@ -406,13 +435,37 @@ export default function TemplatePlanner({
                     <div>
                         <div className="tplan-dayview__name">{WEEKDAYS_FULL[dayWeekday]}</div>
                         <div className="tplan-dayview__sub">
-                            {tasks.length} {tasks.length === 1 ? 'задача' : 'задач'} · базовые часы дня
+                            {tasks.length} {tasks.length === 1 ? 'задача' : 'задач'} · сутки 00:00–23:00
+                            {' · '}
+                            <button
+                                type="button"
+                                className="tplan-dayview__link"
+                                onClick={() => setShowAllHours((v) => !v)}
+                            >
+                                {showAllHours ? 'Скрыть пустые часы' : 'Показать все часы'}
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 <div className="tplan-dayview__hours">
-                    {DAY_HOURS.map((hour) => {
+                    {visible.map((row) => {
+                        if (row.type === 'gap') {
+                            return (
+                                <button
+                                    key={`gap-${row.from}`}
+                                    type="button"
+                                    className="tplan-hour-gap"
+                                    onClick={() => setShowAllHours(true)}
+                                    title="Раскрыть пустые часы"
+                                >
+                                    {row.from === row.to
+                                        ? `${hourLabel(row.from)} — пусто`
+                                        : `${hourLabel(row.from)}–${hourLabel(row.to)} — пусто`}
+                                </button>
+                            )
+                        }
+                        const hour = row.hour
                         const laneSlot = `${slot}-${hour}`
                         const hoursItems = byHour[hour] || []
                         return (
@@ -436,7 +489,7 @@ export default function TemplatePlanner({
                             >
                                 <div className="tplan-hour__label">
                                     <span className="tplan-hour__time">{hourLabel(hour)}</span>
-                                    {hour === '24:00' && <span className="tplan-hour__note">полночь</span>}
+                                    {hour === '00:00' && <span className="tplan-hour__note">полночь</span>}
                                 </div>
 
                                 <div className="tplan-hour__tasks">

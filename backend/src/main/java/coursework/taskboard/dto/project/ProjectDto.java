@@ -31,6 +31,14 @@ public class ProjectDto {
     private Boolean isManualPosition;
     private Boolean isCoop;
 
+    /**
+     * Роль текущего пользователя в проекте: owner / editor / viewer / null.
+     * Нужна клиенту, чтобы заранее блокировать сохранение (viewer не может
+     * править задачу) и объяснить причину, а не ждать 400 от бэкенда.
+     */
+    private String role;
+    private Boolean canEdit;
+
     private long taskTotal;
     private long taskDone;
     private long taskActive;

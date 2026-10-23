@@ -79,6 +79,23 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     """)
     List<Task> findByStatusId(@Param("statusId") Long statusId);
 
+    /**
+     * Колонка канбана проекта. Раньше брали все задачи статуса на всей доске
+     * и фильтровали по проекту в памяти: по общей доске это десятки строк
+     * на колонку на каждый проект. Фильтр проекта и «корневые задачи» теперь
+     * в самом запросе.
+     */
+    @Query("""
+        SELECT t FROM Task t
+        JOIN t.settings s
+        WHERE s.status.id = :statusId
+          AND t.project.id = :projectId
+          AND t.parent IS NULL
+        ORDER BY t.position
+    """)
+    List<Task> findKanbanTasks(@Param("projectId") Long projectId,
+                               @Param("statusId") Long statusId);
+
     @Query("""
         SELECT t FROM Task t
         JOIN t.project p
