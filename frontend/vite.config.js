@@ -19,6 +19,13 @@ export default defineConfig({
   preview: {
     host: true,
     port: 4173,
+    strictPort: true,
     allowedHosts: true,
+    // Статическая сборка не наследует server.proxy — без этого /api и /uploads
+    // с сайта (и через ngrok) уходят в 404 вместо бэкенда на :8082.
+    proxy: {
+      '/api': { target: 'http://localhost:8082', changeOrigin: true },
+      '/uploads': { target: 'http://localhost:8082', changeOrigin: true },
+    },
   },
 })

@@ -402,15 +402,6 @@ export default observer(function MobileDrawer() {
                             <span className="mobile-drawer__icon" aria-hidden="true">🧩</span>
                             <span>{t.templates || 'Шаблоны'}</span>
                         </NavLink>
-                        <NavLink
-                            to="/guides"
-                            className={({ isActive }) =>
-                                `mobile-drawer__sublink ${isActive ? 'active' : ''}`
-                            }
-                            onClick={close}
-                        >
-                            🗺️ {t.guides || 'Гайды'}
-                        </NavLink>
 
                         <div className="mobile-drawer__divider" />
 
@@ -436,15 +427,6 @@ export default observer(function MobileDrawer() {
                         >
                             <span className="mobile-drawer__icon" aria-hidden="true">📊</span>
                             <span>{t.stats || 'Статистика'}</span>
-                        </NavLink>
-                        <NavLink
-                            to="/leaderboard"
-                            className={({ isActive }) =>
-                                `mobile-drawer__sublink ${isActive ? 'active' : ''}`
-                            }
-                            onClick={close}
-                        >
-                            🏆 Лидерборд
                         </NavLink>
 
                         <div className="mobile-drawer__divider" />

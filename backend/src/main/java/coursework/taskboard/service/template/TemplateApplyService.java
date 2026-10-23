@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -82,7 +83,7 @@ public class TemplateApplyService {
             parentReq.setDescription(emptyToNull(plannedTask.description()));
             parentReq.setPriority(clampPriority(plannedTask.priority()));
             parentReq.setStatusId(resolveStatusId(statuses, plannedTask.statusCategoryCode()));
-            parentReq.setDeadline(deadline(start, plannedTask.deadlineOffsetDays()));
+            parentReq.setDeadline(deadline(start, plannedTask.deadlineOffsetDays(), plannedTask.startTime()));
 
             TaskDto parent = taskService.createTask(project.getId(), parentReq, user);
             createdTasks++;
@@ -173,13 +174,30 @@ public class TemplateApplyService {
         return statuses.get(0).getId();
     }
 
-    private LocalDateTime deadline(LocalDate start, Integer offsetDays) {
+    /**
+     * Дедлайн по смещению от старта. Если у задачи в шаблоне выбран час слота,
+     * используем его как время дедлайна, иначе — конец дня.
+     * «24:00» (полночь) — конец суток, а не начало предыдущего дня.
+     */
+    private LocalDateTime deadline(LocalDate start, Integer offsetDays, String startTime) {
         if (offsetDays == null) return null;
         int offset = Math.max(0, offsetDays);
         LocalDate date = start.plusDays(offset);
         // Бэкенд не принимает дедлайн в прошлом — оставляем поле пустым.
         if (date.isBefore(LocalDate.now())) return null;
-        return LocalDateTime.of(date, LocalTime.of(23, 59));
+        return LocalDateTime.of(date, slotTime(startTime));
+    }
+
+    private LocalTime slotTime(String startTime) {
+        if (startTime == null || startTime.isBlank()) return LocalTime.of(23, 59);
+        try {
+            String value = startTime.trim();
+            if (value.length() > 5) value = value.substring(0, 5);
+            if ("24:00".equals(value)) return LocalTime.of(23, 59);
+            return LocalTime.parse(value);
+        } catch (DateTimeParseException | StringIndexOutOfBoundsException e) {
+            return LocalTime.of(23, 59);
+        }
     }
 
     private Short clampPriority(Short priority) {

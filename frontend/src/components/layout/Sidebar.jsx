@@ -61,6 +61,7 @@ export default observer(function Sidebar() {
     const dispatch = useDispatch()
     const ui = useUiStore()
 
+
     // Магазин — серверный стейт из Redux (раньше: локальный useState + shop:refresh).
     // Sidebar нужны только производные — активные аватар и рамка; treeKind
     // считается отдельным селектором ниже.
@@ -348,7 +349,9 @@ export default observer(function Sidebar() {
 
                     <div className="sidebar__divider" />
 
-                    {/* Шаблоны — раздел, внутри которого живут гайды. */}
+                    {/* Шаблоны: единая страница, внутри неё — вкладки
+                        «Мои шаблоны» и «Публичные шаблоны». Отдельных строк
+                        в сайдбаре для вкладок нет. */}
                     <NavLink
                         to="/templates"
                         className={({ isActive }) => `sidebar__link ${isActive ? 'active' : ''}`}
@@ -357,18 +360,6 @@ export default observer(function Sidebar() {
                         <span>🧩</span>
                         {!collapsed && <span>{t.templates || 'Шаблоны'}</span>}
                     </NavLink>
-                    {!collapsed && (
-                        <div className="sidebar__subnav">
-                            <NavLink
-                                to="/guides"
-                                className={({ isActive }) =>
-                                    `sidebar__sublink ${isActive ? 'active' : ''}`}
-                                title={t.guides || 'Гайды'}
-                            >
-                                🗺️ {t.guides || 'Гайды'}
-                            </NavLink>
-                        </div>
-                    )}
 
                     <NavLink
                         to="/calendar"
@@ -380,7 +371,8 @@ export default observer(function Sidebar() {
                         {!collapsed && <span>{t.calendar}</span>}
                     </NavLink>
 
-                    {/* Статистика — раздел, внутри которого живёт лидерборд. */}
+                    {/* Статистика: лидерборд отдельной ссылкой в сайдбаре
+                        не дублируем — он доступен со страницы статистики. */}
                     <NavLink
                         to="/stats"
                         end
@@ -390,18 +382,6 @@ export default observer(function Sidebar() {
                         <span>📊</span>
                         {!collapsed && <span>{t.stats}</span>}
                     </NavLink>
-                    {!collapsed && (
-                        <div className="sidebar__subnav">
-                            <NavLink
-                                to="/leaderboard"
-                                className={({ isActive }) =>
-                                    `sidebar__sublink ${isActive ? 'active' : ''}`}
-                                title="Лидерборд"
-                            >
-                                🏆 Лидерборд
-                            </NavLink>
-                        </div>
-                    )}
                 </nav>
 
                 <div className="sidebar__bottom">

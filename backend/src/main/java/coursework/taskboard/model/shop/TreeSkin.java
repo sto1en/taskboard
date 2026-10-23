@@ -19,8 +19,20 @@ public class TreeSkin {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false, updatable = false)
     private java.time.LocalDateTime createdAt;
+
+    /**
+     * В БД created_at NOT NULL DEFAULT now(), но Hibernate передаёт NULL
+     * явно, и DEFAULT не срабатывает (DDL-auto=validate схему не меняет).
+     * Поэтому дата выставляется здесь.
+     */
+    @jakarta.persistence.PrePersist
+    void onPersist() {
+        if (createdAt == null) {
+            createdAt = java.time.LocalDateTime.now();
+        }
+    }
 
     @Column(nullable = false, unique = true, length = 64)
     private String code;

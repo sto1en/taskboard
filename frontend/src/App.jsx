@@ -41,7 +41,8 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'))
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
 const TemplateEditorPage = lazy(() => import('./pages/TemplateEditorPage'))
-const GuidesPage = lazy(() => import('./pages/GuidesPage'))
+// GuidesPage больше не используется в маршрутах (гайды → публичные шаблоны),
+// импорт удалён, чтобы страница не попадала в бандл.
 const GuideDetailPage = lazy(() => import('./pages/GuideDetailPage'))
 
 function PageFallback() {
@@ -99,7 +100,12 @@ export default function App() {
                                             <Route path="/templates" element={<TemplatesPage />} />
                                             <Route path="/templates/new" element={<TemplateEditorPage />} />
                                             <Route path="/templates/:id/edit" element={<TemplateEditorPage />} />
-                                            <Route path="/guides" element={<GuidesPage />} />
+                                            {/* Гайды переименованы в публичные шаблоны:
+                                                старые ссылки ведут в каталог. */}
+                                            <Route
+                                                path="/guides"
+                                                element={<Navigate to="/templates?tab=public&scope=all" replace />}
+                                            />
                                             <Route path="/guides/:id" element={<GuideDetailPage />} />
                                             <Route path="/boards" element={<BoardsPage />} />
                                             <Route path="/boards/:id" element={<BoardDetailPage />} />

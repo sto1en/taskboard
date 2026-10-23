@@ -44,6 +44,14 @@ public class TaskTemplate {
     @Builder.Default
     private String accent = "blue";
 
+    /**
+     * Публичный шаблон: виден в общем каталоге и доступен для просмотра
+     * и применения всем пользователям (изменять/удалять может только владелец).
+     */
+    @Column(name = "is_public", nullable = false)
+    @Builder.Default
+    private Boolean isPublic = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

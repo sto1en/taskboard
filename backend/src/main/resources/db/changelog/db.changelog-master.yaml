@@ -65,3 +65,5 @@ databaseChangeLog:
       file: db/changelog/032-add-template-item-start-time.yaml
   - include:
       file: db/changelog/033-seed-shop-catalog.yaml
+  - include:
+      file: db/changelog/034-add-public-templates.yaml

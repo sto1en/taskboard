@@ -11,8 +11,45 @@ const VIEWS = [
 const WEEKS_PER_MONTH = 4
 const TOTAL_WEEKS = 12 * WEEKS_PER_MONTH
 
+/**
+ * Базовые часы дня: задача без явного времени встаёт в один из этих слотов.
+ * 24 → полночь (00:00).
+ */
+export const DAY_HOURS = ['09:00', '12:00', '15:00', '18:00', '21:00', '24:00']
+
 const clampWeek = (week) => Math.max(0, Math.min(TOTAL_WEEKS - 1, week))
 const slotOffset = (week, weekday) => week * 7 + weekday
+
+/** '24:00' — это 00:00 следующего дня, для сортировки/отображения. */
+function hourKey(value) {
+    if (!value) return null
+    const [h, m] = String(value).split(':').map(Number)
+    if (!Number.isFinite(h)) return null
+    return { h: h === 24 ? 24 : h, m: Number.isFinite(m) ? m : 0 }
+}
+
+function hourLabel(value) {
+    const key = hourKey(value)
+    if (!key) return ''
+    return key.h === 24 ? '00:00' : `${String(key.h).padStart(2, '0')}:${String(key.m).padStart(2, '0')}`
+}
+
+/** Ближайший базовый час: пустая задача встаёт в первый слот (09:00). */
+function nearestHour(value) {
+    const key = hourKey(value)
+    if (!key) return DAY_HOURS[0]
+    let best = DAY_HOURS[0]
+    let bestDelta = Number.POSITIVE_INFINITY
+    for (const hour of DAY_HOURS) {
+        const candidate = hourKey(hour)
+        const delta = Math.abs(candidate.h * 60 + candidate.m - (key.h * 60 + key.m))
+        if (delta < bestDelta) {
+            best = hour
+            bestDelta = delta
+        }
+    }
+    return best
+}
 
 function monthOfWeek(week) {
     return Math.floor(week / WEEKS_PER_MONTH) + 1
@@ -35,6 +72,7 @@ export default function TemplatePlanner({
     onSelectItem,
     onAssign,
     onAddForSlot,
+    onAddForSlotAtTime,
 }) {
     const { view, weekIndex, dayWeekday } = viewState
     const monthIndex = Math.floor(weekIndex / WEEKS_PER_MONTH)
@@ -94,16 +132,20 @@ export default function TemplatePlanner({
         onViewStateChange({ weekIndex: index * WEEKS_PER_MONTH, view: 'month' })
     }
 
-    const openWeek = (week) => {
-        onViewStateChange({ weekIndex: clampWeek(week), view: 'week' })
-    }
-
+    /** Клик по дню недели в недельном виде — открыть этот день. */
     const openDay = (week, weekday) => {
+        setDragOver(null)
         onViewStateChange({
             weekIndex: clampWeek(week),
             dayWeekday: weekday,
             view: 'day',
         })
+    }
+
+    /** Клик по ярлыку недели в месячном виде — открыть эту неделю. */
+    const openWeek = (week) => {
+        setDragOver(null)
+        onViewStateChange({ weekIndex: clampWeek(week), view: 'week' })
     }
 
     const changeView = (nextView) => {
@@ -168,7 +210,7 @@ export default function TemplatePlanner({
                             type="button"
                             className="tplan-daycol__head"
                             onClick={() => openDay(weekIndex, weekday)}
-                            title={`Открыть день: ${WEEKDAYS_FULL[weekday]}`}
+                            title={`Открыть день: ${dayTitle(weekIndex, weekday)}`}
                         >
                             <span className="tplan-daycol__name">{label}</span>
                             <span className="tplan-daycol__count">{tasks.length || ''}</span>
@@ -212,7 +254,7 @@ export default function TemplatePlanner({
                             type="button"
                             className="tplan-month__week"
                             onClick={() => openWeek(week)}
-                            title="Открыть неделю"
+                            title={`Открыть неделю: месяц ${monthOfWeek(week)} · неделя ${weekInMonth(week)}`}
                         >
                             <span>{row + 1}-я</span>
                             <small>неделя</small>
@@ -233,13 +275,17 @@ export default function TemplatePlanner({
                                         if (dragOver === slot) setDragOver(null)
                                     }}
                                     onDrop={(e) => handleDrop(e, week, weekday)}
-                                    title={dayTitle(week, weekday)}
+                                    onClick={() => openDay(week, weekday)}
+                                    title={`${dayTitle(week, weekday)} — открыть день`}
                                 >
                                     {tasks.map((item) => renderChip(item, week, weekday, true))}
                                     <button
                                         type="button"
                                         className="tplan-month__add"
-                                        onClick={() => onAddForSlot(week, weekday)}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            onAddForSlot(week, weekday)
+                                        }}
                                         title="Добавить задачу"
                                     >+</button>
                                 </div>
@@ -292,7 +338,11 @@ export default function TemplatePlanner({
                                                 weekday >= 5 ? 'tplan-year__cell--weekend' : '',
                                                 dragOver === slot ? 'tplan-year__cell--drop' : '',
                                             ].filter(Boolean).join(' ')}
-                                            onClick={() => openDay(week, weekday)}
+                                            onClick={() => onViewStateChange({
+                                                weekIndex: clampWeek(week),
+                                                dayWeekday: weekday,
+                                                view: 'day',
+                                            })}
                                             onDragOver={(e) => handleDragOver(e, slot)}
                                             onDragLeave={() => {
                                                 if (dragOver === slot) setDragOver(null)
@@ -329,83 +379,111 @@ export default function TemplatePlanner({
 
     /* ---------- День ---------- */
 
+    /**
+     * В дне нет выбора дня недели: день уже выбран в недельном/месячном
+     * виде. Вместо дней — базовые часы 09, 12, 15, 18, 21 и 24 (00:00),
+     * чтобы можно было раскидать задачи по времени внутри дня.
+     */
     const renderDay = () => {
         const slot = `${weekIndex}-${dayWeekday}`
         const tasks = tasksAt(weekIndex, dayWeekday)
+
+        const byHour = {}
+        for (const hour of DAY_HOURS) byHour[hour] = []
+        for (const item of tasks) {
+            const hour = nearestHour(item.startTime)
+            if (!byHour[hour]) byHour[hour] = []
+            byHour[hour].push(item)
+        }
+
+        const addAtHour = (hour) => {
+            onAddForSlotAtTime?.(weekIndex, dayWeekday, hour)
+        }
+
         return (
             <div className="tplan-dayview">
-                <div className="tplan-dayview__tabs">
-                    {WEEKDAYS.map((label, weekday) => (
-                        <button
-                            key={label}
-                            type="button"
-                            className={[
-                                'tplan-dayview__tab',
-                                weekday === dayWeekday ? 'is-active' : '',
-                                weekday >= 5 ? 'is-weekend' : '',
-                            ].filter(Boolean).join(' ')}
-                            onClick={() => onViewStateChange({ dayWeekday: weekday })}
-                        >{label}</button>
-                    ))}
+                <div className="tplan-dayview__head">
+                    <div>
+                        <div className="tplan-dayview__name">{WEEKDAYS_FULL[dayWeekday]}</div>
+                        <div className="tplan-dayview__sub">
+                            {tasks.length} {tasks.length === 1 ? 'задача' : 'задач'} · базовые часы дня
+                        </div>
+                    </div>
                 </div>
 
-                <div
-                    className={[
-                        'tplan-dayview__lane',
-                        dragOver === slot ? 'tplan-dayview__lane--drop' : '',
-                    ].filter(Boolean).join(' ')}
-                    onDragOver={(e) => handleDragOver(e, slot)}
-                    onDragLeave={() => {
-                        if (dragOver === slot) setDragOver(null)
-                    }}
-                    onDrop={(e) => handleDrop(e, weekIndex, dayWeekday)}
-                >
-                    <div className="tplan-dayview__head">
-                        <div>
-                            <div className="tplan-dayview__name">{WEEKDAYS_FULL[dayWeekday]}</div>
-                        </div>
-                        <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            onClick={() => onAddForSlot(weekIndex, dayWeekday)}
-                        >+ Задача</button>
-                    </div>
-
-                    <div className="tplan-dayview__tasks">
-                        {tasks.length === 0 && (
-                            <div className="tplan-dayview__empty">
-                                Перетащите сюда задачу из панели справа
-                            </div>
-                        )}
-                        {tasks.map((item) => (
-                            <div
-                                key={item.key}
+                <div className="tplan-dayview__hours">
+                    {DAY_HOURS.map((hour) => {
+                        const laneSlot = `${slot}-${hour}`
+                        const hoursItems = byHour[hour] || []
+                        return (
+                            <section
+                                key={hour}
                                 className={[
-                                    'tplan-day-task',
-                                    selectedKey === item.key ? 'tplan-day-task--selected' : '',
-                                    draggingKey === item.key ? 'tplan-chip--dragging' : '',
+                                    'tplan-hour',
+                                    dragOver === laneSlot ? 'tplan-hour--drop' : '',
                                 ].filter(Boolean).join(' ')}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, item)}
-                                onDragEnd={handleDragEnd}
-                                onClick={() => onSelectItem(item.key)}
+                                onDragOver={(e) => handleDragOver(e, laneSlot)}
+                                onDragLeave={() => {
+                                    if (dragOver === laneSlot) setDragOver(null)
+                                }}
+                                onDrop={(e) => {
+                                    e.preventDefault()
+                                    const key = e.dataTransfer.getData('text/plain') || draggingKey
+                                    setDraggingKey(null)
+                                    setDragOver(null)
+                                    if (key) onAssign(key, slotOffset(weekIndex, dayWeekday), hour)
+                                }}
                             >
-                                <span className="tplan-day-task__title">{item.title || 'Без названия'}</span>
-                                {item.description && (
-                                    <span className="tplan-day-task__desc">{item.description}</span>
-                                )}
-                                <span className="tplan-day-task__meta">
-                                    {Number(item.priority) > 0 && (
-                                        <span>{'★'.repeat(Math.min(5, Number(item.priority)))}</span>
+                                <div className="tplan-hour__label">
+                                    <span className="tplan-hour__time">{hourLabel(hour)}</span>
+                                    {hour === '24:00' && <span className="tplan-hour__note">полночь</span>}
+                                </div>
+
+                                <div className="tplan-hour__tasks">
+                                    {hoursItems.length === 0 && (
+                                        <div className="tplan-hour__empty">
+                                            Перетащите задачу сюда
+                                        </div>
                                     )}
-                                    {item.estimatedMinutes ? <span>~{item.estimatedMinutes} мин</span> : null}
-                                    {item.subtasks?.length ? (
-                                        <span>☑ {item.subtasks.length}</span>
-                                    ) : null}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
+                                    {hoursItems.map((item) => (
+                                        <div
+                                            key={item.key}
+                                            className={[
+                                                'tplan-day-task',
+                                                selectedKey === item.key ? 'tplan-day-task--selected' : '',
+                                                draggingKey === item.key ? 'tplan-chip--dragging' : '',
+                                            ].filter(Boolean).join(' ')}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, item)}
+                                            onDragEnd={handleDragEnd}
+                                            onClick={() => onSelectItem(item.key)}
+                                        >
+                                            <span className="tplan-day-task__title">
+                                                {item.title || 'Без названия'}
+                                            </span>
+                                            {item.description && (
+                                                <span className="tplan-day-task__desc">{item.description}</span>
+                                            )}
+                                            <span className="tplan-day-task__meta">
+                                                {Number(item.priority) > 0 && (
+                                                    <span>{'★'.repeat(Math.min(5, Number(item.priority)))}</span>
+                                                )}
+                                                {item.estimatedMinutes ? <span>~{item.estimatedMinutes} мин</span> : null}
+                                                {item.subtasks?.length ? (
+                                                    <span>☑ {item.subtasks.length}</span>
+                                                ) : null}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        className="tplan-hour__add"
+                                        onClick={() => addAtHour(hour)}
+                                    >+ задача</button>
+                                </div>
+                            </section>
+                        )
+                    })}
                 </div>
             </div>
         )

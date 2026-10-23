@@ -151,6 +151,7 @@ public class GuideService {
                     task.getStatusCategoryCode(),
                     task.getDayOffset(),
                     task.getEstimatedMinutes(),
+                    null,
                     TaskTemplateService.splitSubtasks(task.getSubtasksText())
             ));
         }

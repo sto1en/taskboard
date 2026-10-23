@@ -142,7 +142,11 @@ public class ProjectService {
                 project, defaultStatus, request.getAccentCode(), request.getIsCoop());
         projectSettingsRepository.save(settings);
 
-        long totalProjects = user.getBoards().stream()
+        // user приходит из CurrentUserService, его коллекция boards —
+        // ленивая, а здесь уже вне сессии: обращение к геттеру падало
+        // LazyInitializationException (POST /projects -> 500).
+        // Считаем по id досок владельца одним запросом.
+        long totalProjects = boardRepository.findByOwnerIdOrderByPositionAsc(user.getId()).stream()
                 .mapToLong(b -> projectRepository.countByBoardId(b.getId()))
                 .sum();
         achievementService.checkProjects(user, totalProjects);

@@ -265,9 +265,15 @@ export const userGroupsApi = {
 // ============================================================
 export const taskTemplatesApi = {
     list: () => api.get('/task-templates'),
+    // Каталог публичных шаблонов: поиск, сортировка, пагинация.
+    // mine=true — только свои публичные шаблоны.
+    listPublic: (params) => api.get('/task-templates/public', { params }),
     get: (id) => api.get(`/task-templates/${id}`),
     create: (data) => api.post('/task-templates', data),
     update: (id, data) => api.put(`/task-templates/${id}`, data),
+    setVisibility: (id, isPublic) =>
+        api.patch(`/task-templates/${id}/visibility`, { isPublic }),
+    duplicate: (id) => api.post(`/task-templates/${id}/duplicate`),
     remove: (id) => api.delete(`/task-templates/${id}`),
     apply: (id, data) => api.post(`/task-templates/${id}/apply`, data),
 }

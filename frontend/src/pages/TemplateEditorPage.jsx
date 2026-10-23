@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { taskTemplatesApi } from '../api/api'
-import TemplatePlanner from '../components/templates/TemplatePlanner'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { taskTemplatesApi, guidesApi } from '../api/api'
+import TemplatePlanner, { DAY_HOURS } from '../components/templates/TemplatePlanner'
 import { PriorityPicker } from '../components/task/PriorityStars'
+import ConfirmModal from '../components/common/ConfirmModal'
 
 const ACCENTS = ['blue', 'indigo', 'violet', 'purple', 'pink', 'red', 'coral', 'orange', 'green', 'teal', 'cyan', 'gray']
 const STATUSES = [
@@ -16,7 +17,7 @@ const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 let uid = 0
 const nextKey = () => `tplan-task-${++uid}`
 
-function emptyTask(offset = null) {
+function emptyTask(offset = null, startTime = null) {
     return {
         key: nextKey(),
         title: '',
@@ -25,7 +26,7 @@ function emptyTask(offset = null) {
         deadlineOffsetDays: offset,
         statusCategoryCode: 'ACTIVE',
         estimatedMinutes: '',
-        startTime: null,
+        startTime,
         subtasks: [],
         subtaskDraft: '',
     }
@@ -71,6 +72,37 @@ function sortByTime(entries) {
         const timeB = timeMinutes(b.item.startTime)
         if (timeA !== timeB) return timeA - timeB
         return a.index - b.index
+    })
+}
+
+/**
+ * Снимок сохраняемого содержимого шаблона для сравнения «изменено / нет».
+ * Ключи (key), черновик подзадачи и раскрытие карточки в снимок не входят:
+ * это состояние интерфейса, а не данные шаблона.
+ */
+function snapshotOf({ title, description, icon, accent, isPublic, items }) {
+    return JSON.stringify({
+        title: title || '',
+        description: description || '',
+        icon: icon || '',
+        accent: accent || '',
+        isPublic: Boolean(isPublic),
+        items: (items || [])
+            .filter((item) => item.title.trim())
+            .map((item) => ({
+                title: item.title.trim(),
+                description: item.description || '',
+                priority: Number(item.priority) || 0,
+                deadlineOffsetDays: item.deadlineOffsetDays === '' || item.deadlineOffsetDays == null
+                    ? null
+                    : Number(item.deadlineOffsetDays),
+                statusCategoryCode: item.statusCategoryCode || 'ACTIVE',
+                estimatedMinutes: item.estimatedMinutes === '' || item.estimatedMinutes == null
+                    ? null
+                    : Number(item.estimatedMinutes),
+                startTime: item.startTime || null,
+                subtasks: item.subtasks || [],
+            })),
     })
 }
 
@@ -182,12 +214,19 @@ function buildSideRows(items, viewState) {
 export default function TemplateEditorPage() {
     const { id } = useParams()
     const nav = useNavigate()
+    const [searchParams] = useSearchParams()
     const isEdit = Boolean(id)
+
+    // ?public=1 — переход с «Создать публичный шаблон» (из гайдов или каталога).
+    const wantPublic = searchParams.get('public') === '1'
+    // ?from=<guideId> — предзаполнить новый шаблон задачами гайда.
+    const fromGuideId = searchParams.get('from')
 
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
     const [icon, setIcon] = useState('🧩')
     const [accent, setAccent] = useState('blue')
+    const [isPublic, setIsPublic] = useState(wantPublic)
     const [items, setItems] = useState([])
     const [expandedKey, setExpandedKey] = useState(null)
     const [dropZone, setDropZone] = useState(null)
@@ -202,16 +241,74 @@ export default function TemplateEditorPage() {
     const [error, setError] = useState('')
     const [loadError, setLoadError] = useState('')
 
+    // «Изменено» и защита от случайного выхода без сохранения.
+    const [baseline, setBaseline] = useState(null)
+    const [leaveTarget, setLeaveTarget] = useState(null)
+
     useEffect(() => {
         if (!id) {
             setTitle('')
             setDescription('')
             setIcon('🧩')
             setAccent('blue')
+            setIsPublic(wantPublic)
             setItems([])
             setExpandedKey(null)
-            setLoading(false)
             setLoadError('')
+            // Базовый снимок пустого блока — не пустой объект, а такой же
+            // снимок без задач: тогда «изменено» станет true только при
+            // реальных правках, а не сразу после открытия формы.
+            setBaseline(null)
+            if (!fromGuideId) {
+                setBaseline(snapshotOf({
+                    title: '',
+                    description: '',
+                    icon: '🧩',
+                    accent: 'blue',
+                    isPublic: wantPublic,
+                    items: [],
+                }))
+            }
+
+            // Новый шаблон из гайда: переносим задачи, сохраняя порядок по дням.
+            if (fromGuideId) {
+                setLoading(true)
+                guidesApi.get(fromGuideId)
+                    .then(({ data }) => {
+                        const loaded = (data?.tasks || []).map(task => ({
+                            key: nextKey(),
+                            title: task.title || '',
+                            description: task.description || '',
+                            priority: task.priority || 0,
+                            deadlineOffsetDays: task.dayOffset ?? null,
+                            statusCategoryCode: task.statusCategoryCode || 'ACTIVE',
+                            estimatedMinutes: task.estimatedMinutes ?? '',
+                            startTime: null,
+                            subtasks: [...(task.subtasks || [])],
+                            subtaskDraft: '',
+                        }))
+                        setTitle(data?.title || '')
+                        setDescription(data?.subtitle || data?.description || '')
+                        setIcon(data?.emoji || '🧩')
+                        setAccent(data?.accent || 'blue')
+                        setItems(loaded)
+                        setBaseline(snapshotOf({
+                            title: data?.title || '',
+                            description: data?.subtitle || data?.description || '',
+                            icon: data?.emoji || '🧩',
+                            accent: data?.accent || 'blue',
+                            isPublic: wantPublic,
+                            items: loaded,
+                        }))
+                    })
+                    .catch((err) => {
+                        setLoadError(err.response?.data?.message || 'Не удалось загрузить гайд')
+                    })
+                    .finally(() => setLoading(false))
+                return
+            }
+
+            setLoading(false)
             return
         }
 
@@ -221,12 +318,22 @@ export default function TemplateEditorPage() {
         taskTemplatesApi.get(id)
             .then(({ data }) => {
                 if (cancelled) return
+                const loaded = (data?.items || []).map(taskFromApi)
                 setTitle(data?.title || '')
                 setDescription(data?.description || '')
                 setIcon(data?.icon || '🧩')
                 setAccent(data?.accent || 'blue')
-                setItems((data?.items || []).map(taskFromApi))
+                setIsPublic(Boolean(data?.isPublic))
+                setItems(loaded)
                 setExpandedKey(null)
+                setBaseline(snapshotOf({
+                    title: data?.title || '',
+                    description: data?.description || '',
+                    icon: data?.icon || '🧩',
+                    accent: data?.accent || 'blue',
+                    isPublic: Boolean(data?.isPublic),
+                    items: loaded,
+                }))
             })
             .catch((err) => {
                 if (!cancelled) {
@@ -238,12 +345,49 @@ export default function TemplateEditorPage() {
             })
 
         return () => { cancelled = true }
-    }, [id])
+    }, [id, wantPublic, fromGuideId])
 
     const assignedCount = useMemo(
         () => items.filter((item) => offsetValue(item) !== null).length,
         [items]
     )
+
+    // Текущий снимок формы и сравнение с состоянием «как было при открытии».
+    const currentSnapshot = useMemo(
+        () => snapshotOf({ title, description, icon, accent, isPublic, items }),
+        [title, description, icon, accent, isPublic, items],
+    )
+    const dirty = baseline !== null && currentSnapshot !== baseline
+
+    /**
+     * Выход со страницы. Если есть несохранённые изменения — сначала
+     * модалка по центру, переход выполняется только после подтверждения.
+     */
+    const requestLeave = (to = '/templates') => {
+        if (!dirty) {
+            nav(to)
+            return
+        }
+        setLeaveTarget(to)
+    }
+
+    const confirmLeave = () => {
+        const to = leaveTarget || '/templates'
+        setLeaveTarget(null)
+        nav(to)
+    }
+
+    // Перезагрузка/закрытие вкладки — нативное предупреждение браузера.
+    useEffect(() => {
+        if (!dirty) return undefined
+        const onBeforeUnload = (e) => {
+            e.preventDefault()
+            e.returnValue = ''
+            return ''
+        }
+        window.addEventListener('beforeunload', onBeforeUnload)
+        return () => window.removeEventListener('beforeunload', onBeforeUnload)
+    }, [dirty])
 
     const sideRows = useMemo(
         () => buildSideRows(items, plannerState),
@@ -270,8 +414,8 @@ export default function TemplateEditorPage() {
         })
     }
 
-    const addTask = (offset = null) => {
-        const item = emptyTask(offset)
+    const addTask = (offset = null, startTime = null) => {
+        const item = emptyTask(offset, startTime)
         setItems((prev) => [...prev, item])
         setExpandedKey(item.key)
         requestAnimationFrame(() => {
@@ -286,8 +430,22 @@ export default function TemplateEditorPage() {
         addTask(week * 7 + weekday)
     }
 
-    const assignTask = (key, offset) => {
-        patchItem(key, 'deadlineOffsetDays', offset)
+    /** «+ задача» в дневном виде — сразу в конкретный базовый час. */
+    const addTaskForSlotAtTime = (week, weekday, hour) => {
+        addTask(week * 7 + weekday, hour)
+    }
+
+    /**
+     * Перетаскивание в день. Если бросили в конкретный час (day view),
+     * сразу проставляем время начала.
+     */
+    const assignTask = (key, offset, startTime) => {
+        setItems((prev) => prev.map((item) => {
+            if (item.key !== key) return item
+            const next = { ...item, deadlineOffsetDays: offset }
+            if (startTime) next.startTime = startTime
+            return next
+        }))
     }
 
     const unassignTask = (key) => {
@@ -313,7 +471,7 @@ export default function TemplateEditorPage() {
 
     const toggleTime = (key) => {
         const item = items.find((it) => it.key === key)
-        patchItem(key, 'startTime', item?.startTime ? null : '09:00')
+        patchItem(key, 'startTime', item?.startTime ? null : DAY_HOURS[0])
     }
 
     const removeTask = (key) => {
@@ -383,6 +541,7 @@ export default function TemplateEditorPage() {
                 description,
                 icon: icon || '🧩',
                 accent,
+                isPublic,
                 items: payloadItems,
             }
             if (id) {
@@ -390,6 +549,7 @@ export default function TemplateEditorPage() {
             } else {
                 await taskTemplatesApi.create(payload)
             }
+            // Сохранено — выходим без предупреждения.
             nav('/templates')
         } catch (err) {
             setError(err.response?.data?.message || 'Не удалось сохранить шаблон')
@@ -415,12 +575,17 @@ export default function TemplateEditorPage() {
         <div className="tplan-page">
             <header className="tplan-head">
                 <div className="tplan-head__top">
-                    <Link to="/templates" className="tplan-back">← Все шаблоны</Link>
+                    <button
+                        type="button"
+                        className="tplan-back tplan-back--button"
+                        onClick={() => requestLeave('/templates')}
+                    >← Все шаблоны</button>
                     <div className="tplan-head__actions">
+                        {dirty && <span className="tplan-dirty" title="Есть несохранённые изменения">• не сохранено</span>}
                         <button
                             type="button"
                             className="btn btn-ghost"
-                            onClick={() => nav('/templates')}
+                            onClick={() => requestLeave('/templates')}
                             disabled={saving}
                         >Отмена</button>
                         <button
@@ -475,6 +640,26 @@ export default function TemplateEditorPage() {
                                 />
                             ))}
                         </div>
+
+                        <label className="tplan-switch" title="Публичный шаблон виден в каталоге всем пользователям">
+                            <input
+                                type="checkbox"
+                                className="tplan-switch__input"
+                                checked={isPublic}
+                                onChange={(e) => setIsPublic(e.target.checked)}
+                            />
+                            <span className="tplan-switch__track" aria-hidden="true">
+                                <span className="tplan-switch__thumb" />
+                            </span>
+                            <span className="tplan-switch__text">
+                                <span className="tplan-switch__title">Публичный шаблон</span>
+                                <span className="tplan-switch__hint">
+                                    {isPublic
+                                        ? 'Появится в каталоге «Публичные шаблоны»'
+                                        : 'Виден только вам'}
+                                </span>
+                            </span>
+                        </label>
                     </div>
                 </div>
 
@@ -482,6 +667,7 @@ export default function TemplateEditorPage() {
                     <span><b>{items.length}</b> задач</span>
                     <span><b>{assignedCount}</b> на календаре</span>
                     <span><b>{items.length - assignedCount}</b> вне календаря</span>
+                    {isPublic && <span className="tplan-public-badge">🌍 публичный</span>}
                     <span className="tplan-head__tip">
                         Создавайте задачи справа и перетаскивайте их на нужный день недели.
                     </span>
@@ -497,6 +683,7 @@ export default function TemplateEditorPage() {
                     onSelectItem={selectItem}
                     onAssign={assignTask}
                     onAddForSlot={addTaskForSlot}
+                    onAddForSlotAtTime={addTaskForSlotAtTime}
                 />
 
                 <aside className="tplan-side">
@@ -655,12 +842,22 @@ export default function TemplateEditorPage() {
                                             {item.startTime && (
                                                 <div className="modal__field">
                                                     <label className="modal__label">Время начала</label>
-                                                    <input
-                                                        type="time"
-                                                        className="input"
-                                                        value={item.startTime}
-                                                        onChange={(e) => patchItem(item.key, 'startTime', e.target.value)}
-                                                    />
+                                                    <div className="tplan-hours">
+                                                        {DAY_HOURS.map((hour) => (
+                                                            <button
+                                                                key={hour}
+                                                                type="button"
+                                                                className={item.startTime === hour ? 'is-active' : ''}
+                                                                onClick={() => patchItem(item.key, 'startTime', hour)}
+                                                            >
+                                                                {hour === '24:00' ? '00:00' : hour}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                    <div className="create-task__hint-inline">
+                                                        Базовые часы дня: 9, 12, 15, 18, 21, 24 (00:00).
+                                                        24:00 — полночь.
+                                                    </div>
                                                 </div>
                                             )}
 
@@ -763,6 +960,21 @@ export default function TemplateEditorPage() {
             </div>
 
             {error && <div className="tplan-error">{error}</div>}
+
+            <ConfirmModal
+                open={Boolean(leaveTarget)}
+                title="Выйти без сохранения?"
+                text={
+                    title.trim()
+                        ? `Изменения в шаблоне «${title.trim()}» не сохранены. Если выйти сейчас, они пропадут.`
+                        : 'Изменения в шаблоне не сохранены. Если выйти сейчас, они пропадут.'
+                }
+                confirmLabel="Выйти без сохранения"
+                cancelLabel="Остаться"
+                danger
+                onConfirm={confirmLeave}
+                onClose={() => setLeaveTarget(null)}
+            />
         </div>
     )
 }

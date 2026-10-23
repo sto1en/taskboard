@@ -25,6 +25,9 @@ public class SaveTaskTemplateRequest {
     @Size(max = 20)
     private String accent;
 
+    /** Опубликовать шаблон в общем каталоге. */
+    private Boolean isPublic;
+
     @Valid
     private List<Item> items = new ArrayList<>();
 

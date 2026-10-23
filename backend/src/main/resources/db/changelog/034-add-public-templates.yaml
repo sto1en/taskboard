@@ -1,0 +1,47 @@
+databaseChangeLog:
+
+  # ============================================================
+  # 034 — публичные шаблоны задач
+  #
+  #   • task_templates.is_public — пользователь может опубликовать
+  #     шаблон: он попадает в общий каталог и становится доступен
+  #     (для просмотра и применения) всем остальным пользователям.
+  #   • Индекс по флагу + дате обновления для каталога с сортировкой.
+  # ============================================================
+
+  - changeSet:
+      id: 034-01-task-template-is-public
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists: { tableName: task_templates, columnName: is_public }
+      changes:
+        - addColumn:
+            tableName: task_templates
+            columns:
+              - column:
+                  name: is_public
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+        - createIndex:
+            tableName: task_templates
+            indexName: idx_task_templates_public
+            columns:
+              - column: { name: is_public }
+
+  - changeSet:
+      id: 034-02-task-template-public-updated
+      author: admin
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - indexExists: { tableName: task_templates, indexName: idx_task_templates_public_updated }
+      changes:
+        - createIndex:
+            tableName: task_templates
+            indexName: idx_task_templates_public_updated
+            columns:
+              - column: { name: is_public }
+              - column: { name: updated_at }

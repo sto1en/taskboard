@@ -22,6 +22,14 @@ target/
 # Spring Boot
 *.log
 logs/
+
+# Локальные служебные файлы (ngrok, git-watch)
+.ngrok/
+.git-watch.lock
+.git-sync.log
+.git-watch.log
+.git-watch-launcher.log
+.git-watch-trace.log
 backend/uploads/
 uploads/
 

@@ -498,6 +498,20 @@
 .tplan-back:hover {
     color: var(--primary);
 }
+/* «← Все шаблоны» — теперь кнопка (перехватывает выход с проверкой изменений). */
+.tplan-back--button {
+    padding: 0;
+    border: none;
+    background: none;
+    font-family: inherit;
+    cursor: pointer;
+}
+.tplan-dirty {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--warning, #c98a00);
+    white-space: nowrap;
+}
 .tplan-head__actions {
     display: flex;
     align-items: center;
@@ -929,7 +943,11 @@
     min-height: 112px;
     padding: 6px;
     border-right: 1px solid var(--border);
+    cursor: pointer;
     transition: background .15s, box-shadow .15s;
+}
+.tplan-month__cell:hover {
+    background: color-mix(in srgb, var(--primary) 6%, var(--surface));
 }
 .tplan-month__cell:last-child {
     border-right: none;
@@ -2498,5 +2516,518 @@
     }
     .templates-search {
         max-width: none;
+    }
+}
+
+/* ============================================================
+   Шаблоны: навигация раздела, публичный каталог, часовая сетка,
+   тумблер публичности
+   ============================================================ */
+
+/* ---------- Навигация раздела ---------- */
+
+.templates-nav {
+    margin-bottom: 18px;
+}
+
+.templates-nav .section-subnav {
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* кнопки в section-subnav ведут себя как ссылки */
+.templates-nav .section-subnav__item {
+    border: 1px solid transparent;
+    background: transparent;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.section-subnav__count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(9, 30, 66, .1);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.section-subnav__item--active .section-subnav__count {
+    background: rgba(255, 255, 255, .28);
+}
+
+.templates-nav__sub {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding: 6px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg) 55%, var(--surface));
+    border: 1px solid var(--border);
+    width: fit-content;
+}
+
+.templates-nav__sub-btn {
+    padding: 8px 14px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+
+.templates-nav__sub-btn:hover {
+    color: var(--text);
+    background: rgba(9, 30, 66, .05);
+}
+
+.templates-nav__sub-btn.is-active {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--primary);
+    box-shadow: var(--shadow-sm);
+}
+
+html[data-theme="dark"] .templates-nav__sub-btn:hover {
+    background: rgba(255, 255, 255, .06);
+}
+
+/* ---------- Публичный каталог ---------- */
+
+.pubtpl {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pubtpl__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 24px 28px;
+    border-radius: 16px;
+    background:
+        radial-gradient(900px 220px at 0% 0%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 70%),
+        var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+}
+
+.pubtpl__head-text {
+    min-width: 0;
+}
+
+.pubtpl__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pubtpl__search {
+    position: relative;
+    flex: 1 1 320px;
+    min-width: 220px;
+}
+
+.pubtpl__search .input {
+    padding-left: 38px;
+}
+
+.pubtpl__search-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    pointer-events: none;
+    opacity: .7;
+}
+
+.pubtpl__sort {
+    width: auto;
+    min-width: 190px;
+    flex: 0 0 auto;
+}
+
+.pubtpl__filters-btn {
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.pubtpl__filters-btn.is-open {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.pubtpl__badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background-color: var(--primary);
+    background-image: var(--accent-gradient);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.pubtpl__filters {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
+.pubtpl__filter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.pubtpl__filter .input {
+    width: 140px;
+    padding: 8px 10px;
+}
+
+.pubtpl__filter--check {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding-bottom: 10px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.pubtpl__filter--check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+}
+
+.pubtpl__refresh {
+    align-self: center;
+}
+
+/* ---------- Карточка: публичность и автор ---------- */
+
+.template-card__public {
+    margin-left: auto;
+    font-size: 16px;
+    line-height: 1;
+    opacity: .9;
+}
+
+.template-card__owner {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.template-card__owner-avatar {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--card-accent, var(--primary)) 16%, var(--surface));
+    font-size: 12px;
+}
+
+/* ---------- Тумблер «Публичный шаблон» ---------- */
+
+.tplan-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color .15s, background .15s;
+}
+
+.tplan-switch:hover {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+
+.tplan-switch__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tplan-switch__track {
+    position: relative;
+    flex-shrink: 0;
+    width: 38px;
+    height: 22px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted) 35%, var(--surface));
+    transition: background .18s;
+}
+
+.tplan-switch__thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(9, 30, 66, .35);
+    transition: transform .18s;
+}
+
+.tplan-switch__input:checked + .tplan-switch__track {
+    background-color: var(--primary);
+    background-image: var(--accent-gradient);
+    background-size: 100% 100%;
+}
+
+.tplan-switch__input:checked + .tplan-switch__track .tplan-switch__thumb {
+    transform: translateX(16px);
+}
+
+.tplan-switch__input:focus-visible + .tplan-switch__track {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.tplan-switch__text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.tplan-switch__title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.tplan-switch__hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.3;
+}
+
+.tplan-public-badge {
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+    color: var(--primary);
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+/* ---------- Часы (базовые слоты дня) ---------- */
+
+.tplan-hours {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 6px 0 4px;
+}
+
+.tplan-hours button {
+    min-width: 52px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color .15s, color .15s, background .15s;
+}
+
+.tplan-hours button:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.tplan-hours button.is-active {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+    color: var(--primary);
+}
+
+/* ---------- День: часовая лента ---------- */
+
+.tplan-dayview__sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.tplan-dayview__hours {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tplan-hour {
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg) 25%, var(--surface));
+    transition: border-color .15s, background .15s;
+}
+
+.tplan-hour--drop {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+}
+
+.tplan-hour__label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 4px;
+}
+
+.tplan-hour__time {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -.2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.tplan-hour__note {
+    font-size: 10.5px;
+    color: var(--text-muted);
+}
+
+.tplan-hour__tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 34px;
+}
+
+.tplan-hour__empty {
+    display: flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 4px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    opacity: .7;
+    user-select: none;
+}
+
+.tplan-hour__add {
+    align-self: flex-start;
+    padding: 3px 9px;
+    border: 1px dashed var(--border);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+}
+
+.tplan-hour__add:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* ---------- Гайды: кнопки в шапке ---------- */
+
+.guides-hero__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.guide-card__publish {
+    color: var(--primary) !important;
+}
+
+/* ---------- Подсветка подпунктов шаблонов в сайдбаре ---------- */
+
+.sidebar__sublink--templates {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ---------- Адаптив ---------- */
+
+@media (max-width: 900px) {
+    .pubtpl__head {
+        flex-direction: column;
+        gap: 14px;
+    }
+    .pubtpl__head .btn {
+        align-self: flex-start;
+    }
+    .guides-hero__actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 640px) {
+    .pubtpl__toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .pubtpl__sort {
+        width: 100%;
+        min-width: 0;
+    }
+    .templates-nav__sub {
+        width: 100%;
+    }
+    .templates-nav__sub-btn {
+        flex: 1;
+        text-align: center;
+    }
+    .tplan-hour {
+        grid-template-columns: 62px 1fr;
+        gap: 8px;
+    }
+    .tplan-switch {
+        width: 100%;
     }
 }
