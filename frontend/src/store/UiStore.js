@@ -69,12 +69,22 @@ export class UiStore {
     pendingCreate = null
 
     /**
-     * Открыто ли выдвижное меню на телефоне (MobileTopBar). На десктопе
-     * значение не используется: там меню — это Sidebar. Держим в сторе, а
-     * не в local state, потому что закрывать его должны и таб-бар, и
-     * переход по ссылке, и Escape в AppLayout.
+     * Открыт ли выдвижной сайдбар на телефоне (MobileDrawer, кнопка ☰).
+     * На десктопе значение не используется: там меню — это Sidebar.
+     * Держим в сторе, а не в local state, потому что закрывать его должны
+     * и таб-бар, и переход по ссылке, и Escape в AppLayout.
+     *
+     * Раньше этот флаг был общим для сайдбара и для нижнего листа «ещё»,
+     * из-за чего тап по ☰ открывал не только панель, но и всплывающий
+     * снизу лист, перекрывавший её. Теперь это два независимых слоя.
      */
     mobileMenuOpen = false
+
+    /**
+     * Открыт ли нижний лист «ещё» (MobileTopBar). Живёт только внутри
+     * шапки и намеренно не открывается сайдбаром.
+     */
+    mobileSheetOpen = false
 
     constructor() {
         makeAutoObservable(this, {}, { autoBind: true })
@@ -137,6 +147,9 @@ export class UiStore {
     // ---------------------------------------------------------------
 
     openMobileMenu() {
+        // Сайдбар и лист «ещё» — взаимоисключающие слои: одновременно они
+        // перекрывали бы друг друга.
+        this.mobileSheetOpen = false
         this.mobileMenuOpen = true
     }
 
@@ -145,7 +158,18 @@ export class UiStore {
     }
 
     toggleMobileMenu() {
-        this.mobileMenuOpen = !this.mobileMenuOpen
+        if (this.mobileMenuOpen) this.closeMobileMenu()
+        else this.openMobileMenu()
+    }
+
+    /** Нижний лист «ещё» в мобильной шапке. */
+    openMobileSheet() {
+        this.mobileMenuOpen = false
+        this.mobileSheetOpen = true
+    }
+
+    closeMobileSheet() {
+        this.mobileSheetOpen = false
     }
 
     // ---------------------------------------------------------------

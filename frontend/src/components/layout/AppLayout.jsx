@@ -70,8 +70,11 @@ export default observer(function AppLayout() {
 
         // Мобильное меню (сайдбар/лист) — верхний слой: Escape должен
         // закрыть именно его, а не уводить пользователя со страницы.
-        if (ui.mobileMenuOpen) {
+        // Лист «ещё» живёт отдельно от сайдбара, поэтому закрываем оба:
+        // открытыми одновременно они всё равно не бывают.
+        if (ui.mobileSheetOpen || ui.mobileMenuOpen) {
             ui.closeMobileMenu()
+            ui.closeMobileSheet()
             return false
         }
 

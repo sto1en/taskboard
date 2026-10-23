@@ -290,8 +290,12 @@ const Shell = observer(function Shell() {
     // screen=menu (нижний лист «ещё») — иначе пришлось бы «нажимать» её
     // в headless-браузере.
     useEffect(() => {
-        if (SCREEN === 'menu' || SCREEN === 'drawer') ui.openMobileMenu()
-        return () => ui.closeMobileMenu()
+        if (SCREEN === 'menu') ui.openMobileSheet()
+        if (SCREEN === 'drawer') ui.openMobileMenu()
+        return () => {
+            ui.closeMobileMenu()
+            ui.closeMobileSheet()
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 

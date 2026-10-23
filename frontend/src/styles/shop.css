@@ -339,6 +339,9 @@
     flex-direction: column;
     box-shadow: var(--shadow-sm);
     transition: transform .15s, box-shadow .15s, border-color .15s;
+    /* Карточка в сетке уже (grid-колонка), а цены/кнопки внутри — нет:
+       не даём длинному названию или цене раздуть колонку. */
+    min-width: 0;
 }
 .shop-card:hover {
     transform: translateY(-2px);
@@ -452,15 +455,29 @@ html[data-theme="dark"] .shop-card--active:not(.shop-card--holo) {
     padding: 12px 14px;
 }
 
-.shop-card__title { font-size: 15px; font-weight: 700; color: var(--text); }
+.shop-card__title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    /* Длинное имя аватарки/скина переносится, а не выпирает из карточки
+       (на телефоне колонка ~150px, и одна строка без переноса ломала
+       раскладку футера с ценой). */
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
 .shop-card__desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; flex: 1; }
 
 .shop-card__footer {
     display: flex;
+    /* flex-wrap нужен для узких карточек (мобильная сетка в две колонки,
+       админка): цена и кнопка не сжимаются в «...» и не заезжают друг
+       под друга, а переносятся на вторую строку. */
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    margin-top: 6px;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 6px;
     min-width: 0;
 }
 
@@ -470,6 +487,7 @@ html[data-theme="dark"] .shop-card--active:not(.shop-card--holo) {
     gap: 6px;
     flex-wrap: wrap;
     min-width: 0;
+    max-width: 100%;
     font-size: 13px;
     font-weight: 700;
     color: var(--accent-color);
@@ -484,6 +502,11 @@ html[data-theme="dark"] .shop-card--active:not(.shop-card--holo) {
     color: var(--text-muted);
     text-decoration: line-through;
     opacity: 0.75;
+    /* Старая цена — вспомогательная: при нехватке места уступает
+       текущей и кнопке (иначе три элемента в ряд перекрывали цену). */
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: nowrap;
 }
 
 .shop-card__price-current {
@@ -493,6 +516,9 @@ html[data-theme="dark"] .shop-card--active:not(.shop-card--holo) {
     font-size: 13px;
     font-weight: 700;
     color: var(--accent-color);
+    white-space: nowrap;
+    flex: 0 1 auto;
+    min-width: 0;
 }
 
 .shop-leaf-icon {
@@ -501,7 +527,14 @@ html[data-theme="dark"] .shop-card--active:not(.shop-card--holo) {
     filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 35%, transparent));
 }
 
-.shop-card__btn { padding: 8px 14px !important; font-size: 13px !important; }
+.shop-card__btn {
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+    /* Кнопка не сжимается меньше своего текста: «Купить» никогда не
+       обрезается и не наезжает на цену — перенос даёт .shop-card__footer. */
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
 
 .shop-card__badge {
     font-size: 11px;
@@ -759,6 +792,10 @@ html[data-theme="dark"] .shop-card__category {
     gap: 4px;
     line-height: 1.2;
     white-space: nowrap;
+    /* «Куплено за N» — обычный текст, а не кнопка: в тесном футере он
+       должен переноситься целиком на свою строку. */
+    flex: 0 1 auto;
+    min-width: 0;
 }
 .shop-card__price--paid .shop-card__price-current {
     font-size: 13px;

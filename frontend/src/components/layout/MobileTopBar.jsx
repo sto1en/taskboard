@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { useAuth } from '../../context/AuthContext'
 import { useUiStore } from '../../store/useUiStore'
@@ -8,23 +8,31 @@ import { useIsMobile } from '../../hooks/useMediaQuery'
 import ConfirmModal from '../common/ConfirmModal'
 
 /**
- * Мобильный TopBar + выдвижное меню.
+ * Мобильный TopBar + служебное меню.
  *
- * Задач у шапки на телефоне три:
+ * Задач у шапки на телефоне четыре:
  *   1) открыть сайдбар (☰ слева) — весь состав десктопного Sidebar;
  *   2) сказать, где пользователь (заголовок и «назад»);
- *   3) дать быстрый поиск в один тап (поле разворачивается на всю ширину).
+ *   3) дать быстрый поиск в один тап (поле разворачивается на всю ширину);
+ *   4) служебное меню (⋮) — настройки, помощь, выход.
  *
  * Гамбургер стоит слева, как в нативных приложениях: панель выезжает
- * именно с этой стороны. Сам сайдбар — MobileDrawer, здесь только кнопка
+ * именно с этой стороны. Сам сайдбар — MobileDrawer, здесь только кнопки
  * и нижний лист «ещё» (настройки, помощь, выход).
+ *
+ * Почему ☰ и ⋮ — разные кнопки: раньше обе открывали один и тот же
+ * флаг (ui.mobileMenuOpen), и тап по ☰ поднимал поверх сайдбара ещё и
+ * нижний лист, из-за чего было непонятно, что вообще открылось, а пункты
+ * вроде «помощи» уводили со страницы вместо сайдбара.
  */
 
 const MENU_LINKS = {
-    // Основные разделы (доски, календарь, магазин, профиль и т. д.) живут
-    // в выезжающем сайдбаре (MobileDrawer, кнопка ☰). В нижнем листе —
-    // только служебное, чтобы не дублировать сайдбар.
-    extra: [],
+    // Основные разделы (доски, календарь, магазин и т. д.) живут в
+    // выезжающем сайдбаре (MobileDrawer, кнопка ☰). В нижнем листе —
+    // только служебное и профиль, чтобы не повторять всю навигацию.
+    extra: [
+        { to: '/profile', icon: '👤', label: 'Профиль' },
+    ],
     bottom: [
         { to: '/settings', icon: '⚙', labelKey: 'settings' },
         { to: '/help', icon: '❓', labelKey: 'help' },
@@ -58,10 +66,16 @@ export default observer(function MobileTopBar() {
     const location = useLocation()
     const ui = useUiStore()
     const { user, logout } = useAuth()
+    // В auth-сторе имя может прийти и плоско (displayName), и внутри
+    // profile — читаем оба варианта, иначе шапка листа пустеет.
+    const userName = user?.profile?.displayName || user?.displayName
+        || user?.username || user?.name
+    const isAdmin = Boolean(user?.isAdmin ?? (user?.role === 'admin'))
     const isMobile = useIsMobile()
 
     const title = headerTitleFor(location.pathname, t)
-    const menuOpen = ui.mobileMenuOpen
+    const drawerOpen = ui.mobileMenuOpen
+    const sheetOpen = ui.mobileSheetOpen
     const [searchOpen, setSearchOpen] = useState(false)
     const [query, setQuery] = useState('')
     const [showLogout, setShowLogout] = useState(false)
@@ -95,12 +109,41 @@ export default observer(function MobileTopBar() {
         return () => cancelAnimationFrame(id)
     }, [searchOpen])
 
+    // Лист «ещё» закрывается системной кнопкой «назад», а не уводит со
+    // страницы, — тот же приём с искусственной записью истории, что у
+    // поиска. Раньше этого не было: «назад» с открытым листом выходил из
+    // приложения.
+    const sheetOpenRef = useRef(false)
+    sheetOpenRef.current = sheetOpen
+    useEffect(() => {
+        if (!sheetOpen) return undefined
+        window.history.pushState({ mobileSheet: true }, '')
+        const onPop = () => ui.closeMobileSheet()
+        window.addEventListener('popstate', onPop)
+        return () => {
+            window.removeEventListener('popstate', onPop)
+            // Ушли по ссылке из листа, не закрыв его: запись истории
+            // нужно убрать, иначе «назад» вернёт пустую страницу.
+            if (sheetOpenRef.current && window.history.state?.mobileSheet) {
+                window.history.back()
+            }
+        }
+    }, [sheetOpen, ui])
+
     // Закрытие поиска снимает и «пустую» запись истории — иначе кнопка
     // «назад» после закрытия возвращала бы поиск снова.
     const closeSearch = () => {
         setSearchOpen(false)
         setQuery('')
         if (window.history.state?.mobileSearch) window.history.back()
+    }
+
+    // Открытие поиска/сайдбара: если была открыта «пустая» запись от
+    // поиска, её нужно снять, иначе в истории копится мусор.
+    const resetSearch = () => {
+        setSearchOpen(false)
+        setQuery('')
+        if (window.history.state?.mobileSearch) window.history.replaceState({}, '')
     }
 
     const submitSearch = (e) => {
@@ -117,18 +160,23 @@ export default observer(function MobileTopBar() {
     }
 
     const go = (to) => {
-        ui.closeMobileMenu()
+        ui.closeMobileSheet()
         nav(to)
     }
 
     const openMenu = () => {
         // Поиск в шапке — временное состояние: при открытии сайдбара его
         // закрываем, иначе он «останется» в шапке под затемнением.
-        if (searchOpen) {
-            setSearchOpen(false)
-            setQuery('')
-        }
+        if (searchOpen) resetSearch()
         ui.openMobileMenu()
+    }
+
+    // Кнопка «⋮» — только служебное (настройки, помощь, выход).
+    // Раньше она открывала тот же флаг, что и ☰, и поверх сайдбара
+    // выезжал нижний лист — теперь это отдельный слой.
+    const openSheet = () => {
+        if (searchOpen) resetSearch()
+        ui.openMobileSheet()
     }
 
     const isRoot = ['/', '/boards', '/calendar', '/shop', '/profile', '/stats',
@@ -176,7 +224,7 @@ export default observer(function MobileTopBar() {
                             className="mobile-icon-btn mobile-topbar__menu"
                             onClick={openMenu}
                             aria-label="Меню"
-                            aria-expanded={menuOpen}
+                            aria-expanded={drawerOpen}
                         >
                             ☰
                         </button>
@@ -202,26 +250,39 @@ export default observer(function MobileTopBar() {
                         >
                             🔍
                         </button>
+
+                        {/* Служебное меню (настройки, помощь, выход) —
+                            отдельная кнопка, чтобы не смешивать его с
+                            сайдбаром по ☰. */}
+                        <button
+                            type="button"
+                            className="mobile-icon-btn mobile-topbar__more"
+                            onClick={openSheet}
+                            aria-label="Ещё"
+                            aria-expanded={sheetOpen}
+                        >
+                            ⋮
+                        </button>
                     </>
                 )}
             </header>
 
             {/* Нижний лист «ещё»: только служебные пункты. Всё основное —
                 в выезжающем сайдбаре слева (MobileDrawer). */}
-            {menuOpen && (
+            {sheetOpen && (
                 <div className="mobile-menu" role="dialog" aria-modal="true" aria-label="Ещё">
                     <button
                         type="button"
                         className="mobile-menu__scrim"
-                        onClick={() => ui.closeMobileMenu()}
+                        onClick={() => ui.closeMobileSheet()}
                         aria-label="Закрыть меню"
                     />
                     <div className="mobile-menu__sheet">
                         <div className="mobile-menu__grip" aria-hidden="true" />
                         <div className="mobile-menu__user">
-                            <div className="mobile-menu__name">{user?.displayName || user?.username}</div>
+                            <div className="mobile-menu__name">{userName}</div>
                             <div className="mobile-menu__role">
-                                {user?.isAdmin ? 'Администратор' : 'Участник'}
+                                {isAdmin ? 'Администратор' : 'Участник'}
                             </div>
                         </div>
 
@@ -238,7 +299,7 @@ export default observer(function MobileTopBar() {
                                     <span className="mobile-menu__row-chevron" aria-hidden="true">›</span>
                                 </button>
                             ))}
-                            {user?.isAdmin && (
+                            {isAdmin && (
                                 <button
                                     type="button"
                                     className="mobile-menu__row"
@@ -273,10 +334,6 @@ export default observer(function MobileTopBar() {
                                 <span>{t.logout || 'Выйти'}</span>
                             </button>
                         </div>
-
-                        <Link to="/profile" className="mobile-menu__profile" onClick={() => ui.closeMobileMenu()}>
-                            Открыть профиль →
-                        </Link>
                     </div>
                 </div>
             )}
@@ -290,7 +347,7 @@ export default observer(function MobileTopBar() {
                 danger
                 onConfirm={() => {
                     setShowLogout(false)
-                    ui.closeMobileMenu()
+                    ui.closeMobileSheet()
                     logout()
                 }}
                 onClose={() => setShowLogout(false)}
