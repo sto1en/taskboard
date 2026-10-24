@@ -59,6 +59,16 @@ export default observer(function CalendarPage() {
 
     const [boards, setBoards] = useState([])
 
+    // Фильтр по доске: '' — все доски. Храним в URL (?boardId=),
+    // чтобы ссылка «календарь этой доски» переживала перезагрузку.
+    const boardFilter = searchParams.get('boardId') || ''
+    const setBoardFilter = (value) => {
+        const p = new URLSearchParams(searchParams)
+        if (value) p.set('boardId', value)
+        else p.delete('boardId')
+        setSearchParams(p, { replace: true })
+    }
+
     const [coopFilter, setCoopFilter] = useState('all') // 'all' | 'coop' | 'own'
 
     const [openDay, setOpenDay] = useState(null)
@@ -119,10 +129,15 @@ export default observer(function CalendarPage() {
         if (!silent) setLoading(true)
 
         const coopParam = coopFilter === 'all' ? undefined : coopFilter === 'coop'
+        const boardParam = boardFilter ? Number(boardFilter) : null
 
         Promise.all([
-            calendarApi.get(from, to),
-            statsApi.dailyLoad(from, to, coopParam),
+            calendarApi.get(from, to, null, boardParam),
+            // Полоса нагрузки на доску не фильтруется (сервер считает по
+            // доскам-владельцу), поэтому при выбранной доске прячем её.
+            boardParam == null
+                ? statsApi.dailyLoad(from, to, coopParam)
+                : Promise.resolve({ data: [] }),
         ])
             .then(([calRes, loadRes]) => {
                 const map = {}
@@ -148,7 +163,7 @@ export default observer(function CalendarPage() {
     }
 
     // eslint-disable-next-line
-    useEffect(() => reloadCalendar(), [year, month, coopFilter])
+    useEffect(() => reloadCalendar(), [year, month, coopFilter, boardFilter])
 
     // Реакция на инвалидацию задач (раньше: слушатель события 'tasks:refresh').
     // Первое значение revision пропускаем — начальную загрузку делает эффект
@@ -485,6 +500,24 @@ export default observer(function CalendarPage() {
                 </div>
 
                 <button className="calendar__nav-btn" onClick={nextMonth} aria-label="Следующий месяц">›</button>
+
+                {boards.length > 0 && (
+                    <div className="calendar__select-wrap calendar__board-select">
+                        <select
+                            className="calendar__select"
+                            value={boardFilter}
+                            onChange={(e) => setBoardFilter(e.target.value)}
+                            aria-label="Доска"
+                            title="Календарь доски"
+                        >
+                            <option value="">Все доски</option>
+                            {boards.map(b => (
+                                <option key={b.id} value={b.id}>{b.title}</option>
+                            ))}
+                        </select>
+                        <span className="calendar__select-caret">▾</span>
+                    </div>
+                )}
             </div>
 
             <div className="calendar__coop-tabs">

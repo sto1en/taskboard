@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import useT from '../../hooks/useT'
-import { PriorityStars } from '../task/PriorityStars'
+import { PriorityStars, hasPriorityStars } from '../task/PriorityStars'
 
 // Санитайз HTML
 function sanitizeHtml(html) {
@@ -120,7 +120,7 @@ export default function SearchResultItem({ item, onOpenTask }) {
     const restTags = allItemTags.length - visibleTags.length
 
     const hasStatus = item.kind === 'task' && item.statusTitle
-    const hasPriority = item.kind === 'task' && item.priority !== 0 && item.priority != null
+    const hasPriority = item.kind === 'task' && hasPriorityStars(item.priority)
     const hasTags = visibleTags.length > 0
 
     return (

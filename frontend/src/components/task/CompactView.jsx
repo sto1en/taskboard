@@ -27,7 +27,7 @@ import {
     isCancelled as checkIsCancelled,
     isExpired as checkIsExpired,
 } from '../../utils/sortTasks'
-import { PriorityStars } from './PriorityStars'
+import { PriorityStars, hasPriorityStars } from './PriorityStars'
 import { useAuth } from '../../context/AuthContext'
 import useT from '../../hooks/useT'
 import { localizeStatusTitle } from '../../utils/statusNames'
@@ -168,7 +168,7 @@ function StaticCompactTask({
                             onSave={saveTitle}
                             title={t.edit}
                         />
-                        {task.priority !== 0 && task.priority != null && (
+                        {hasPriorityStars(task.priority) && (
                             <PriorityStars
                                 priority={task.priority}
                                 className="compact-task__priority"
@@ -419,7 +419,7 @@ function SortableCompactTask({
                             onSave={saveTitle}
                             title={t.edit}
                         />
-                        {task.priority !== 0 && task.priority != null && (
+                        {hasPriorityStars(task.priority) && (
                             <PriorityStars
                                 priority={task.priority}
                                 className="compact-task__priority"

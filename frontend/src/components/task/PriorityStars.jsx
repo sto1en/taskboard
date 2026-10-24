@@ -1,9 +1,9 @@
 /**
- * Приоритет в виде 1–3 звёзд.
+ * Приоритет в виде 2–3 звёзд.
  *
- * Почему звёзды: в меню было три текстовых варианта («Обычный», «Высокий»,
- * «Срочный»), из-за чего выбор занимал лишние клики и скролл. Звёзды
- * читаются быстрее и занимают одну строку.
+ * Звёзды рисуются только при priority >= 2 (PRIORITY_STARS_MIN): важная задача.
+ * Обычный (0) и низкий (-1) не показываются вообще — на карточках нет
+ * «пустых» ★★, которые раньше занимали место у заголовка.
  *
  * Маппинг на существующее поле backend (short priority):
  *   1 звезда  → -1 (низкий, «пох»)
@@ -13,6 +13,15 @@
 export const PRIORITY_LOW = -1
 export const PRIORITY_NORMAL = 0
 export const PRIORITY_HIGH = 2
+
+// Звёзды показываем только для действительно важных задач (2 и выше).
+// Обычный (0) и низкий (-1) приоритет — без звёзд вовсе.
+export const PRIORITY_STARS_MIN = 2
+
+export function hasPriorityStars(priority) {
+    const value = Number(priority)
+    return Number.isFinite(value) && value >= PRIORITY_STARS_MIN
+}
 
 export function priorityToStars(priority) {
     const value = Number(priority)

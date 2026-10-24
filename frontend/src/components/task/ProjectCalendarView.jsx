@@ -39,6 +39,20 @@ function sortDayTasks(tasks) {
     })
 }
 
+// Тот же порог «тепловой карты», что в большом календаре (CalendarPage),
+// чтобы ячейка светилась по одинаковым правилам в обоих видах.
+export function heatLevelByDoneCount(doneCount) {
+    if (doneCount <= 0) return 0
+    if (doneCount <= 1) return 1
+    if (doneCount <= 3) return 2
+    if (doneCount <= 5) return 3
+    return 4
+}
+
+function isCompletedTask(task) {
+    return task.statusCategoryCode === 'DONE' || task.statusCategoryCode === 'ARCHIVED'
+}
+
 /**
  * Календарный вид проекта: слева компактный месячный календарь,
  * справа — задачи, сгруппированные по дням (а не по статусам).
@@ -281,6 +295,9 @@ export default function ProjectCalendarView({
                             const isToday = iso === todayIso
                             const isSelected = iso === selectedDate
                             const isWeekend = (i % 7) >= 5
+                            const heatLevel = heatLevelByDoneCount(
+                                list.filter(isCompletedTask).length
+                            )
 
                             return (
                                 <button
@@ -291,6 +308,7 @@ export default function ProjectCalendarView({
                                         isWeekend ? 'pcal__cell--weekend' : '',
                                         isToday ? 'pcal__cell--today' : '',
                                         isSelected ? 'pcal__cell--selected' : '',
+                                        `pcal__cell--heat-${heatLevel}`,
                                         dragOverDate === iso ? 'pcal__cell--drop' : '',
                                     ].filter(Boolean).join(' ')}
                                     onClick={() => handleDayClick(day)}
@@ -310,7 +328,9 @@ export default function ProjectCalendarView({
                                             : dateLabel(day)
                                     }
                                 >
-                                    <span className="pcal__daynum">{day}</span>
+                                    <span className="pcal__cell-head">
+                                        <span className="pcal__daynum">{day}</span>
+                                    </span>
                                     <span className="pcal__dots">
                                         {dots.map((task) => (
                                             <span

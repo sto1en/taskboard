@@ -311,9 +311,14 @@ export const statsApi = {
 // Calendar
 // ============================================================
 export const calendarApi = {
-    get: (from, to, projectId) =>
+    get: (from, to, projectId, boardId) =>
         api.get('/calendar', {
-            params: { from, to, ...(projectId == null ? {} : { projectId }) },
+            params: {
+                from,
+                to,
+                ...(projectId == null ? {} : { projectId }),
+                ...(boardId == null ? {} : { boardId }),
+            },
         }),
 }
 

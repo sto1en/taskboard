@@ -558,6 +558,7 @@ html[data-theme="dark"] .search-result__kind {
     font-size: 14px;
     flex-shrink: 0;
     line-height: 1;
+    margin-left: auto;
 }
 
 /* Правый блок первой строки */

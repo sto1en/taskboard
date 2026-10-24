@@ -2,7 +2,7 @@ import { tasksApi } from '../../api/api'
 import InlineEdit from '../common/InlineEdit'
 import { formatDeadline } from '../../utils/format'
 import { isDone as checkIsDone, isCancelled as checkIsCancelled, isExpired as checkIsExpired } from '../../utils/sortTasks'
-import { PriorityStars } from './PriorityStars'
+import { PriorityStars, hasPriorityStars } from './PriorityStars'
 
 /**
  * Компактная подзадача внутри карточки задачи.
@@ -64,7 +64,7 @@ export default function Subtask({
                     title="Двойной клик — редактировать название"
                 />
 
-                {subtask.priority !== 0 && subtask.priority != null && (
+                {hasPriorityStars(subtask.priority) && (
                     <PriorityStars
                         priority={subtask.priority}
                         className="subtask-mini__priority"

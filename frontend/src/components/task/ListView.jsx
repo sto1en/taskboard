@@ -26,7 +26,7 @@ import {
     isCancelled as checkIsCancelled,
     isExpired as checkIsExpired,
 } from '../../utils/sortTasks'
-import { PriorityStars } from './PriorityStars'
+import { PriorityStars, hasPriorityStars } from './PriorityStars'
 
 function SortableTaskRow({
                              task, doneStatusId, activeStatusId,
@@ -176,7 +176,7 @@ function SortableTaskRow({
                             onSave={saveTitle}
                             title="Двойной клик — редактировать название"
                         />
-                        {task.priority !== 0 && task.priority != null && (
+                        {hasPriorityStars(task.priority) && (
                             <PriorityStars
                                 priority={task.priority}
                                 className="word-list__priority"

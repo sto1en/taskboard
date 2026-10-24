@@ -45,6 +45,12 @@ public class CalendarService {
 
     @Transactional(readOnly = true)
     public CalendarDto getCalendar(LocalDate from, LocalDate to, Long projectId, User user) {
+        return getCalendar(from, to, projectId, null, user);
+    }
+
+    @Transactional(readOnly = true)
+    public CalendarDto getCalendar(LocalDate from, LocalDate to, Long projectId,
+                                   Long boardId, User user) {
 
         List<Board> boards = boardRepository.findByOwnerIdOrderByPositionAsc(user.getId());
         List<Long> ownedProjectIds = new ArrayList<>();
@@ -55,8 +61,19 @@ public class CalendarService {
 
         // Групповые проекты: доступ через project_members, доски-носителя
         // у пользователя нет, поэтому в список «своих» они не попадают.
-        for (Long id : projectMemberRepository.findProjectIdsByUserId(user.getId())) {
+        List<Long> memberProjectIds = projectMemberRepository.findProjectIdsByUserId(user.getId());
+        for (Long id : memberProjectIds) {
             if (!ownedProjectIds.contains(id)) ownedProjectIds.add(id);
+        }
+
+        // Доступные доски: свои + доски, где пользователь участник. Нужен
+        // для фильтра календаря — чужая доска просто даст пустой месяц.
+        List<Long> availableBoardIds = new ArrayList<>();
+        for (Board board : boards) {
+            availableBoardIds.add(board.getId());
+        }
+        for (Long id : boardMemberRepository.findBoardIdsByUserId(user.getId())) {
+            if (!availableBoardIds.contains(id)) availableBoardIds.add(id);
         }
 
         // Календарь проекта: оставляем только его задачи. Если проект не
@@ -65,6 +82,14 @@ public class CalendarService {
         if (projectId != null) {
             projectIds = ownedProjectIds.contains(projectId)
                     ? List.of(projectId)
+                    : List.of();
+        } else if (boardId != null) {
+            // Календарь доски: задачи всех её проектов.
+            projectIds = availableBoardIds.contains(boardId)
+                    ? projectRepository.findByBoardIdOrderByPositionAsc(boardId)
+                            .stream()
+                            .map(p -> p.getId())
+                            .collect(Collectors.toList())
                     : List.of();
         }
 
@@ -88,10 +113,10 @@ public class CalendarService {
             Task task = schedule.getTask();
             TaskSettings settings = taskSettingsRepository.findById(task.getId()).orElse(null);
 
-            Long boardId = task.getProject().getBoard() != null
+            Long taskBoardId = task.getProject().getBoard() != null
                     ? task.getProject().getBoard().getId() : null;
-            boolean coop = boardId != null
-                    && coopByBoard.computeIfAbsent(boardId, id -> {
+            boolean coop = taskBoardId != null
+                    && coopByBoard.computeIfAbsent(taskBoardId, id -> {
                         Board b = boardRepository.findById(id).orElse(null);
                         if (b != null && Boolean.TRUE.equals(b.getIsGroup())) return true;
                         return boardMemberRepository.countByBoardId(id) > 1;
@@ -123,7 +148,7 @@ public class CalendarService {
                     .title(task.getTitle())
                     .projectId(task.getProject().getId())
                     .projectTitle(task.getProject().getTitle())
-                    .boardId(boardId)
+                    .boardId(taskBoardId)
                     .coop(coop)
                     .group(task.getProject().getBoard() != null
                             && Boolean.TRUE.equals(task.getProject().getBoard().getIsGroup()))

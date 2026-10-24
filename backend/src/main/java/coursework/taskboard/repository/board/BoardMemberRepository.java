@@ -27,6 +27,10 @@ public interface BoardMemberRepository
     Optional<String> findRoleByBoardIdAndUserId(@Param("boardId") Long boardId,
                                                 @Param("userId") Long userId);
 
+    // Доски, где пользователь участник (для фильтра календаря).
+    @Query("SELECT bm.board.id FROM BoardMember bm WHERE bm.user.id = :userId")
+    List<Long> findBoardIdsByUserId(@Param("userId") Long userId);
+
     @Query("SELECT COUNT(bm) > 0 FROM BoardMember bm " +
             "WHERE bm.board.id = :boardId AND bm.user.id = :userId")
     boolean existsByBoardIdAndUserId(@Param("boardId") Long boardId,

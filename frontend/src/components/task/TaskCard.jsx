@@ -7,7 +7,7 @@ import DetailTextEditor from './DetailTextEditor'
 import AvatarWithFrame from '../layout/AvatarWithFrame'
 import { formatDeadline } from '../../utils/format'
 import { isDone as checkIsDone, isCancelled as checkIsCancelled, isExpired as checkIsExpired } from '../../utils/sortTasks'
-import { PriorityStars } from './PriorityStars'
+import { PriorityStars, hasPriorityStars } from './PriorityStars'
 import useT from '../../hooks/useT'
 
 // Кэш «проект коопный?» по projectId: в личных проектах последний редактор
@@ -189,7 +189,7 @@ export default function TaskCard({
                     title={t.edit}
                 />
 
-                {task.priority !== 0 && task.priority != null && (
+                {hasPriorityStars(task.priority) && (
                     <PriorityStars
                         priority={task.priority}
                         className="task-card__priority"

@@ -52,14 +52,34 @@
 }
 
 .calendar__head {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: space-between;
     gap: 16px;
     padding: 4px 4px 0;
     background: transparent;
     border: none;
     box-shadow: none;
+}
+
+/* Кнопки ‹ › разъезжаются по краям, месяц/год — по центру. */
+.calendar__head > .calendar__nav-btn[aria-label="Предыдущий месяц"] { order: 1; }
+.calendar__head > .calendar__selectors { order: 2; flex: 1; }
+.calendar__head > .calendar__nav-btn[aria-label="Следующий месяц"] { order: 3; }
+
+/* Выбор доски — вторая строка шапки, по центру под месяцем/годом. */
+.calendar__board-select {
+    order: 5;
+    flex: 0 0 100%;
+    width: 100%;
+    justify-content: center;
+    margin-top: -6px;
+}
+
+.calendar__board-select .calendar__select {
+    min-width: 180px;
+    max-width: 340px;
 }
 
 .calendar__nav-btn {
@@ -650,22 +670,31 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
 .pcal__weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
+    gap: 6px;
 }
 
 .pcal__weekday {
-    padding: 2px 0;
+    padding: 6px 4px;
     text-align: center;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: var(--text-muted);
+    letter-spacing: 0.7px;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--accent, var(--primary)) 45%, var(--border));
+    border-radius: 10px;
     user-select: none;
 }
 
 .pcal__weekday--weekend {
     color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+
+html[data-theme="dark"] .pcal__weekday--weekend {
+    color: #f87171;
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
 }
 
 .pcal__grid {
@@ -674,22 +703,24 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     grid-auto-rows: minmax(46px, 1fr);
-    gap: 4px;
+    gap: 6px;
 }
 
 .pcal__cell {
+    position: relative;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     justify-content: space-between;
-    gap: 4px;
+    gap: 6px;
     min-width: 0;
-    padding: 7px 9px;
+    padding: 8px 10px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     color: var(--text);
     font-family: inherit;
+    font-size: inherit;
     text-align: left;
     cursor: pointer;
     overflow: hidden;
@@ -697,7 +728,7 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
 }
 
 .pcal__cell:hover {
-    border-color: color-mix(in srgb, var(--accent, var(--primary)) 45%, var(--border));
+    border-color: color-mix(in srgb, var(--accent, var(--primary)) 40%, var(--border));
     box-shadow: var(--shadow-sm);
 }
 
@@ -713,11 +744,56 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
     background: color-mix(in srgb, #97a0af 8%, var(--surface));
 }
 
-.pcal__cell--today {
-    border-color: color-mix(in srgb, var(--accent, var(--primary)) 55%, var(--border));
-    background: color-mix(in srgb, var(--accent, var(--primary)) 5%, var(--surface));
+/* GitHub-style heat — те же уровни и оттенок, что в большом календаре. */
+.pcal__cell--heat-1 {
+    background: color-mix(in srgb, #36b37e 7%, var(--surface));
+}
+.pcal__cell--heat-2 {
+    background: color-mix(in srgb, #36b37e 14%, var(--surface));
+}
+.pcal__cell--heat-3 {
+    background: color-mix(in srgb, #36b37e 22%, var(--surface));
+}
+.pcal__cell--heat-4 {
+    background: color-mix(in srgb, #36b37e 32%, var(--surface));
+}
+html[data-theme="dark"] .pcal__cell--heat-1 {
+    background: color-mix(in srgb, #36b37e 9%, var(--surface));
+}
+html[data-theme="dark"] .pcal__cell--heat-2 {
+    background: color-mix(in srgb, #36b37e 17%, var(--surface));
+}
+html[data-theme="dark"] .pcal__cell--heat-3 {
+    background: color-mix(in srgb, #36b37e 26%, var(--surface));
+}
+html[data-theme="dark"] .pcal__cell--heat-4 {
+    background: color-mix(in srgb, #36b37e 38%, var(--surface));
 }
 
+/* Сегодня — как в большом календаре: акцентный отступ + полоска сверху,
+   само число без заливки. */
+.pcal__cell--today {
+    border-color: color-mix(in srgb, var(--accent, var(--primary)) 55%, var(--border));
+    background: color-mix(in srgb, var(--accent, var(--primary)) 4%, var(--surface));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, var(--primary)) 15%, transparent);
+}
+
+.pcal__cell--today::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: var(--primary);
+    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    border-radius: 10px 10px 0 0;
+}
+
+/* Выбранный день — мягкое выделение акцентом (аналог наведения в большом). */
 .pcal__cell--selected {
     border-color: var(--accent, var(--primary));
     background: color-mix(in srgb, var(--accent, var(--primary)) 10%, var(--surface));
@@ -729,26 +805,35 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
     border-color: var(--accent, var(--primary));
 }
 
+.pcal__cell-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .pcal__daynum {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 24px;
-    height: 24px;
-    padding: 0 2px;
+    width: 26px;
+    height: 26px;
+    padding: 0;
     border-radius: 50%;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 800;
     line-height: 1;
+    flex-shrink: 0;
+    align-self: flex-start;
+    transition: background .15s, color .15s;
 }
 
 .pcal__cell--today .pcal__daynum {
-    background-color: var(--primary);
-    background-image: var(--accent-gradient, linear-gradient(var(--accent), var(--accent)));
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    color: #fff;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+    background: none;
+    background-image: none;
+    color: var(--accent, var(--primary));
+    font-weight: 900;
+    text-shadow: none;
 }
 
 .pcal__cell--weekend .pcal__daynum {
@@ -756,7 +841,17 @@ html[data-theme="dark"] .calendar__cell--weekend:hover .calendar__daynum {
 }
 
 .pcal__cell--today .pcal__daynum {
-    color: #fff;
+    color: var(--accent, var(--primary));
+}
+
+.pcal__cell:hover .pcal__daynum {
+    color: var(--text);
+}
+.pcal__cell--today:hover .pcal__daynum {
+    color: var(--accent, var(--primary));
+}
+.pcal__cell--weekend:hover .pcal__daynum {
+    color: var(--danger);
 }
 
 .pcal__dots {
